@@ -1,0 +1,3 @@
+[submodule "external/fastpfor"]
+	path = external/fastpfor
+	url = https://github.com/lemire/FastPFor.git
