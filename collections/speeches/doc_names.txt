@@ -1,0 +1,5 @@
+/devhome6/mpetri/collections/speeches/lyndon_b_johnson-we_shall_overcome.txt
+/devhome6/mpetri/collections/speeches/john_f_kennedy_-the_decision_to_go_to_the_moon.txt
+/devhome6/mpetri/collections/speeches/mahatma_gandhi-quit_india.txt
+/devhome6/mpetri/collections/speeches/martin_luther_king_jr-i_have_a_dream.txt
+/devhome6/mpetri/collections/speeches/john_f_kennedy_-ich_bin_ein_berliner.txt
