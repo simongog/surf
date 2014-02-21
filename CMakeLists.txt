@@ -7,7 +7,9 @@ project(SURF CXX C)
 
 INCLUDE_DIRECTORIES(${CMAKE_HOME_DIRECTORY}/include
                     ${CMAKE_HOME_DIRECTORY}/external/fastpfor/headers/
-                    ${CMAKE_BINARY_DIR}/external/sdsl-lite/include)
+                    ${CMAKE_BINARY_DIR}/external/sdsl-lite/include
+                    ${CMAKE_BINARY_DIR}/external/sdsl-lite/external/libdivsufsort-2.0.1/include
+                    )
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/external/sdsl-lite/lib)
 
 append_cxx_compiler_flags("-msse4.2 -std=c++11 -Wall -DNDEBUG" "GCC" CMAKE_CXX_FLAGS)
@@ -41,5 +43,8 @@ foreach(f ${index_config_files})
 	ADD_EXECUTABLE(surf_search-${NAME} src/surf_search.cpp)
 	TARGET_LINK_LIBRARIES(surf_search-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib)
 	set_property(TARGET surf_search-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
+
+    ADD_EXECUTABLE(test src/test.cpp)
+	TARGET_LINK_LIBRARIES(test sdsl divsufsort divsufsort64 pthread)
 
 endforeach(f)

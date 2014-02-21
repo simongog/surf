@@ -3,6 +3,8 @@
 
 #include <string>
 
+namespace surf{
+
 const std::string KEY_DOCWEIGHT = "docweights";
 const std::string KEY_DARRAY = "darray";
 const std::string KEY_DOCPERM = "docperm";
@@ -14,5 +16,7 @@ const std::string KEY_WTC = "wtc";
 const std::string KEY_TMPCST = "tempcst";
 const std::string KEY_TMPDUP = "tmpdup";
 const std::string KEY_WTDUP  = "wtdup";
+const std::string KEY_DOCCNT  = "doccnt";
 
+} // end namespace
 #endif
