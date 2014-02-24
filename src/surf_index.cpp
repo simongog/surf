@@ -1,12 +1,8 @@
-#include <unistd.h>
-#include <stdlib.h>
-#include <iostream>
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include "sdsl/config.hpp"
 #include "surf/indexes.hpp"
+#include "surf/config.hpp"
+#include "surf/util.hpp"
 
 typedef struct cmdargs {
     std::string collection_dir;
@@ -44,43 +40,37 @@ parse_args(int argc,char* const argv[])
     return args;
 }
 
-bool
-directory_exists(std::string dir)
-{
-    struct stat sb;
-    const char* pathname = dir.c_str();
-    if (stat(pathname, &sb) == 0 && S_ISDIR(sb.st_mode)) {
-        return true;
-    }
-    return false;
-}
-
-void
-create_directory(std::string dir)
-{
-    if (!directory_exists(dir)) {
-        if (mkdir(dir.c_str(),0777) == -1) {
-            perror("could not create directory");
-            exit(EXIT_FAILURE);
-        }
-    }
-}
 
 sdsl::cache_config
 parse_collection(std::string collection_dir)
 {
-    sdsl::cache_config config;
-
     /* check if all the directories exist */
-    if (! directory_exists(collection_dir)) {
-        std::cerr << collection_dir << " is not a valid directory.\n";
+    if( !surf::util::valid_collection(collection_dir) ) {
         exit(EXIT_FAILURE);
     }
-    create_directory(collection_dir+"/tmp/");
-    create_directory(collection_dir+"/index/");
+
+    std::string index_directory = collection_dir+"/index/";
+    surf::util::create_directory(index_directory);
 
     /* populate cache config */
+    sdsl::cache_config config(false,collection_dir+"/index/","SURF");
 
+    /* create symlink to text in index directory */
+    std::string symlink_name = cache_file_name(sdsl::conf::KEY_TEXT_INT,config);
+    if( ! surf::util::symlink_exists(cache_file_name(sdsl::conf::KEY_TEXT_INT,config)) ) {
+        std::string collection_file = collection_dir+"/"+surf::TEXT_FILENAME;
+        char* col_file_absolute = realpath(collection_file.c_str(), NULL);
+        if( symlink(col_file_absolute,symlink_name.c_str()) != 0) {
+            perror("cannot create symlink to collection file in index directory");
+            exit(EXIT_FAILURE);
+        }
+        free(col_file_absolute);
+    }
+
+    /* register files that are present */
+    for(const auto& key : surf::storage_keys) {
+        register_cache_file(key,config);
+    }
 
     return config;
 }
@@ -104,17 +94,6 @@ int main(int argc,char* const argv[])
     auto build_stop = clock::now();
     auto build_time_sec = std::chrono::duration_cast<std::chrono::seconds>(build_stop-build_start);
     std::cout << "Index built in " << build_time_sec.count() << " seconds." << std::endl;
-
-    // write index
-    std::string output_file = args.collection_dir + "/index/" + index_name;
-    std::cout << "Writing index to file " << output_file << std::endl;
-    auto write_start = clock::now();
-    std::ofstream ofile(output_file);
-    index.serialize(ofile);
-    ofile.close();
-    auto write_stop = clock::now();
-    auto write_time_sec = std::chrono::duration_cast<std::chrono::seconds>(write_stop-write_start);
-    std::cout << "Index written to disk in " << write_time_sec.count() << " seconds." << std::endl;
 
     return EXIT_SUCCESS;
 }
