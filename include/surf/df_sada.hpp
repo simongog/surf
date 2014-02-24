@@ -3,6 +3,8 @@
 
 #include "config.hpp"
 #include "construct_doc_cnt.hpp"
+#include "construct_doc_border.hpp"
+#include "construct_darray.hpp"
 #include <sdsl/bit_vectors.hpp>
 #include <sdsl/suffix_trees.hpp>
 #include <tuple>
@@ -60,7 +62,8 @@ class df_sada{
 
             // int_vector_buffer which will contain the positions of the duplicates in the
             // C array after this scope
-            int_vector_buffer<> temp_dup(cache_file_name(KEY_TMPDUP, cconfig), std::ios::out);
+            int_vector_buffer<> temp_dup(cache_file_name(KEY_TMPDUP, cconfig), std::ios::out,
+                                         1024*1024, bits::hi(wtc.size())+1);
 
             string d_file = cache_file_name(surf::KEY_DARRAY, cconfig);
             int_vector_buffer<> D(d_file);
@@ -190,10 +193,15 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
                sdsl::cache_config& cconfig, uint8_t num_bytes){
     using namespace sdsl;
 
+    cout << "construct(df_sada)"<< endl;
+    register_cache_file(sdsl::conf::KEY_TEXT_INT, cconfig);
+    cout << "cache_file_name: "<< cache_file_name(sdsl::conf::KEY_TEXT_INT, cconfig) << endl;
+
     if (!cache_file_exists(sdsl::conf::KEY_SA, cconfig)) {
         construct_sa<t_alphabet::WIDTH>(cconfig);
     }
     register_cache_file(sdsl::conf::KEY_SA, cconfig);
+    cout << "sa constructed"<< endl;
 
     if (!cache_file_exists(sdsl::conf::KEY_LCP, cconfig)) {
         if (t_alphabet::WIDTH == 8) {
@@ -218,6 +226,15 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
     uint64_t doc_cnt = 0;
     load_from_cache(doc_cnt, KEY_DOCCNT, cconfig);
 
+    cout << "doc_cnt = " << doc_cnt << endl;
+
+    if (!cache_file_exists(surf::KEY_DOCBORDER, cconfig)){
+        construct_doc_border<t_alphabet::WIDTH>(cconfig);
+    }
+    if (!cache_file_exists(surf::KEY_DARRAY, cconfig)){
+        construct_darray<t_alphabet::WIDTH>(cconfig);
+    }
+
     typename df_sada<t_bv,t_sel,t_alphabet>::wtc_type wtc;
     string d_file = cache_file_name(surf::KEY_DARRAY, cconfig);
     int_vector_buffer<> D(d_file);
@@ -239,6 +256,7 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
         sdsl::remove(cache_file_name(surf::KEY_C, cconfig));
         store_to_file(wtc, cache_file_name(surf::KEY_WTC, cconfig));
     }
+    cout << "call df_sada construct" << endl;
     idx = df_sada<t_bv,t_sel,t_alphabet>(cconfig);
 }
 
