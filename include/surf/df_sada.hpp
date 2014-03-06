@@ -104,10 +104,10 @@ class df_sada{
                     } else {
                         auto mid_rb = temp_cst.rb(temp_cst.select_child(v, mid));
                         auto mid_lb = mid_rb + 1;
-                        auto dup_info = wtc.range_search_2d(mid_lb, rb, lb, mid_rb, true);
-                        dup_elements = std::get<0>(dup_info);
-                        for (auto& dup : std::get<1>(dup_info)) {
-                            temp_dup[dup_idx++] = dup.first;
+                        auto dup_info = restricted_unique_range_values(wtc, mid_lb, rb, lb, mid_rb);
+                        dup_elements = dup_info.size();
+                        for (auto& dup : dup_info) {
+                            temp_dup[dup_idx++] = dup;
                         }
                     }
                     h_idx += dup_elements;
