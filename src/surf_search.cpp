@@ -57,9 +57,10 @@ int main(int argc,char* const argv[])
     /* load the index */
     std::string index_file = args.collection_dir = "/index/" + index_name;
     std::ifstream ifs(index_file);
+    surf_index_t index;
     if (ifs.is_open()) {
         auto load_start = clock::now();
-        surf_index_t index(ifs);
+        index.load(ifs);
         auto load_stop = clock::now();
         auto load_time_sec = std::chrono::duration_cast<std::chrono::seconds>(load_stop-load_start);
         std::cout << "Index loaded in " << load_time_sec.count() << " seconds." << std::endl;

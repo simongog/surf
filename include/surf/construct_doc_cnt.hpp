@@ -1,5 +1,5 @@
-#ifndef CONSTRUCT_DOC_CNT_HPP
-#define CONSTRUCT_DOC_CNT_HPP
+#ifndef SURF_CONSTRUCT_DOC_CNT_HPP
+#define SURF_CONSTRUCT_DOC_CNT_HPP
 
 #include <sdsl/int_vector.hpp>
 #include <algorithm>

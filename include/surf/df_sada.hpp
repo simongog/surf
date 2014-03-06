@@ -127,23 +127,6 @@ class df_sada{
             // convert to proper bv type
             m_bv = bit_vector_type(h);
             util::clear(wtc);
-/*            
-            {
-                auto event = memory_monitor::event("replace dup");
-                // replace the positions of the duplicates by their values
-                int_vector_buffer<> temp_dup(cache_file_name(KEY_TMPDUP, cconfig));
-                std::string d_file = cache_file_name(KEY_DARRAY, cconfig);
-                int_vector<> D;
-                load_from_file(D, d_file);
-                for (auto x : temp_dup) {
-                    x = D[x];
-                }
-            }
-            {
-                auto event = memory_monitor::event("construct dup wt");
-                construct(m_dup_wt, cache_file_name(KEY_TMPDUP, cconfig));
-            }
-*/            
             m_sel = select_type(&m_bv);
         }
 

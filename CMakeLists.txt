@@ -44,7 +44,9 @@ foreach(f ${index_config_files})
 	TARGET_LINK_LIBRARIES(surf_search-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib)
 	set_property(TARGET surf_search-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 
-    ADD_EXECUTABLE(test src/test.cpp)
-	TARGET_LINK_LIBRARIES(test sdsl divsufsort divsufsort64 pthread)
-
 endforeach(f)
+
+ADD_EXECUTABLE(test src/test.cpp)
+TARGET_LINK_LIBRARIES(test sdsl divsufsort divsufsort64 pthread)
+
+

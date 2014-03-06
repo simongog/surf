@@ -1,12 +1,13 @@
 #ifndef SURF_CONFIG_HPP
 #define SURF_CONFIG_HPP
 
+#include "sdsl/config.hpp"
 #include <string>
 #include <vector>
 
 namespace surf{
 
-const std::string TEXT_FILENAME = "text_int.sdsl";
+const std::string TEXT_FILENAME = "text_int_SURF.sdsl";
 const std::string DICT_FILENAME = "dict.txt";
 const std::string DOCNAMES_FILENAME = "doc_names.txt";
 
@@ -36,7 +37,15 @@ std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_TMPCST,
 										 KEY_TMPDUP,
 										 KEY_WTDUP,
-										 KEY_DOCCNT};
+										 KEY_DOCCNT,
+                                         sdsl::conf::KEY_TEXT,
+                                         sdsl::conf::KEY_TEXT_INT,
+                                         sdsl::conf::KEY_SA,
+                                         sdsl::conf::KEY_LCP,
+                                         sdsl::conf::KEY_BWT,
+                                         sdsl::conf::KEY_BWT_INT,
+                                         sdsl::conf::KEY_PSI
+               };
 
 } // end namespace
 #endif

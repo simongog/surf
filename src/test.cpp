@@ -5,10 +5,8 @@ using namespace surf;
 using namespace sdsl;
 
 int main(){
-    
-    
-    csa_wt<wt_int<>> csa;
-
+//    csa_wt<wt_int<>> csa;
     df_sada<> df;
-    construct(df, "text.txt");
+    cache_config cc(false, "../collections/wikishort/index", "SURF");
+    construct(df, "", cc, 0);
 }

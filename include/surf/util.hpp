@@ -1,6 +1,8 @@
 #ifndef SURF_UTIL_HPP
 #define SURF_UTIL_HPP
 
+#include "surf/config.hpp"
+
 #include <string>
 #include <unistd.h>
 #include <stdlib.h>
@@ -29,7 +31,7 @@ directory_exists(std::string dir)
 bool
 file_exists(std::string file_name)
 {
-    isfstream in(file_name);
+    sdsl::isfstream in(file_name);
     if (in) {
         in.close();
         return true;

@@ -1,7 +1,6 @@
 
 #include "sdsl/config.hpp"
 #include "surf/indexes.hpp"
-#include "surf/config.hpp"
 #include "surf/util.hpp"
 
 typedef struct cmdargs {
@@ -69,6 +68,7 @@ parse_collection(std::string collection_dir)
 
     /* register files that are present */
     for(const auto& key : surf::storage_keys) {
+        cout<<"key="<<key<<endl;
         register_cache_file(key,config);
     }
 
@@ -82,15 +82,20 @@ int main(int argc,char* const argv[])
     cmdargs_t args = parse_args(argc,argv);
 
     /* parse repo */
-    sdsl::cache_config config = parse_collection(args.collection_dir);
+    sdsl::cache_config cc = parse_collection(args.collection_dir);
+    std::cout<<"parse collections"<<std::endl;
+    for(auto x : cc.file_map){
+        std::cout<<x.first<<" "<<x.second<<std::endl;
+    }
 
     /* define types */
     using surf_index_t = INDEX_TYPE;
     std::string index_name = IDXNAME;
 
     /* build the index */
+    surf_index_t index;
     auto build_start = clock::now();
-    surf_index_t index(config);
+    construct(index, "", cc, 0);
     auto build_stop = clock::now();
     auto build_time_sec = std::chrono::duration_cast<std::chrono::seconds>(build_stop-build_start);
     std::cout << "Index built in " << build_time_sec.count() << " seconds." << std::endl;
