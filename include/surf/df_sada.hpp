@@ -31,6 +31,7 @@ template<typename t_bv=sdsl::bit_vector,
          typename t_alphabet=sdsl::int_alphabet_tag>
 class df_sada{
     public:
+        typedef typename sdsl::int_vector<>::size_type size_type;
         typedef t_bv  bit_vector_type;
         typedef t_sel select_type;
         typedef t_alphabet alphabet_category;
@@ -46,26 +47,26 @@ class df_sada{
         df_sada()=default;
 
         //! Constructor
-        /*! \param cconfig cache_config which should contain the
+        /*! \param cc cache_config which should contain the
          *         following files:
          *           - 
          */
-        df_sada(sdsl::cache_config& cconfig){
+        df_sada(sdsl::cache_config& cc){
             using namespace sdsl;
             auto event = memory_monitor::event("construct df_sada");
 
             cst_type temp_cst;
             wtc_type wtc;
 
-            load_from_file(temp_cst, cache_file_name(surf::KEY_TMPCST, cconfig));
-            load_from_file(wtc, cache_file_name(surf::KEY_WTC, cconfig));
+            load_from_file(temp_cst, cache_file_name(surf::KEY_TMPCST, cc));
+            load_from_file(wtc, cache_file_name(surf::KEY_WTC, cc));
 
             // int_vector_buffer which will contain the positions of the duplicates in the
             // C array after this scope
-            int_vector_buffer<> temp_dup(cache_file_name(KEY_TMPDUP, cconfig), std::ios::out,
+            int_vector_buffer<> temp_dup(cache_file_name(KEY_TMPDUP, cc), std::ios::out,
                                          1024*1024, bits::hi(wtc.size())+1);
 
-            string d_file = cache_file_name(surf::KEY_DARRAY, cconfig);
+            string d_file = cache_file_name(surf::KEY_DARRAY, cc);
             int_vector_buffer<> D(d_file);
 
             // construct the bv
@@ -154,10 +155,10 @@ class df_sada{
             return std::make_tuple(ep - sp + 1 - dup, dup_begin, dup_end);
         }
 
-        uint64_t serialize(std::ostream& out, sdsl::structure_tree_node* v = NULL, string name = "") const {
+        size_type serialize(std::ostream& out, sdsl::structure_tree_node* v = NULL, string name = "") const {
             using namespace sdsl;
             structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
-            uint64_t written_bytes = 0;
+            size_type written_bytes = 0;
             written_bytes += m_bv.serialize(out, child, "m_bv");
             written_bytes += m_sel.serialize(out, child, "m_sel");
             structure_tree::add_size(child, written_bytes);
@@ -173,55 +174,56 @@ class df_sada{
 
 template<typename t_bv, typename t_sel, typename t_alphabet>
 void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
-               sdsl::cache_config& cconfig, uint8_t num_bytes){
+               sdsl::cache_config& cc, uint8_t num_bytes){
     using namespace sdsl;
+    typedef df_sada<t_bv, t_sel, t_alphabet> df_sada_type;
 
     cout << "construct(df_sada)"<< endl;
-    register_cache_file(sdsl::conf::KEY_TEXT_INT, cconfig);
-    cout << "cache_file_name: "<< cache_file_name(sdsl::conf::KEY_TEXT_INT, cconfig) << endl;
+    register_cache_file(sdsl::conf::KEY_TEXT_INT, cc);
+    cout << "cache_file_name: "<< cache_file_name(sdsl::conf::KEY_TEXT_INT, cc) << endl;
 
-    if (!cache_file_exists(sdsl::conf::KEY_SA, cconfig)) {
-        construct_sa<t_alphabet::WIDTH>(cconfig);
+    if (!cache_file_exists(sdsl::conf::KEY_SA, cc)) {
+        construct_sa<t_alphabet::WIDTH>(cc);
     }
-    register_cache_file(sdsl::conf::KEY_SA, cconfig);
+    register_cache_file(sdsl::conf::KEY_SA, cc);
     cout << "sa constructed"<< endl;
 
-    if (!cache_file_exists(sdsl::conf::KEY_LCP, cconfig)) {
+    if (!cache_file_exists(sdsl::conf::KEY_LCP, cc)) {
         if (t_alphabet::WIDTH == 8) {
-            construct_lcp_semi_extern_PHI(cconfig);
+            construct_lcp_semi_extern_PHI(cc);
         } else {
-            construct_lcp_PHI<t_alphabet::WIDTH>(cconfig);
+            construct_lcp_PHI<t_alphabet::WIDTH>(cc);
         }
     }
-    register_cache_file(sdsl::conf::KEY_LCP, cconfig);
+    register_cache_file(sdsl::conf::KEY_LCP, cc);
     using cst_type = typename df_sada<t_bv,t_sel,t_alphabet>::cst_type;
     cst_type temp_cst;
-    if (!cache_file_exists(KEY_TMPCST, cconfig)) {
+    if (!cache_file_exists(KEY_TMPCST, cc)) {
         auto event = memory_monitor::event("construct temp_cst");
-        temp_cst = cst_type(cconfig, true);
-        store_to_file(temp_cst, cache_file_name(surf::KEY_TMPCST, cconfig));
+        temp_cst = cst_type(cc, true);
+        store_to_file(temp_cst, cache_file_name(surf::KEY_TMPCST, cc));
     } 
 
-    if (!cache_file_exists(KEY_DOCCNT, cconfig)) {
-        construct_doc_cnt<t_alphabet::WIDTH>(cconfig);
+    if (!cache_file_exists(KEY_DOCCNT, cc)) {
+        construct_doc_cnt<t_alphabet::WIDTH>(cc);
     }
-    register_cache_file(KEY_DOCCNT, cconfig);
+    register_cache_file(KEY_DOCCNT, cc);
     uint64_t doc_cnt = 0;
-    load_from_cache(doc_cnt, KEY_DOCCNT, cconfig);
+    load_from_cache(doc_cnt, KEY_DOCCNT, cc);
 
     cout << "doc_cnt = " << doc_cnt << endl;
 
-    if (!cache_file_exists(surf::KEY_DOCBORDER, cconfig)){
-        construct_doc_border<t_alphabet::WIDTH>(cconfig);
+    if (!cache_file_exists(surf::KEY_DOCBORDER, cc)){
+        construct_doc_border<t_alphabet::WIDTH>(cc);
     }
-    if (!cache_file_exists(surf::KEY_DARRAY, cconfig)){
-        construct_darray<t_alphabet::WIDTH>(cconfig);
+    if (!cache_file_exists(surf::KEY_DARRAY, cc)){
+        construct_darray<t_alphabet::WIDTH>(cc);
     }
 
-    typename df_sada<t_bv,t_sel,t_alphabet>::wtc_type wtc;
-    string d_file = cache_file_name(surf::KEY_DARRAY, cconfig);
+    typename df_sada_type::wtc_type wtc;
+    string d_file = cache_file_name(surf::KEY_DARRAY, cc);
     int_vector_buffer<> D(d_file);
-    if (!cache_file_exists(surf::KEY_WTC, cconfig)) {
+    if (!cache_file_exists(surf::KEY_WTC, cc)) {
         {
             auto event = memory_monitor::event("construct c");
             int_vector<> C(D.size(), 0, bits::hi(D.size()) + 1);
@@ -232,15 +234,34 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
                 last_occ[d] = i;
             }
             util::bit_compress(C);
-            store_to_file(C, cache_file_name(surf::KEY_C, cconfig));
+            store_to_file(C, cache_file_name(surf::KEY_C, cc));
         }
         auto event = memory_monitor::event("construct wt_c");
-        construct(wtc, cache_file_name(surf::KEY_C, cconfig), cconfig, 0);
-        sdsl::remove(cache_file_name(surf::KEY_C, cconfig));
-        store_to_file(wtc, cache_file_name(surf::KEY_WTC, cconfig));
+        construct(wtc, cache_file_name(surf::KEY_C, cc), cc, 0);
+        sdsl::remove(cache_file_name(surf::KEY_C, cc));
+        store_to_file(wtc, cache_file_name(surf::KEY_WTC, cc));
     }
-    cout << "call df_sada construct" << endl;
-    idx = df_sada<t_bv,t_sel,t_alphabet>(cconfig);
+    cout << "call df_sada_type construct" << endl;
+
+    if ( !cache_file_exists<df_sada_type>(surf::KEY_SADADF, cc) ) {
+        df_sada_type tmp_sadadf(cc);
+        store_to_cache(idx, surf::KEY_SADADF,cc, true);
+    }
+
+    if (!cache_file_exists(surf::KEY_WTDUP, cc)){
+        auto event = memory_monitor::event("construct wtdup");
+        int_vector<> D_array;
+        load_from_file(D_array, d_file);
+        int_vector_buffer<> wt_tmpdup(cache_file_name(surf::KEY_TMPDUP,cc));
+        string wtdup_file = cache_file_name(surf::KEY_WTDUP, cc);
+        int_vector_buffer<> wt_dup(wtdup_file, std::ios::out,
+                                         1024*1024, D.width());
+        for (size_t i = 0; i < wt_tmpdup.size(); ++i){
+            wt_dup[i] = D_array[wt_tmpdup[i]];
+        }
+    }
+
+    load_from_cache(idx, surf::KEY_SADADF, cc, true);
 }
 
 

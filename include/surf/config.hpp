@@ -16,7 +16,6 @@ const std::string KEY_DOCWEIGHT = "docweights";
 const std::string KEY_DARRAY = "darray";
 const std::string KEY_DOCPERM = "docperm";
 const std::string KEY_SADADF = "sadadf";
-const std::string KEY_SADADFSEL = "sadadfsel";
 const std::string KEY_WTD = "wtd";
 const std::string KEY_C = "C";
 const std::string KEY_WTC = "wtc";
@@ -30,7 +29,6 @@ std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_DARRAY,
 										 KEY_DOCPERM,
 										 KEY_SADADF,
-										 KEY_SADADFSEL,
 										 KEY_WTD,
 										 KEY_C,
 										 KEY_WTC,
