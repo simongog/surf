@@ -101,7 +101,9 @@ class df_sada{
                     size_t dup_elements = 0;
                     if (lb + 1 == rb) {
                         dup_elements = (wtc[rb] == lb);
-                        temp_dup[dup_idx++] = lb;
+                        if (dup_elements) {
+                            temp_dup[dup_idx++] = lb;
+                        }
                     } else {
                         auto mid_rb = temp_cst.rb(temp_cst.select_child(v, mid));
                         auto mid_lb = mid_rb + 1;
@@ -223,6 +225,7 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
     typename df_sada_type::wtc_type wtc;
     string d_file = cache_file_name(surf::KEY_DARRAY, cc);
     int_vector_buffer<> D(d_file);
+    cout<<"n="<<D.size()<<endl;
     if (!cache_file_exists(surf::KEY_WTC, cc)) {
         {
             auto event = memory_monitor::event("construct c");
@@ -238,7 +241,7 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
         }
         auto event = memory_monitor::event("construct wt_c");
         construct(wtc, cache_file_name(surf::KEY_C, cc), cc, 0);
-        sdsl::remove(cache_file_name(surf::KEY_C, cc));
+//        sdsl::remove(cache_file_name(surf::KEY_C, cc));
         store_to_file(wtc, cache_file_name(surf::KEY_WTC, cc));
     }
     cout << "call df_sada_type construct" << endl;
