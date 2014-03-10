@@ -248,7 +248,7 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
 
     if ( !cache_file_exists<df_sada_type>(surf::KEY_SADADF, cc) ) {
         df_sada_type tmp_sadadf(cc);
-        store_to_cache(idx, surf::KEY_SADADF,cc, true);
+        store_to_cache(tmp_sadadf, surf::KEY_SADADF,cc, true);
     }
 
     if (!cache_file_exists(surf::KEY_WTDUP, cc)){
