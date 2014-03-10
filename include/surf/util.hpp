@@ -2,6 +2,7 @@
 #define SURF_UTIL_HPP
 
 #include "surf/config.hpp"
+#include "sdsl/io.hpp"
 
 #include <string>
 #include <unistd.h>
