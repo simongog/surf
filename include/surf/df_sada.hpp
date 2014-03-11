@@ -39,7 +39,10 @@ class df_sada{
         typedef t_alphabet alphabet_category;
 
         typedef sdsl::cst_sct3<> cst_type;
-        typedef sdsl::wt_int<>   wtc_type;
+        typedef sdsl::wt_int<sdsl::bit_vector,
+                             sdsl::rank_support_v<>,
+                             sdsl::select_support_scan<1>,
+                             sdsl::select_support_scan<0>>   wtc_type;
     private:
         bit_vector_type m_bv;
         select_type     m_sel;
@@ -57,6 +60,16 @@ class df_sada{
             using namespace sdsl;
             auto event = memory_monitor::event("construct df_sada");
 
+            if (cache_file_exists(KEY_H, cc)){
+                bit_vector h;
+                load_from_cache(h, KEY_H, cc);
+                store_to_cache(h, KEY_H, cc);
+                // convert to proper bv type
+                m_bv = bit_vector_type(h);
+                m_sel = select_type(&m_bv);
+                return;
+            }
+
             cst_type temp_cst;
             wtc_type wtc;
 
@@ -71,8 +84,23 @@ class df_sada{
             string d_file = cache_file_name(surf::KEY_DARRAY, cc);
             int_vector_buffer<> D(d_file);
 
+            bit_vector D_split(D.size()+1, 0);
+            {
+                std::set<uint64_t> seen;
+                for (size_t i=0; i<D.size(); ++i){
+                    uint64_t x = D[i];
+                    if ( seen.find(x) != seen.end() ){
+                        D_split[i] = 1;
+                        seen.clear();
+                    }
+                    seen.insert(x);
+                }
+            }
+            rank_support_v<> D_split_rank(&D_split);
+
             // construct the bv
             bit_vector h(2 * D.size(), 0);
+            util::set_to_value(h,0);
             size_t h_idx = 0, dup_idx = 0;
             using n_type = std::tuple<cst_sct3<>::node_type, size_t, size_t, bool>;
             std::stack<n_type> s;
@@ -101,7 +129,10 @@ class df_sada{
                     auto rb = temp_cst.rb(temp_cst.select_child(v, r_child));
                     auto mid = l_child + (r_child - l_child) / 2;
                     size_t dup_elements = 0;
-                    if (lb + 1 == rb) {
+                    if ( D_split_rank(lb+1) == D_split_rank(rb+1) ) {
+                    
+                    }
+                    else if (lb + 1 == rb) {
                         dup_elements = (wtc[rb] == lb);
                         if (dup_elements) {
                             temp_dup[dup_idx++] = lb;
@@ -225,27 +256,28 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
         construct_darray<t_alphabet::WIDTH>(cc);
     }
 
-    typename df_sada_type::wtc_type wtc;
+    using wtc_type  = typename df_sada_type::wtc_type;
+    wtc_type wtc;
     string d_file = cache_file_name(surf::KEY_DARRAY, cc);
     int_vector_buffer<> D(d_file);
     cout<<"n="<<D.size()<<endl;
-    if (!cache_file_exists(surf::KEY_WTC, cc)) {
-        {
-            auto event = memory_monitor::event("construct c");
-            int_vector<> C(D.size(), 0, bits::hi(D.size()) + 1);
-            int_vector<> last_occ(doc_cnt, D.size(), bits::hi(D.size()) + 1);
-            for (size_t i = 0; i < D.size(); ++i) {
-                uint64_t d = D[i];
-                C[i] = last_occ[d];
-                last_occ[d] = i;
-            }
-            util::bit_compress(C);
-            store_to_file(C, cache_file_name(surf::KEY_C, cc));
+    if (!cache_file_exists(surf::KEY_C, cc)){
+        auto event = memory_monitor::event("construct c");
+        int_vector<> C(D.size(), 0, bits::hi(D.size()) + 1);
+        int_vector<> last_occ(doc_cnt, D.size(), bits::hi(D.size()) + 1);
+        for (size_t i = 0; i < D.size(); ++i) {
+            uint64_t d = D[i];
+            C[i] = last_occ[d];
+            last_occ[d] = i;
         }
+        util::bit_compress(C);
+        store_to_file(C, cache_file_name(surf::KEY_C, cc));
+    }
+
+    if (!cache_file_exists<wtc_type>(surf::KEY_WTC, cc)) {
         auto event = memory_monitor::event("construct wt_c");
         construct(wtc, cache_file_name(surf::KEY_C, cc), cc, 0);
-//        sdsl::remove(cache_file_name(surf::KEY_C, cc));
-        store_to_file(wtc, cache_file_name(surf::KEY_WTC, cc));
+        store_to_cache(wtc, surf::KEY_WTC, cc, true);
     }
     cout << "call df_sada_type construct" << endl;
 
@@ -271,10 +303,8 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
         for (size_t i=0,j=0; i < bv_h.size(); ++i){
             if (bv_h[i] == 0 ){
                 size_t sp = j;
-//                std::vector<uint64_t> dup_in_node;
                 while ( i < bv_h.size() and bv_h[i] == 0 ){
                     dup_in_node[j-sp] = dup[j];
-//                    dup_in_node.push_back(dup[j]);
                     ++j; ++i;
                 } 
                 size_t ep = j;
@@ -284,13 +314,13 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
                     dup[k] = dup_in_node[j-sp];
                 }
             }
-            if ( j >= D.size()-doc_cnt){
-                cout << "j="<<j<<endl;
-            }
+//            if ( j >= D.size()-1-doc_cnt){
+//                cout << "j="<<j<<endl;
+//            }
         }
-        for (auto x : node_list_len){
-            std::cerr << x.first << ", " << x.second << std::endl;
-        }
+//        for (auto x : node_list_len){
+//            std::cerr << x.first << ", " << x.second << std::endl;
+//        }
     }
     load_from_cache(idx, surf::KEY_SADADF, cc, true);
     std::string index_name = IDXNAME;
