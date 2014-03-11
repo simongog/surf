@@ -17,11 +17,11 @@ int main( int argc, char** argv ) {
     std::string dir = argv[2];
 
     // setup collection directory
-    if(surf::util::directory_exists(dir)) {
+    if(surf::directory_exists(dir)) {
         std::cerr << "ERROR: collection directory already exists." << std::endl;
         return EXIT_FAILURE;
     }
-    surf::util::create_directory(dir);
+    surf::create_directory(dir);
 
     if( test_str.back() != '#' ) {
         std::cerr << "ERROR: test string must end with doc seperator '#'" << std::endl;

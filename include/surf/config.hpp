@@ -10,7 +10,7 @@ namespace surf{
 const std::string TEXT_FILENAME = "text_int_SURF.sdsl";
 const std::string DICT_FILENAME = "dict.txt";
 const std::string DOCNAMES_FILENAME = "doc_names.txt";
-
+const std::string SPACEUSAGE_FILENAME = "space_usage";
 
 const std::string KEY_DOCWEIGHT = "docweights";
 const std::string KEY_DARRAY = "darray";
@@ -25,6 +25,9 @@ const std::string KEY_WTDUP  = "wtdup";
 const std::string KEY_DUP  = "dup";
 const std::string KEY_DOCCNT  = "doccnt";
 const std::string KEY_DOCBORDER = "docborder";
+const std::string KEY_DOC_LENGTHS = "doclengths";
+const std::string KEY_INVFILE_TERM_RANGES = "invfile_term_ranges";
+const std::string KEY_INVFILE_PLISTS = "invfile_postings_lists";
 const std::string KEY_H = "H";
 
 std::vector<std::string> storage_keys = {KEY_DOCCNT,
@@ -38,6 +41,9 @@ std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_TMPDUP,
 										 KEY_WTDUP,
 										 KEY_DOCCNT,
+										 KEY_DOC_LENGTHS,
+										 KEY_INVFILE_TERM_RANGES,
+										 KEY_INVFILE_PLISTS,
                                          KEY_H,
                                          sdsl::conf::KEY_TEXT,
                                          sdsl::conf::KEY_TEXT_INT,

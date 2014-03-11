@@ -50,26 +50,22 @@ int main(int argc,char* const argv[])
     /* parse command line */
     cmdargs_t args = parse_args(argc,argv);
 
+    /* parse repo */
+    sdsl::cache_config cc = surf::parse_collection(args.collection_dir);
+
     /* define types */
     using surf_index_t = INDEX_TYPE;
     std::string index_name = IDXNAME;
 
     /* load the index */
-    std::string index_file = args.collection_dir = "/index/" + index_name;
-    std::ifstream ifs(index_file);
     surf_index_t index;
-    if (ifs.is_open()) {
-        auto load_start = clock::now();
-        index.load(ifs);
-        auto load_stop = clock::now();
-        auto load_time_sec = std::chrono::duration_cast<std::chrono::seconds>(load_stop-load_start);
-        std::cout << "Index loaded in " << load_time_sec.count() << " seconds." << std::endl;
+    auto load_start = clock::now();
+    construct(index, "", cc, 0);
+    auto load_stop = clock::now();
+    auto load_time_sec = std::chrono::duration_cast<std::chrono::seconds>(load_stop-load_start);
+    std::cout << "Index loaded in " << load_time_sec.count() << " seconds." << std::endl;
 
-        /* query stuff */
-
-    } else {
-        std::cerr << "Can not load index from file " << index_file << std::endl;
-    }
+    /* query stuff */
 
     return EXIT_SUCCESS;
 }

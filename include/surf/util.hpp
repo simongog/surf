@@ -15,9 +15,6 @@
 
 namespace surf{
 
-namespace util{
-
-
 bool
 directory_exists(std::string dir)
 {
@@ -65,14 +62,14 @@ create_directory(std::string dir)
 bool
 valid_collection(std::string collection_dir)
 {
-    if (! surf::util::directory_exists(collection_dir)) {
+    if (! surf::directory_exists(collection_dir)) {
         std::cerr << collection_dir << " is not a valid directory.\n";
         return false;
     } else {
         /* make sure the necessary files are present */
-        if( ! surf::util::file_exists(collection_dir+"/"+surf::TEXT_FILENAME) ||
-            ! surf::util::file_exists(collection_dir+"/"+surf::DICT_FILENAME) ||
-            ! surf::util::file_exists(collection_dir+"/"+surf::DOCNAMES_FILENAME) )
+        if( ! surf::file_exists(collection_dir+"/"+surf::TEXT_FILENAME) ||
+            ! surf::file_exists(collection_dir+"/"+surf::DICT_FILENAME) ||
+            ! surf::file_exists(collection_dir+"/"+surf::DOCNAMES_FILENAME) )
         {
             std::cerr << collection_dir << " does not contain a valid surf collection.\n";
             std::cerr << "The files " << surf::TEXT_FILENAME << " , " << surf::DICT_FILENAME 
@@ -83,7 +80,42 @@ valid_collection(std::string collection_dir)
     return true;
 }
 
-} // end of util namespace
+
+
+sdsl::cache_config
+parse_collection(std::string collection_dir)
+{
+    /* check if all the directories exist */
+    if( !surf::valid_collection(collection_dir) ) {
+        exit(EXIT_FAILURE);
+    }
+
+    std::string index_directory = collection_dir+"/index/";
+    surf::create_directory(index_directory);
+
+    /* populate cache config */
+    sdsl::cache_config config(false,collection_dir+"/index/","SURF");
+
+    /* create symlink to text in index directory */
+    std::string symlink_name = cache_file_name(sdsl::conf::KEY_TEXT_INT,config);
+    if( ! surf::symlink_exists(cache_file_name(sdsl::conf::KEY_TEXT_INT,config)) ) {
+        std::string collection_file = collection_dir+"/"+surf::TEXT_FILENAME;
+        char* col_file_absolute = realpath(collection_file.c_str(), NULL);
+        if( symlink(col_file_absolute,symlink_name.c_str()) != 0) {
+            perror("cannot create symlink to collection file in index directory");
+            exit(EXIT_FAILURE);
+        }
+        free(col_file_absolute);
+    }
+
+    /* register files that are present */
+    for(const auto& key : surf::storage_keys) {
+        register_cache_file(key,config);
+    }
+
+    return config;
+}
+
 
 } // end of surf namespace
 #endif

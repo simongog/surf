@@ -326,7 +326,11 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
     std::string index_name = IDXNAME;
   
 //    cout << WTDUP_TYPE << endl;
+#ifdef WTDUP_TYPE
     using wt_dup_t = WTDUP_TYPE;
+#else
+    using wt_dup_t = sdsl::wt_int<sdsl::rrr_vector<63>>;
+#endif
     if (!cache_file_exists<wt_dup_t>(surf::KEY_WTDUP, cc)){
         wt_dup_t wt_dup;
         construct(wt_dup, cache_file_name(surf::KEY_DUP, cc));

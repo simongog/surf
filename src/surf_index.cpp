@@ -39,42 +39,6 @@ parse_args(int argc,char* const argv[])
     return args;
 }
 
-
-sdsl::cache_config
-parse_collection(std::string collection_dir)
-{
-    /* check if all the directories exist */
-    if( !surf::util::valid_collection(collection_dir) ) {
-        exit(EXIT_FAILURE);
-    }
-
-    std::string index_directory = collection_dir+"/index/";
-    surf::util::create_directory(index_directory);
-
-    /* populate cache config */
-    sdsl::cache_config config(false,collection_dir+"/index/","SURF");
-
-    /* create symlink to text in index directory */
-    std::string symlink_name = cache_file_name(sdsl::conf::KEY_TEXT_INT,config);
-    if( ! surf::util::symlink_exists(cache_file_name(sdsl::conf::KEY_TEXT_INT,config)) ) {
-        std::string collection_file = collection_dir+"/"+surf::TEXT_FILENAME;
-        char* col_file_absolute = realpath(collection_file.c_str(), NULL);
-        if( symlink(col_file_absolute,symlink_name.c_str()) != 0) {
-            perror("cannot create symlink to collection file in index directory");
-            exit(EXIT_FAILURE);
-        }
-        free(col_file_absolute);
-    }
-
-    /* register files that are present */
-    for(const auto& key : surf::storage_keys) {
-        cout<<"key="<<key<<endl;
-        register_cache_file(key,config);
-    }
-
-    return config;
-}
-
 int main(int argc,char* const argv[])
 {
     using clock = std::chrono::high_resolution_clock;
@@ -82,7 +46,7 @@ int main(int argc,char* const argv[])
     cmdargs_t args = parse_args(argc,argv);
 
     /* parse repo */
-    sdsl::cache_config cc = parse_collection(args.collection_dir);
+    sdsl::cache_config cc = surf::parse_collection(args.collection_dir);
     std::cout<<"parse collections"<<std::endl;
     for(auto x : cc.file_map){
         std::cout<<x.first<<" "<<x.second<<std::endl;
@@ -99,6 +63,11 @@ int main(int argc,char* const argv[])
     auto build_stop = clock::now();
     auto build_time_sec = std::chrono::duration_cast<std::chrono::seconds>(build_stop-build_start);
     std::cout << "Index built in " << build_time_sec.count() << " seconds." << std::endl;
+
+    /* visualize space usage */
+    std::cout<<"Write structure"<<std::endl;
+    std::ofstream vofs(args.collection_dir+"/index/"+surf::SPACEUSAGE_FILENAME+"_"+IDXNAME+".html");
+    write_structure<HTML_FORMAT>(index,vofs);
 
     return EXIT_SUCCESS;
 }
