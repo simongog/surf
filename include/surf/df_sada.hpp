@@ -25,6 +25,7 @@ namespace surf{
  * \par Reference
  *  [1] Kunihiko Sadakane: ,,Succinct data structures for flexible
  *      text retrieval systems'', JDA 2007.
+ *  [2] Simon Gog and Matthias Petri: TODO 2014.
  */
 template<typename t_bv=sdsl::bit_vector,
          typename t_sel=typename t_bv::select_1_type,
@@ -251,16 +252,16 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
         store_to_cache(idx, surf::KEY_SADADF,cc, true);
     }
 
-    if (!cache_file_exists(surf::KEY_WTDUP, cc)){
-        auto event = memory_monitor::event("construct wtdup");
+    if (!cache_file_exists(surf::KEY_DUP, cc)){
+        auto event = memory_monitor::event("construct dup");
         int_vector<> D_array;
         load_from_file(D_array, d_file);
         int_vector_buffer<> wt_tmpdup(cache_file_name(surf::KEY_TMPDUP,cc));
-        string wtdup_file = cache_file_name(surf::KEY_WTDUP, cc);
-        int_vector_buffer<> wt_dup(wtdup_file, std::ios::out,
+        string dup_file = cache_file_name(surf::KEY_DUP, cc);
+        int_vector_buffer<> dup(dup_file, std::ios::out,
                                          1024*1024, D.width());
         for (size_t i = 0; i < wt_tmpdup.size(); ++i){
-            wt_dup[i] = D_array[wt_tmpdup[i]];
+            dup[i] = D_array[wt_tmpdup[i]];
         }
     }
 

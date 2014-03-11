@@ -22,6 +22,7 @@ const std::string KEY_WTC = "wtc";
 const std::string KEY_TMPCST = "tempcst";
 const std::string KEY_TMPDUP = "tmpdup";
 const std::string KEY_WTDUP  = "wtdup";
+const std::string KEY_DUP  = "dup";
 const std::string KEY_DOCCNT  = "doccnt";
 const std::string KEY_DOCBORDER = "docborder";
 
