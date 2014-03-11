@@ -25,6 +25,7 @@ const std::string KEY_WTDUP  = "wtdup";
 const std::string KEY_DUP  = "dup";
 const std::string KEY_DOCCNT  = "doccnt";
 const std::string KEY_DOCBORDER = "docborder";
+const std::string KEY_H = "H";
 
 std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_DARRAY,
@@ -37,6 +38,7 @@ std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_TMPDUP,
 										 KEY_WTDUP,
 										 KEY_DOCCNT,
+                                         KEY_H,
                                          sdsl::conf::KEY_TEXT,
                                          sdsl::conf::KEY_TEXT_INT,
                                          sdsl::conf::KEY_SA,

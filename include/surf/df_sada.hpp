@@ -9,6 +9,7 @@
 #include <sdsl/suffix_trees.hpp>
 #include <tuple>
 #include <string>
+#include <algorithm>
 
 using std::string;
 
@@ -127,6 +128,7 @@ class df_sada{
             std::cerr<<"h_idx="<<h_idx<<std::endl;
             std::cerr<<"dup_idx="<<dup_idx<<std::endl;
             h.resize(h_idx);
+            store_to_cache(h, KEY_H, cc);
             util::clear(temp_cst);
             // convert to proper bv type
             m_bv = bit_vector_type(h);
@@ -263,9 +265,44 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
         for (size_t i = 0; i < wt_tmpdup.size(); ++i){
             dup[i] = D_array[wt_tmpdup[i]];
         }
+        std::map<uint64_t, uint64_t> node_list_len;
+        std::vector<uint64_t> dup_in_node(doc_cnt+1, 0);
+        int_vector_buffer<1> bv_h(cache_file_name(surf::KEY_H,cc));
+        for (size_t i=0,j=0; i < bv_h.size(); ++i){
+            if (bv_h[i] == 0 ){
+                size_t sp = j;
+//                std::vector<uint64_t> dup_in_node;
+                while ( i < bv_h.size() and bv_h[i] == 0 ){
+                    dup_in_node[j-sp] = dup[j];
+//                    dup_in_node.push_back(dup[j]);
+                    ++j; ++i;
+                } 
+                size_t ep = j;
+                ++node_list_len[ep-sp];
+                std::sort(dup_in_node.begin(), dup_in_node.begin()+(ep-sp));
+                for (size_t k = sp; k < ep; ++k){
+                    dup[k] = dup_in_node[j-sp];
+                }
+            }
+            if ( j >= D.size()-doc_cnt){
+                cout << "j="<<j<<endl;
+            }
+        }
+        for (auto x : node_list_len){
+            std::cerr << x.first << ", " << x.second << std::endl;
+        }
     }
-
     load_from_cache(idx, surf::KEY_SADADF, cc, true);
+    std::string index_name = IDXNAME;
+  
+//    cout << WTDUP_TYPE << endl;
+    using wt_dup_t = WTDUP_TYPE;
+    if (!cache_file_exists<wt_dup_t>(surf::KEY_WTDUP, cc)){
+        wt_dup_t wt_dup;
+        construct(wt_dup, cache_file_name(surf::KEY_DUP, cc));
+        store_to_cache(wt_dup, surf::KEY_WTDUP, cc, true);
+    }
+    
 }
 
 
