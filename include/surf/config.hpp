@@ -29,6 +29,7 @@ const std::string KEY_DOC_LENGTHS = "doclengths";
 const std::string KEY_INVFILE_TERM_RANGES = "invfile_term_ranges";
 const std::string KEY_INVFILE_PLISTS = "invfile_postings_lists";
 const std::string KEY_H = "H";
+const std::string KEY_CSA = "csa";
 
 std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_DARRAY,
@@ -45,6 +46,7 @@ std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_INVFILE_TERM_RANGES,
 										 KEY_INVFILE_PLISTS,
                                          KEY_H,
+                                         KEY_CSA,
                                          sdsl::conf::KEY_TEXT,
                                          sdsl::conf::KEY_TEXT_INT,
                                          sdsl::conf::KEY_SA,

@@ -10,6 +10,7 @@
 #include <tuple>
 #include <string>
 #include <algorithm>
+#include <unordered_set>
 
 using std::string;
 
@@ -73,8 +74,8 @@ class df_sada{
             cst_type temp_cst;
             wtc_type wtc;
 
-            load_from_file(temp_cst, cache_file_name(surf::KEY_TMPCST, cc));
-            load_from_file(wtc, cache_file_name(surf::KEY_WTC, cc));
+            load_from_file(temp_cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
+            load_from_file(wtc, cache_file_name<wtc_type>(surf::KEY_WTC, cc));
 
             // int_vector_buffer which will contain the positions of the duplicates in the
             // C array after this scope
@@ -86,7 +87,7 @@ class df_sada{
 
             bit_vector D_split(D.size()+1, 0);
             {
-                std::set<uint64_t> seen;
+                std::unordered_set<uint64_t> seen;
                 for (size_t i=0; i<D.size(); ++i){
                     uint64_t x = D[i];
                     if ( seen.find(x) != seen.end() ){
@@ -215,49 +216,37 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
     typedef df_sada<t_bv, t_sel, t_alphabet> df_sada_type;
 
     cout << "construct(df_sada)"<< endl;
-    register_cache_file(sdsl::conf::KEY_TEXT_INT, cc);
-    cout << "cache_file_name: "<< cache_file_name(sdsl::conf::KEY_TEXT_INT, cc) << endl;
-
-    if (!cache_file_exists(sdsl::conf::KEY_SA, cc)) {
+    if (!cache_file_exists(conf::KEY_SA, cc)) {
         construct_sa<t_alphabet::WIDTH>(cc);
     }
-    register_cache_file(sdsl::conf::KEY_SA, cc);
+    register_cache_file(conf::KEY_SA, cc);
     cout << "sa constructed"<< endl;
 
-    if (!cache_file_exists(sdsl::conf::KEY_LCP, cc)) {
+    if (!cache_file_exists(conf::KEY_LCP, cc)) {
         if (t_alphabet::WIDTH == 8) {
             construct_lcp_semi_extern_PHI(cc);
         } else {
             construct_lcp_PHI<t_alphabet::WIDTH>(cc);
         }
     }
-    register_cache_file(sdsl::conf::KEY_LCP, cc);
+    register_cache_file(conf::KEY_LCP, cc);
     using cst_type = typename df_sada<t_bv,t_sel,t_alphabet>::cst_type;
     cst_type temp_cst;
-    if (!cache_file_exists(KEY_TMPCST, cc)) {
+    if (!cache_file_exists<cst_type>(KEY_TMPCST, cc)) {
         auto event = memory_monitor::event("construct temp_cst");
         temp_cst = cst_type(cc, true);
-        store_to_file(temp_cst, cache_file_name(surf::KEY_TMPCST, cc));
+        store_to_file(temp_cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
     } 
 
-    if (!cache_file_exists(KEY_DOCCNT, cc)) {
-        construct_doc_cnt<t_alphabet::WIDTH>(cc);
-    }
-    register_cache_file(KEY_DOCCNT, cc);
+    construct_doc_cnt<t_alphabet::WIDTH>(cc);
     uint64_t doc_cnt = 0;
     load_from_cache(doc_cnt, KEY_DOCCNT, cc);
 
     cout << "doc_cnt = " << doc_cnt << endl;
 
-    if (!cache_file_exists(surf::KEY_DOCBORDER, cc)){
-        construct_doc_border<t_alphabet::WIDTH>(cc);
-    }
-    if (!cache_file_exists(surf::KEY_DARRAY, cc)){
-        construct_darray<t_alphabet::WIDTH>(cc);
-    }
+    construct_darray<t_alphabet::WIDTH>(cc);
 
-    using wtc_type  = typename df_sada_type::wtc_type;
-    wtc_type wtc;
+
     string d_file = cache_file_name(surf::KEY_DARRAY, cc);
     int_vector_buffer<> D(d_file);
     cout<<"n="<<D.size()<<endl;
@@ -274,10 +263,14 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
         store_to_file(C, cache_file_name(surf::KEY_C, cc));
     }
 
+    using wtc_type  = typename df_sada_type::wtc_type;
     if (!cache_file_exists<wtc_type>(surf::KEY_WTC, cc)) {
+        wtc_type wtc;
         auto event = memory_monitor::event("construct wt_c");
         construct(wtc, cache_file_name(surf::KEY_C, cc), cc, 0);
         store_to_cache(wtc, surf::KEY_WTC, cc, true);
+        cout<<"wtc.size()="<<wtc.size() << endl;
+        cout<<"wtc.sigma()="<<wtc.sigma << endl;
     }
     cout << "call df_sada_type construct" << endl;
 
@@ -287,15 +280,18 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
     }
 
     if (!cache_file_exists(surf::KEY_DUP, cc)){
+        cout<<"construct dup"<<endl;
         auto event = memory_monitor::event("construct dup");
         int_vector<> D_array;
         load_from_file(D_array, d_file);
-        int_vector_buffer<> wt_tmpdup(cache_file_name(surf::KEY_TMPDUP,cc));
+        int_vector_buffer<> tmpdup(cache_file_name(surf::KEY_TMPDUP,cc));
         string dup_file = cache_file_name(surf::KEY_DUP, cc);
         int_vector_buffer<> dup(dup_file, std::ios::out,
                                          1024*1024, D.width());
-        for (size_t i = 0; i < wt_tmpdup.size(); ++i){
-            dup[i] = D_array[wt_tmpdup[i]];
+        cout << "tmpdup.size()="<<tmpdup.size()<<endl;
+        cout << "D.width()="<<(int)D.width()<<endl;
+        for (size_t i = 0; i < tmpdup.size(); ++i){
+            dup[i] = D_array[tmpdup[i]];
         }
         std::map<uint64_t, uint64_t> node_list_len;
         std::vector<uint64_t> dup_in_node(doc_cnt+1, 0);
@@ -323,20 +319,6 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
 //        }
     }
     load_from_cache(idx, surf::KEY_SADADF, cc, true);
-    std::string index_name = IDXNAME;
-  
-//    cout << WTDUP_TYPE << endl;
-#ifdef WTDUP_TYPE
-    using wt_dup_t = WTDUP_TYPE;
-#else
-    using wt_dup_t = sdsl::wt_int<sdsl::rrr_vector<63>>;
-#endif
-    if (!cache_file_exists<wt_dup_t>(surf::KEY_WTDUP, cc)){
-        wt_dup_t wt_dup;
-        construct(wt_dup, cache_file_name(surf::KEY_DUP, cc));
-        store_to_cache(wt_dup, surf::KEY_WTDUP, cc, true);
-    }
-    
 }
 
 
