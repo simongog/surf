@@ -16,6 +16,12 @@ class idx_dummy
         idx_dummy() = default;
 
         idx_dummy(sdsl::cache_config&) { }
+
+        result_t search(std::vector<uint64_t> qry,size_t k) {
+        	result_t res;
+
+        	return res;
+        }
 };
 
 inline void construct(idx_dummy &, const std::string&,

@@ -75,9 +75,9 @@ int main( int argc, char** argv ) {
 
         // iterate over termlist
         for(const auto& term_id : list->terms()) {
-            // we will shift all ids from idri by 2 so \0 and \1 is free
+            // we will shift all ids from idri by 1 so \0 and \1 is free
             if(term_id != 0) {
-                sdsl_col_file[written_term_ids++] = term_id+2; 
+                sdsl_col_file[written_term_ids++] = term_id+1; 
             }
         }
         sdsl_col_file[written_term_ids++] = 1; // end of doc sep
