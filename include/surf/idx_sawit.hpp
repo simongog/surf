@@ -23,6 +23,12 @@ public:
     typedef t_wtd   wtd_type;
     typedef t_df    df_type;
     typedef t_wtdup wtdup_type;
+
+    result_t search(std::vector<uint64_t> qry,size_t k) {
+        result_t res;
+
+        return res;
+    }
 };
 
 template<typename t_csa,

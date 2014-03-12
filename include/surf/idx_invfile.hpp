@@ -56,6 +56,12 @@ public:
     		m_postings_lists[i].load(in);
     	}
     }
+
+    result_t search(std::vector<uint64_t> qry,size_t k) {
+        result_t res;
+
+        return res;
+    }
 };
 
 template<class t_pl,class t_rank>
