@@ -85,19 +85,26 @@ class df_sada{
             string d_file = cache_file_name(surf::KEY_DARRAY, cc);
             int_vector_buffer<> D(d_file);
 
+            cout<<"begin calc splits"<<endl;
             bit_vector D_split(D.size()+1, 0);
             {
-                std::unordered_set<uint64_t> seen;
+                std::vector<int64_t> last_seen(wtc.sigma, -2);
+                int64_t last_border = -1;
                 for (size_t i=0; i<D.size(); ++i){
                     uint64_t x = D[i];
-                    if ( seen.find(x) != seen.end() ){
-                        D_split[i] = 1;
-                        seen.clear();
+                    if ( last_seen[x] >= last_border ){
+                        D_split[i-1] = 1;
+                        last_border = i;
                     }
-                    seen.insert(x);
+                    last_seen[x] = i;
                 }
             }
+            cout<<"end clac splits"<<endl;
             rank_support_v<> D_split_rank(&D_split);
+            cout << "D_split.size()="<<D_split.size()<<endl;
+            cout << "D_split_rank(D_split.size())="<<D_split_rank(D_split.size())<<endl;
+            cout << "avg dist="<<D_split.size()/(D_split_rank(D_split.size())+1.0)<<endl;
+            
 
             // construct the bv
             bit_vector h(2 * D.size(), 0);
@@ -117,23 +124,31 @@ class df_sada{
                 if (first) {  // first half
                     // recurse down
                     std::get<3>(node) = false;
-                    s.push(node);
-                    if (r_child == l_child + 1) {
-                        auto w = temp_cst.select_child(v, l_child);
-                        if (!temp_cst.is_leaf(w)) s.emplace(w, 1, temp_cst.degree(w), true);
+                    auto lb = temp_cst.lb(temp_cst.select_child(v, l_child));
+                    auto rb = temp_cst.rb(temp_cst.select_child(v, r_child));
+                    if ( D_split_rank(rb) > D_split_rank(lb) ) {
+                        s.push(node);
+                        if (r_child == l_child + 1) {
+                            auto w = temp_cst.select_child(v, l_child);
+                            if (!temp_cst.is_leaf(w)) s.emplace(w, 1, temp_cst.degree(w), true);
+                        } else {
+                            auto mid = l_child + (r_child - l_child) / 2;
+                            s.emplace(v, l_child, mid, true);
+                        }
                     } else {
-                        auto mid = l_child + (r_child - l_child) / 2;
-                        s.emplace(v, l_child, mid, true);
+                        for (size_t i=0; i<rb-lb; ++i) {
+                            h[h_idx++] = 1;
+                        }
                     }
                 } else {  // second half
                     auto lb = temp_cst.lb(temp_cst.select_child(v, l_child));
                     auto rb = temp_cst.rb(temp_cst.select_child(v, r_child));
                     auto mid = l_child + (r_child - l_child) / 2;
                     size_t dup_elements = 0;
-                    if ( D_split_rank(lb+1) == D_split_rank(rb+1) ) {
-                    
-                    }
-                    else if (lb + 1 == rb) {
+//                    if ( D_split_rank(lb) == D_split_rank(rb) ) {
+//                    }
+//                    else 
+                    if (lb + 1 == rb) {
                         dup_elements = (wtc[rb] == lb);
                         if (dup_elements) {
                             temp_dup[dup_idx++] = lb;
