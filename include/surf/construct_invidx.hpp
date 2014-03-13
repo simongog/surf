@@ -74,7 +74,7 @@ void construct_postings_lists(std::vector<t_pl>& postings_lists,sdsl::cache_conf
         int_vector<> tmpD(range_size);
         std::copy(D.begin()+sp[i],D.begin()+ep[i],tmpD.begin());
         std::cout << "(" << i << ") |<" << sp[i] << "," << ep[i] << ">| = " << range_size << std::endl;
-        postings_lists[ids[i]] = t_pl(ranker,T,0,range_size);
+        postings_lists[ids[i]] = t_pl(ranker,tmpD,0,range_size);
     }
 }
 
