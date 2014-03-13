@@ -72,9 +72,8 @@ void construct_postings_lists(std::vector<t_pl>& postings_lists,sdsl::cache_conf
     postings_lists.resize(max_id+1);
     for(size_t i=2;i<ids.size();i++) { // skip \0 and \1
         size_t range_size = ep[i] - sp[i] + 1;
-        int_vector<64> tmp(range_size);
-        std::copy_n(D.begin()+sp[i],range_size,tmp.begin());
-        postings_lists[ids[i]] = t_pl(ranker,tmp,range_size);
+        std::cout << "(" << i << ") |<" << sp[i] << "," << ep[i] << ">| = " << range_size << std::endl;
+        postings_lists[ids[i]] = t_pl(ranker,D,sp[i],ep[i]);
     }
 }
 

@@ -131,7 +131,7 @@ class postings_list
             load(in);
         }
         template<class t_rank> 
-        postings_list(const t_rank& ranker,sdsl::int_vector<64>& data,size_t n = 0);
+        postings_list(const t_rank& ranker,sdsl::int_vector<>& data,size_t sp,size_t ep);
         template<class t_rank> 
         postings_list(const t_rank& ranker,std::vector<std::pair<uint64_t,uint64_t>>& pre_sorted_data);
         postings_list(std::vector<std::pair<uint64_t,uint64_t>>& pre_sorted_data);
@@ -224,44 +224,48 @@ postings_list<t_codec,t_bs>::postings_list(std::vector<std::pair<uint64_t,uint64
     compress_postings_data(tmp_data,tmp_freq);
 }
 
+
+
 template<compression_codec t_codec,uint64_t t_bs>
 template<class t_rank>
-postings_list<t_codec,t_bs>::postings_list(const t_rank& ranker,sdsl::int_vector<64>& data,size_t n)
+postings_list<t_codec,t_bs>::postings_list(const t_rank& ranker,
+                                           sdsl::int_vector<>& D,
+                                           size_t sp,size_t ep)
 {
-    if (data.size() == 0) {
+    if (ep<sp) {
         std::cerr << "ERROR: trying to create empty postings list.\n";
         throw std::logic_error("trying to create empty postings list.");
     }
-    std::sort(data.begin(),data.begin()+n);
+
+    std::sort(D.begin()+sp,D.begin()+ep);
 
     // count uniq docs
     size_t unique = 1;
-    for (size_t i=1; i<n; i++) {
-        if (data[i-1] != data[i]) unique++;
+    for(size_t i=sp+1;i<=ep;i++) {
+        if(D[i] != D[i-1]) unique++;
     }
 
     // extract doc_ids and freqs
     sdsl::int_vector<32> tmp_data(unique);
     sdsl::int_vector<32> tmp_freq(unique);
     size_type j = 0; size_type freq = 1;
-    for (size_type i=1; i<n; i++) {
-        if (data[i] != data[i-1]) {
-            tmp_data[j] = data[i-1];
+    for (size_type i=sp+1; i<=ep; i++) {
+        if (D[i] != D[i-1]) {
+            tmp_data[j] = D[i-1];
             tmp_freq[j] = freq;
             j++;
             freq = 0;
         }
         freq++;
     }
-    tmp_data[j] = data[n-1];
+    tmp_data[j] = D[ep];
     tmp_freq[j] = freq;
-
 
     // create block max structure first
     create_block_support(tmp_data,tmp_freq);
 
     // create rank support structure
-    create_rank_support(tmp_data,tmp_freq,n,ranker);
+    create_rank_support(tmp_data,tmp_freq,ep-sp+1,ranker);
 
     // compress postings
     compress_postings_data(tmp_data,tmp_freq);
