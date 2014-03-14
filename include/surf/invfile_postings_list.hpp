@@ -320,8 +320,11 @@ postings_list<t_codec,t_bs>::serialize(std::ostream& out, sdsl::structure_tree_n
         sdsl::structure_tree::add_size(bmchild,bm_written_bytes);
         written_bytes += bm_written_bytes;
     } else {
+        sdsl::structure_tree_node* raw_child = sdsl::structure_tree::add_child(child, "raw data", "uncompressed");
         out.write((const char*)m_docid_data.data(), m_docid_data.size()*sizeof(uint32_t));
         out.write((const char*)m_freq_data.data(), m_freq_data.size()*sizeof(uint32_t));
+        sdsl::structure_tree::add_size(raw_child, 2*m_docid_data.size()*sizeof(uint32_t));
+        written_bytes += 2*m_docid_data.size()*sizeof(uint32_t);
     }
     written_bytes += sdsl::write_member(m_list_maximuim,out,child,"list max score");
     written_bytes += sdsl::write_member(m_max_doc_weight,out,child,"max doc weight");
