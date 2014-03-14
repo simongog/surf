@@ -10,11 +10,10 @@ SHARED=
 INCPATH=-I$(INDRISRC)/include $(patsubst %, -I$(INDRISRC)/contrib/%/include, $(DEPENDENCIES)) -I $(SDSLPREFIX)/include/
 LIBPATH=-L$(INDRISRC)/obj  $(patsubst %, -L$(INDRISRC)/contrib/%/obj, $(DEPENDENCIES)) -L $(SDSLPREFIX)/lib/
 LIBS=-lindri $(patsubst %, -l%, $(DEPENDENCIES)) -ldivsufsort -lsdsl
-APP=indri_to_surf
-
 
 all: indri
-	$(CXX) $(CXXFLAGS) -std=c++11 $(APP).cpp -o $(APP) $(INCPATH) $(LIBPATH) $(LIBS) $(CPPLDFLAGS)
+	$(CXX) $(CXXFLAGS) -std=c++11 indri_to_surf.cpp -o indri_to_surf $(INCPATH) $(LIBPATH) $(LIBS) $(CPPLDFLAGS)
+	$(CXX) $(CXXFLAGS) -std=c++11 indri_stem_krovetz.cpp -o indri_stem_krovetz $(INCPATH) $(LIBPATH) $(LIBS) $(CPPLDFLAGS)
 
 indri:
 	cd  $(INDRISRC); ./configure
