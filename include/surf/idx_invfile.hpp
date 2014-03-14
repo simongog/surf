@@ -57,6 +57,8 @@ public:
     	}
     }
 
+    void load(const sdsl::cache_config&){}
+
     result_t search(std::vector<uint64_t> qry,size_t k) {
         result_t res;
 

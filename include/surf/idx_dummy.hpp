@@ -3,6 +3,7 @@
 #define SURF_IDX_DUMMY_HPP
 
 #include "sdsl/int_vector.hpp"
+#include "sdsl/io.hpp"
 
 namespace surf
 {
@@ -22,6 +23,8 @@ class idx_dummy
 
         	return res;
         }
+
+        void load(const sdsl::cache_config&){}
 };
 
 inline void construct(idx_dummy &, const std::string&,

@@ -65,6 +65,7 @@ int main(int argc,char* const argv[])
     std::cout << "Index built in " << build_time_sec.count() << " seconds." << std::endl;
 
     /* visualize space usage */
+    index.load(cc);
     std::cout<<"Write structure"<<std::endl;
     std::ofstream vofs(args.collection_dir+"/index/"+surf::SPACEUSAGE_FILENAME+"_"+IDXNAME+".html");
     write_structure<HTML_FORMAT>(index,vofs);

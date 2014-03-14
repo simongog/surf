@@ -19,6 +19,9 @@ struct rank_bm25 {
 	size_t num_terms;
 	double avg_doc_len;
 	sdsl::int_vector<> doc_lengths;
+
+    rank_bm25(){}
+
 	rank_bm25(cache_config& cconfig) {
         if (!cache_file_exists(surf::KEY_DOC_LENGTHS, cconfig)){
             surf::construct_doc_lengths<sdsl::int_alphabet_tag::WIDTH>(cconfig);

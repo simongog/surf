@@ -80,6 +80,7 @@ int main(int argc,char* const argv[])
     surf_index_t index;
     auto load_start = clock::now();
     construct(index, "", cc, 0);
+    index.load(cc);
     auto load_stop = clock::now();
     auto load_time_sec = std::chrono::duration_cast<std::chrono::seconds>(load_stop-load_start);
     std::cout << "Index loaded in " << load_time_sec.count() << " seconds." << std::endl;

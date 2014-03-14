@@ -23,7 +23,7 @@ struct query_parser {
             std::string term_mapping;
             while( std::getline(dfs,term_mapping) ) {
                 auto sep_pos = term_mapping.find(' ');
-                auto term = term_mapping.substr(0,sep_pos-1);
+                auto term = term_mapping.substr(0,sep_pos);
                 auto idstr = term_mapping.substr(sep_pos+1);
                 uint64_t id = std::stoull(idstr);
                 id_mapping[term] = id;
