@@ -115,6 +115,8 @@ template<compression_codec t_codec=compression_codec::optpfor,uint64_t t_block_s
 class postings_list
 {
     public:
+        const static uint64_t uncompressed_threshold = 20;
+    public:
         friend class plist_iterator<t_codec,t_block_size>;
         typedef sdsl::int_vector<>::size_type                             size_type;
         typedef std::pair<uint64_t,uint64_t>                             value_type;
@@ -153,12 +155,21 @@ class postings_list
             return m_max_doc_weight;
         }
         double block_max(uint64_t bid) const {
+            if(m_size < uncompressed_threshold) {
+                return m_max_doc_weight;
+            }
             return m_block_maximums[bid];
         }
         double block_max_doc_weight(uint64_t bid) const {
+            if(m_size < uncompressed_threshold) {
+                return m_list_maximuim;
+            }
             return m_block_max_doc_weights[bid];
         }
         uint64_t block_rep(uint64_t bid) const {
+            if(m_size < uncompressed_threshold) {
+                return m_docid_data[m_size-1];
+            }
             return m_block_representatives[bid];
         }
         double list_max_score() const {
@@ -278,34 +289,40 @@ postings_list<t_codec,t_bs>::serialize(std::ostream& out, sdsl::structure_tree_n
     sdsl::structure_tree_node* child = sdsl::structure_tree::add_child(v, name, sdsl::util::class_name(*this));
     size_type written_bytes = 0;
 
-    // id and freq stuff
     written_bytes += sdsl::write_member(m_size,out,child,"size");
-    written_bytes += m_id_block_ptr.serialize(out,child,"id ptrs");
-    written_bytes += m_freq_block_ptr.serialize(out,child,"freq ptrs");
-    written_bytes += sdsl::write_member(m_docid_data.size(),out,child,"docid u32s");
-    written_bytes += sdsl::write_member(m_freq_data.size(),out,child,"freq u32s");
-    sdsl::structure_tree_node* idchild = sdsl::structure_tree::add_child(child, "id data", compression_codec_names[t_codec]);
-    out.write((const char*)m_docid_data.data(), m_docid_data.size()*sizeof(uint32_t));
-    sdsl::structure_tree::add_size(idchild, m_docid_data.size()*sizeof(uint32_t));
-    written_bytes +=  m_docid_data.size()*sizeof(uint32_t);
-    out.write((const char*)m_freq_data.data(), m_freq_data.size()*sizeof(uint32_t));
-    written_bytes +=  m_freq_data.size()*sizeof(uint32_t);
-    sdsl::structure_tree_node* fchild = sdsl::structure_tree::add_child(child, "freq data", compression_codec_names[t_codec]);
-    sdsl::structure_tree::add_size(fchild, m_freq_data.size()*sizeof(uint32_t));
 
-    // block skip stuff
-    written_bytes += m_block_representatives.serialize(out,child,"block skip");
+    // id and freq stuff
+    if(m_size > uncompressed_threshold) {
+        written_bytes += m_id_block_ptr.serialize(out,child,"id ptrs");
+        written_bytes += m_freq_block_ptr.serialize(out,child,"freq ptrs");
+        written_bytes += sdsl::write_member(m_docid_data.size(),out,child,"docid u32s");
+        written_bytes += sdsl::write_member(m_freq_data.size(),out,child,"freq u32s");
+        sdsl::structure_tree_node* idchild = sdsl::structure_tree::add_child(child, "id data", compression_codec_names[t_codec]);
+        out.write((const char*)m_docid_data.data(), m_docid_data.size()*sizeof(uint32_t));
+        sdsl::structure_tree::add_size(idchild, m_docid_data.size()*sizeof(uint32_t));
+        written_bytes +=  m_docid_data.size()*sizeof(uint32_t);
+        out.write((const char*)m_freq_data.data(), m_freq_data.size()*sizeof(uint32_t));
+        written_bytes +=  m_freq_data.size()*sizeof(uint32_t);
+        sdsl::structure_tree_node* fchild = sdsl::structure_tree::add_child(child, "freq data", compression_codec_names[t_codec]);
+        sdsl::structure_tree::add_size(fchild, m_freq_data.size()*sizeof(uint32_t));
 
-    // rank dependent stuff
-    sdsl::structure_tree_node* bmchild = sdsl::structure_tree::add_child(child, "blockmax", "blockmax");
-    sdsl::structure_tree_node* bmmchild = sdsl::structure_tree::add_child(bmchild, "block maximums", "double");
-    size_t bm_written_bytes = sdsl::write_member(m_block_maximums.size(),out,bmchild,"num max_scores");
-    out.write((const char*)m_block_maximums.data(), m_block_maximums.size()*sizeof(double));
-    out.write((const char*)m_block_max_doc_weights.data(), m_block_max_doc_weights.size()*sizeof(double));
-    bm_written_bytes += 2*m_block_maximums.size()*sizeof(double);
-    sdsl::structure_tree::add_size(bmmchild,2*m_block_maximums.size()*sizeof(double));
-    sdsl::structure_tree::add_size(bmchild,bm_written_bytes);
-    written_bytes += bm_written_bytes;
+        // block skip stuff
+        written_bytes += m_block_representatives.serialize(out,child,"block skip");
+
+        // rank dependent stuff
+        sdsl::structure_tree_node* bmchild = sdsl::structure_tree::add_child(child, "blockmax", "blockmax");
+        sdsl::structure_tree_node* bmmchild = sdsl::structure_tree::add_child(bmchild, "block maximums", "double");
+        size_t bm_written_bytes = sdsl::write_member(m_block_maximums.size(),out,bmchild,"num max_scores");
+        out.write((const char*)m_block_maximums.data(), m_block_maximums.size()*sizeof(double));
+        out.write((const char*)m_block_max_doc_weights.data(), m_block_max_doc_weights.size()*sizeof(double));
+        bm_written_bytes += 2*m_block_maximums.size()*sizeof(double);
+        sdsl::structure_tree::add_size(bmmchild,2*m_block_maximums.size()*sizeof(double));
+        sdsl::structure_tree::add_size(bmchild,bm_written_bytes);
+        written_bytes += bm_written_bytes;
+    } else {
+        out.write((const char*)m_docid_data.data(), m_docid_data.size()*sizeof(uint32_t));
+        out.write((const char*)m_freq_data.data(), m_freq_data.size()*sizeof(uint32_t));
+    }
     written_bytes += sdsl::write_member(m_list_maximuim,out,child,"list max score");
     written_bytes += sdsl::write_member(m_max_doc_weight,out,child,"max doc weight");
 
@@ -317,23 +334,31 @@ template<compression_codec t_codec,uint64_t t_bs>
 void postings_list<t_codec,t_bs>::load(std::istream& in)
 {
     read_member(m_size,in);
-    m_id_block_ptr.load(in);
-    m_freq_block_ptr.load(in);
-    size_t docidu32;
-    size_t frequ32;
-    read_member(docidu32,in);
-    read_member(frequ32,in);
-    m_docid_data.resize(docidu32);
-    m_freq_data.resize(frequ32);
-    in.read((char*)m_docid_data.data(),docidu32*sizeof(uint32_t));
-    in.read((char*)m_freq_data.data(),frequ32*sizeof(uint32_t));
-    m_block_representatives.load(in);
-    size_t num_block_max_scores;
-    read_member(num_block_max_scores,in);
-    m_block_maximums.resize(num_block_max_scores);
-    in.read((char*)m_block_maximums.data(),num_block_max_scores*sizeof(double));
-    m_block_max_doc_weights.resize(num_block_max_scores);
-    in.read((char*)m_block_max_doc_weights.data(),num_block_max_scores*sizeof(double));
+
+    if(m_size > uncompressed_threshold) {
+        m_id_block_ptr.load(in);
+        m_freq_block_ptr.load(in);
+        size_t docidu32;
+        size_t frequ32;
+        read_member(docidu32,in);
+        read_member(frequ32,in);
+        m_docid_data.resize(docidu32);
+        m_freq_data.resize(frequ32);
+        in.read((char*)m_docid_data.data(),docidu32*sizeof(uint32_t));
+        in.read((char*)m_freq_data.data(),frequ32*sizeof(uint32_t));
+        m_block_representatives.load(in);
+        size_t num_block_max_scores;
+        read_member(num_block_max_scores,in);
+        m_block_maximums.resize(num_block_max_scores);
+        in.read((char*)m_block_maximums.data(),num_block_max_scores*sizeof(double));
+        m_block_max_doc_weights.resize(num_block_max_scores);
+        in.read((char*)m_block_max_doc_weights.data(),num_block_max_scores*sizeof(double));
+    } else {
+        m_docid_data.resize(m_size);
+        m_freq_data.resize(m_size);
+        in.read((char*)m_docid_data.data(),m_size*sizeof(uint32_t));
+        in.read((char*)m_freq_data.data(),m_size*sizeof(uint32_t));
+    }
     read_member(m_list_maximuim,in);
     read_member(m_max_doc_weight,in);
 }
@@ -363,7 +388,7 @@ void postings_list<t_codec,t_bs>::create_rank_support(const sdsl::int_vector<32>
         double score = ranker.calculate_docscore(1.0f,f_dt,f_t,F_t,W_d);
         max_score = std::max(max_score,score);
         max_doc_weight = std::max(max_doc_weight,doc_weight);
-        if (i % t_bs == 0) {
+        if (i % t_bs == 0 && ids.size() >= uncompressed_threshold ) {
             m_block_maximums[j] = max_score;
             m_block_max_doc_weights[j] = max_doc_weight;
             m_list_maximuim = std::max(m_list_maximuim,max_score);
@@ -375,7 +400,7 @@ void postings_list<t_codec,t_bs>::create_rank_support(const sdsl::int_vector<32>
         }
         i++;
     }
-    if (ids.size() % t_bs != 0) {
+    if (ids.size() % t_bs != 0 && ids.size() >= uncompressed_threshold ) {
         m_block_maximums[num_blocks-1] = max_score;
         m_block_max_doc_weights[num_blocks-1] = max_doc_weight;
     }
@@ -402,6 +427,14 @@ void postings_list<t_codec,t_bs>::create_block_support(const sdsl::int_vector<32
 template<compression_codec t_codec,uint64_t t_bs>
 void postings_list<t_codec,t_bs>::compress_postings_data(const sdsl::int_vector<32>& ids,const sdsl::int_vector<32>& freqs)
 {
+    if(ids.size() < uncompressed_threshold) {
+        m_docid_data.resize(ids.size());
+        m_freq_data.resize(freqs.size());
+        std::copy(ids.begin(),ids.end(),m_docid_data.begin());
+        std::copy(freqs.begin(),freqs.end(),m_freq_data.begin());
+        return;
+    }
+
     // encode in blocks
     size_t num_blocks = ids.size() / t_bs;
     if (ids.size() % t_bs != 0) num_blocks++;
@@ -466,6 +499,14 @@ void postings_list<t_codec,t_bs>::compress_postings_data(const sdsl::int_vector<
 template<compression_codec t_codec,uint64_t t_bs>
 void postings_list<t_codec,t_bs>::decompress_block(size_t bid,pfor_data_type& id_data,pfor_data_type& freq_data) const
 {
+    if(m_size < uncompressed_threshold) {
+        id_data.resize(m_size);
+        freq_data.resize(m_size);
+        std::copy(m_docid_data.begin(),m_docid_data.end(),id_data.begin());
+        std::copy(m_freq_data.begin(),m_freq_data.end(),freq_data.begin());
+        return;
+    }
+
     if (id_data.size() != t_bs) { // did we allocate space already?
         id_data.resize(t_bs);
         freq_data.resize(t_bs);
@@ -507,6 +548,9 @@ void postings_list<t_codec,t_bs>::decompress_block(size_t bid,pfor_data_type& id
 template<compression_codec t_codec,uint64_t t_bs>
 size_t postings_list<t_codec,t_bs>::find_block_with_id(uint64_t id,size_t start_block) const
 {
+    if(m_size < uncompressed_threshold) {
+        return 0;
+    }
     size_t block_id = start_block;
     size_t nblocks = m_block_representatives.size();
     while (block_id < nblocks && m_block_representatives[block_id] < id) {
