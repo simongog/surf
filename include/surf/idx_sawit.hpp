@@ -5,8 +5,12 @@
 #include "surf/df_sada.hpp"
 #include "surf/rank_functions.hpp"
 #include <algorithm>
+#include <limits>
+#include <queue>
 
 namespace surf{
+
+using range_type = sdsl::range_type;
 
 template<class ForwardIterator>
 std::vector<std::pair<typename ForwardIterator::value_type, uint64_t>> 
@@ -28,6 +32,51 @@ unique_and_freq(ForwardIterator first, ForwardIterator last){
     }
     return res;
 }
+
+struct term_info{
+    uint64_t t; // term_id
+    uint64_t f_qt; // term_frequency
+    uint64_t sp_Dt; // start of interval for term t in the suffix array
+    uint64_t ep_Dt; // end of interval for term t in the suffix array
+
+    term_info() = default;
+    term_info(uint64_t t, uint64_t f_qt, uint64_t sp_Dt, uint64_t ep_Dt) : 
+        t(t), f_qt(f_qt), sp_Dt(sp_Dt), ep_Dt(ep_Dt) {}
+
+    term_info(term_info&&) = default;
+    term_info(const term_info&) = default;
+    term_info& operator=(term_info&&) = default;
+    term_info& operator=(const term_info&) = default;
+};
+
+template<typename t_wt_node>
+struct s_state_t{
+    double score;
+    t_wt_node v_wtd;
+    std::vector<term_info*> t_ptrs; // pointers to term_info array
+    std::vector<range_type> ranges; // ranges
+
+    s_state_t() = default;
+
+    s_state_t(double score, const t_wt_node& v_wtd, 
+              const std::vector<term_info*>& t_ptrs,
+              const std::vector<range_type>& ranges):
+        score(score), v_wtd(v_wtd), t_ptrs(t_ptrs),
+        ranges(ranges){}
+
+    s_state_t(s_state_t&&) = default;
+    s_state_t(const s_state_t&) = default;
+
+    s_state_t& operator=(s_state_t&&) = default;
+    s_state_t& operator=(const s_state_t&) = default;
+
+    bool operator<(const s_state_t& s)const{
+        if ( score != s.score ){
+            return score != s.score;
+        }
+        return v_wtd < s.v_wtd;
+    }
+};
 
 /*! Class sawit (Suffix Array Wavelet tree Index Type) consists of a
  *  (compressed) suffix array, a wavelet tree over the document array,
@@ -55,20 +104,33 @@ private:
     ranker_type m_r;
 public:
     result_t search(std::vector<uint64_t> qry,size_t k) {
-        result_t res;
-//        typedef std::tuple<uint64_t, size_type, size_type, >
+        /*
         auto qry_frq = unique_and_freq(qry.begin(), qry.end());
+        std::vector<term_info> terms;
+        std::vector<term_info*> t_ptrs;
+        std::vector<range_type> ranges;
 
-        // get multiplicity
-        // unique
         for (size_t i=0; i<qry_frq.size(); ++i){
             size_type sp=1, ep=0;
             if ( backward_search(m_csa, 0, m_csa.size()-1, qry_frq[i].first, sp, ep) > 0 ) {
+                terms.emplace_back(qry_frq[i].first, qry_frq[i].second, sp, ep);
+                t_ptrs.emplace_back(&terms.back());
+                ranges.emplace_back(sp, ep);
                 cout << "interval of " << qry[i] << " ["
                      << sp << "," << ep << "]" << endl;
             }
         }
-
+        s_state_t<typename t_wtd::node_type> root(std::numeric_limits<double>::max(), 
+                                                  m_wtd.root(),
+                                                  t_ptrs, ranges);
+        std::priority_queue<s_state_t<typename t_wtd::node_type>> pq;
+        */
+        result_t res;
+/*        
+        while ( !pq.empty() and res.size() < k ) {
+        
+        }
+*/        
         return res;
     }
 
