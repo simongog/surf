@@ -6,7 +6,7 @@
 #include "indri/KrovetzStemmer.hpp"
 
 int main( int argc, char** argv ) {
-    if(argc != 3) {
+    if(argc != 1) {
         std::cout << "USAGE: " << argv[0] << " < <input> > <output> " << std::endl;
         return EXIT_FAILURE;
     }
@@ -20,8 +20,8 @@ int main( int argc, char** argv ) {
         std::istringstream qry_content_stream(line.substr(id_sep_pos+1));
         std::vector<std::string> stemmed_qry;
         for(std::string qry_token; std::getline(qry_content_stream,qry_token,' ');) {
-            char stem_buf[stemmer_t::MAX_WORD_LENGTH+1];
-            char original_word[stemmer_t::MAX_WORD_LENGTH+1];
+            char stem_buf[stemmer_t::MAX_WORD_LENGTH+1] = {0};
+            char original_word[stemmer_t::MAX_WORD_LENGTH+1] = {0};
             std::copy(qry_token.begin(),qry_token.end(),std::begin(original_word));
             auto ret = ks.kstem_stem_tobuffer(original_word,stem_buf);
             if (ret > 0) {
