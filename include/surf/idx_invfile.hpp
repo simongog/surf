@@ -33,6 +33,7 @@ private:
         double F_t;
         double list_max_score;
         double max_doc_weight;
+        plist_wrapper() = default;
         plist_wrapper(plist_type& pl,double _F_t,double _f_qt) {
             cur = pl.begin();
             end = pl.end();
@@ -119,14 +120,14 @@ public:
         // delete if necessary
         auto del_itr = plists.begin();
         while(del_itr != plists.end()) {
-            if((*del_itr)->cur != (*del_itr)->end) {
+            if((*del_itr)->cur == (*del_itr)->end) {
                 del_itr = plists.erase(del_itr);
             } else {
                 del_itr++;
             }
         }
         // sort
-        auto id_sort = [](const plist_wrapper* a,plist_wrapper* b) {
+        auto id_sort = [](const plist_wrapper* a,const plist_wrapper* b) {
             return a->cur.docid() < b->cur.docid();
         };
         std::sort(plists.begin(),plists.end(),id_sort);
@@ -239,19 +240,37 @@ public:
         return 0.0f;
     }
 
+    void
+    print_lists(std::vector<plist_wrapper*>& postings_lists,double thres) {
+        double lm_sum = 0.0;
+        std::cout << thres << " ==================================================================\n";
+        for(size_t i=0;i<postings_lists.size();i++) {
+            const auto& pl = postings_lists[i];
+            std::cout << " (" << i << ") "
+                      << " n=" << pl->cur.size() 
+                      << " did=" << pl->cur.offset() 
+                      << " fdt=" << pl->cur.freq()
+                      << " rem=" << pl->cur.remaining()
+                      << " lm=" << pl->list_max_score
+                      << " sum=" << lm_sum + pl->list_max_score << std::endl;
+            lm_sum += pl->list_max_score; 
+        }
+    }
+
     result_t process_wand(std::vector<plist_wrapper*>& postings_lists,size_t k) {
         // heap containing the top-k docs
         std::priority_queue<doc_score,std::vector<doc_score>,std::greater<doc_score>> score_heap;
 
         // init list processing 
+        auto threshold = 0.0f;
         size_t initial_lists = postings_lists.size();
         sort_list_by_id(postings_lists);
-        auto threshold = 0.0f;
         auto pivot_and_score = determine_candidate(postings_lists,threshold,initial_lists);
         auto pivot_list = std::get<0>(pivot_and_score);
         auto potential_score = std::get<1>(pivot_and_score);
 
         while(pivot_list != postings_lists.end()) {
+            //print_lists(postings_lists,threshold);
             if (postings_lists[0]->cur.docid() == (*pivot_list)->cur.docid()) {
                 threshold = evaluate_pivot(postings_lists,score_heap,potential_score,threshold,initial_lists,k);
             } else {
@@ -269,12 +288,18 @@ public:
     }
 
     result_t search(const std::vector<query_token>& qry,size_t k) {
-        std::vector<plist_wrapper> pl_data;
+        std::cout << " [";
+        std::vector<plist_wrapper> pl_data(qry.size());
         std::vector<plist_wrapper*> postings_lists;
+        size_t j=0;
         for(const auto& qry_token : qry) {
-            pl_data.emplace_back(m_postings_lists[qry_token.token_id],m_F_t[qry_token.token_id],qry_token.f_qt);
-            postings_lists.emplace_back(&pl_data.back());
+            std::cout << qry_token.token_id << ",";
+            pl_data[j++] = plist_wrapper(m_postings_lists[qry_token.token_id],(double)m_F_t[qry_token.token_id],(double)qry_token.f_qt);
+            if(pl_data[j-1].list_max_score > 0) {
+                postings_lists.emplace_back(&(pl_data[j-1]));
+            }
         }
+        std::cout << "]";
 
         return process_wand(postings_lists,k);
     }

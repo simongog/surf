@@ -96,6 +96,9 @@ class plist_iterator
         size_t remaining() const {
             return size() - m_cur_pos;
         }
+        size_t offset() const {
+            return m_cur_pos;
+        }
     private:
         void access_and_decode_cur_pos() const;
     private:
