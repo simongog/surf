@@ -4,7 +4,7 @@
 namespace surf{
 
 struct query_parser {
-    using query_t = std::pair<uint64_t,std::vector<uint64_t>>;
+    using query_t = std::pair<uint64_t,std::vector<query_token>>;
     query_parser() = delete;
     static std::vector<query_t> parse_queries(const std::string& collection_dir,
                                             const std::string& query_file) 
@@ -42,16 +42,27 @@ struct query_parser {
             auto qryid_str = query_str.substr(0,id_sep_pos);
             auto qry_id = std::stoull(qryid_str);
             std::istringstream qry_content_stream(query_str.substr(id_sep_pos+1));
-            std::vector<uint64_t> qry_content;
+            std::unordered_map<uint64_t,uint64_t> qry_content;
             for(std::string qry_token; std::getline(qry_content_stream,qry_token,' ');) {
                 auto id_itr = id_mapping.find(qry_token);
                 if(id_itr != id_mapping.end()) {
-                    qry_content.push_back(id_itr->second);
+                    auto qcitr = qry_content.find(id_itr->second);
+                    if(qcitr != qry_content.end()) {
+                        qry_content[id_itr->second] += 1;
+                    } else {
+                        qry_content[id_itr->second] = 1;
+                    }
                 } else {
                     std::cerr << "ERROR: could not find '" << qry_token << "' in the dictionary." << std::endl;
                 }
             }
-            if(!qry_content.empty()) queries.emplace_back(qry_id,qry_content);
+            if(!qry_content.empty()) {
+                std::vector<query_token> query_tokens;
+                for(const auto& qry_tok : qry_content) {
+                    query_tokens.emplace_back(qry_tok.first,qry_tok.second);
+                }
+                queries.emplace_back(qry_id,query_tokens);
+            }
         }
 
         return queries;

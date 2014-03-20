@@ -35,6 +35,28 @@ void construct_term_ranges(sdsl::int_vector<>& ids, sdsl::int_vector<>& sp,
     }
 }
 
+void construct_F_t(sdsl::int_vector<>& F_t,sdsl::cache_config& cconfig)
+{
+    // load term ranges 
+    sdsl::int_vector<> ids; sdsl::int_vector<> sp; sdsl::int_vector<> ep;
+    if( cache_file_exists(surf::KEY_INVFILE_TERM_RANGES,cconfig) ) {
+        std::ifstream ifs(cache_file_name(surf::KEY_INVFILE_TERM_RANGES,cconfig));
+        ids.load(ifs);
+        sp.load(ifs);
+        ep.load(ifs);
+    } else {
+        construct_term_ranges(ids,sp,ep,cconfig);
+        std::ofstream ofs(cache_file_name(surf::KEY_INVFILE_TERM_RANGES,cconfig));
+        serialize(ids,ofs);
+        serialize(sp,ofs);
+        serialize(ep,ofs);
+    }
+
+    F_t.resize(ids.size());
+    for(size_t i=0;i<ids.size();i++) {
+        F_t[i] = sp[i] - ep[i] + 1;
+    }
+}
 
 template<class t_pl,class t_rank>
 void construct_postings_lists(std::vector<t_pl>& postings_lists,sdsl::cache_config& cconfig)

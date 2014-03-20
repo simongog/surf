@@ -12,27 +12,6 @@ namespace surf{
 
 using range_type = sdsl::range_type;
 
-template<class ForwardIterator>
-std::vector<std::pair<typename ForwardIterator::value_type, uint64_t>> 
-unique_and_freq(ForwardIterator first, ForwardIterator last){
-    std::sort(first, last);
-    std::vector<std::pair<typename ForwardIterator::value_type, uint64_t>> res;
-    if ( first == last ){
-        return res;
-    }
-    ForwardIterator result = first;
-    res.emplace_back(*first, 1);
-    while (++first != last){
-        if (!(*result == *first)){
-            *(++result)=*first;
-            res.emplace_back(*first, 1);
-        } else {
-            ++(std::get<1>(res.back()));
-        }
-    }
-    return res;
-}
-
 struct term_info{
     uint64_t t; // term_id
     uint64_t f_qt; // term_frequency
@@ -103,7 +82,7 @@ private:
     wtdup_type  m_wtdup; 
     ranker_type m_r;
 public:
-    result_t search(std::vector<uint64_t> qry,size_t k) {
+    result_t search(const std::vector<query_token>& qry,size_t k) {
         /*
         auto qry_frq = unique_and_freq(qry.begin(), qry.end());
         std::vector<term_info> terms;

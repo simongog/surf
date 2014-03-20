@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "surf/query.hpp"
 #include "sdsl/config.hpp"
 #include "surf/indexes.hpp"
 #include "surf/query_parser.hpp"
@@ -86,7 +87,7 @@ int main(int argc,char* const argv[])
     std::cout << "Index loaded in " << load_time_sec.count() << " seconds." << std::endl;
 
     /* process the queries */
-    std::vector< std::tuple<uint64_t,result_t,std::chrono::microseconds> > timings;
+    std::vector< std::tuple<uint64_t,surf::result_t,std::chrono::microseconds> > timings;
     size_t num_runs = 3;
     for(size_t i=0;i<num_runs;i++) {
         for(const auto& query: queries) {

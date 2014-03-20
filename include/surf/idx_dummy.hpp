@@ -4,6 +4,7 @@
 
 #include "sdsl/int_vector.hpp"
 #include "sdsl/io.hpp"
+#include "surf/query.hpp"
 
 namespace surf
 {
@@ -18,7 +19,7 @@ class idx_dummy
 
         idx_dummy(sdsl::cache_config&) { }
 
-        result_t search(std::vector<uint64_t> qry,size_t k) {
+        result_t search(std::vector<query_token> qry,size_t k) {
         	result_t res;
 
         	return res;

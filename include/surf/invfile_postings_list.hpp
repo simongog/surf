@@ -115,7 +115,7 @@ template<compression_codec t_codec=compression_codec::optpfor,uint64_t t_block_s
 class postings_list
 {
     public:
-        const static uint64_t uncompressed_threshold = 20;
+        const static uint64_t uncompressed_threshold = 12;
     public:
         friend class plist_iterator<t_codec,t_block_size>;
         typedef sdsl::int_vector<>::size_type                             size_type;
