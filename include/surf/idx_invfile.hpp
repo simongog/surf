@@ -186,9 +186,10 @@ public:
         return {end,score};
     }
 
-    void evaluate_pivot(std::vector<plist_wrapper*>& postings_lists,
+    double evaluate_pivot(std::vector<plist_wrapper*>& postings_lists,
                         std::priority_queue<doc_score,std::vector<doc_score>,std::greater<doc_score>>& heap,
                         double potential_score,
+                        double threshold,
                         size_t initial_lists,
                         size_t k)
     {
@@ -210,7 +211,7 @@ public:
                 potential_score += contrib;
                 potential_score -= (*itr)->list_max_score;
                 ++((*itr)->cur); // move to next larger doc_id
-                if(potential_score < heap.top().score) {
+                if(potential_score < threshold) {
                     break;
                 }
             } else {
@@ -231,6 +232,11 @@ public:
 
         // resort
         sort_list_by_id(postings_lists);
+
+        if(heap.size()) {
+            return heap.top().score;
+        }
+        return 0.0f;
     }
 
     result_t process_wand(std::vector<plist_wrapper*>& postings_lists,size_t k) {
@@ -240,17 +246,18 @@ public:
         // init list processing 
         size_t initial_lists = postings_lists.size();
         sort_list_by_id(postings_lists);
-        auto pivot_and_score = determine_candidate(postings_lists,score_heap.top().score,initial_lists);
+        auto threshold = 0.0f;
+        auto pivot_and_score = determine_candidate(postings_lists,threshold,initial_lists);
         auto pivot_list = std::get<0>(pivot_and_score);
         auto potential_score = std::get<1>(pivot_and_score);
 
         while(pivot_list != postings_lists.end()) {
             if (postings_lists[0]->cur.docid() == (*pivot_list)->cur.docid()) {
-                evaluate_pivot(postings_lists,score_heap,potential_score,initial_lists,k);
+                threshold = evaluate_pivot(postings_lists,score_heap,potential_score,threshold,initial_lists,k);
             } else {
                 forward_lists(postings_lists,pivot_list-1,(*pivot_list)->cur.docid());
             }
-            pivot_and_score = determine_candidate(postings_lists,score_heap.top().score,initial_lists);
+            pivot_and_score = determine_candidate(postings_lists,threshold,initial_lists);
             pivot_list = std::get<0>(pivot_and_score);
             potential_score = std::get<1>(pivot_and_score);
         }
@@ -286,18 +293,14 @@ void construct(idx_invfile<t_pl,t_rank> &idx, const std::string& file,
         construct_sa<sdsl::int_alphabet_tag::WIDTH>(cconfig);
     }
     register_cache_file(sdsl::conf::KEY_SA, cconfig);
-    cout << "sa constructed"<< endl;
 
     if (!cache_file_exists(surf::KEY_DOCBORDER, cconfig)){
         construct_doc_border<sdsl::int_alphabet_tag::WIDTH>(cconfig);
     }
-    cout << "docborders constructed"<< endl;
     if (!cache_file_exists(surf::KEY_DARRAY, cconfig)){
         construct_darray<sdsl::int_alphabet_tag::WIDTH>(cconfig);
     }
-    cout << "darray constructed"<< endl;
 
-    cout << "call idx_invfile construct" << endl;
     idx = idx_invfile<t_pl,t_rank>(cconfig);
 }
 
