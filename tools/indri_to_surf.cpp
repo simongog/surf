@@ -41,7 +41,7 @@ int main( int argc, char** argv ) {
     create_directory(surf_collection_folder);
     std::string dict_file = surf_collection_folder + "/dict.txt";
     std::string doc_names_file = surf_collection_folder + "/doc_names.txt";
-    std::string text_int_file = surf_collection_folder + "/text_int.sdsl";
+    std::string text_int_file = surf_collection_folder + "/text_int_SURF.sdsl";
 
     // load stuff
     indri::collection::Repository repo;
@@ -103,7 +103,7 @@ int main( int argc, char** argv ) {
         std::ofstream of_dict(dict_file);
         for(size_t i=1;i<index->uniqueTermCount();i++) {
             auto term_str = index->term(i);
-            of_dict << term_str << " " << i+2 << std::endl;
+            of_dict << term_str << " " << i+1 << std::endl;
         }
     }
 }
