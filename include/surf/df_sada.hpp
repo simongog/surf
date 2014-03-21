@@ -85,10 +85,15 @@ class df_sada{
             string d_file = cache_file_name(surf::KEY_DARRAY, cc);
             int_vector_buffer<> D(d_file);
 
+            uint64_t doc_cnt = 0;
+            load_from_cache(doc_cnt, KEY_DOCCNT, cc);
+
+            cout << "doc_cnt = " << doc_cnt << endl;
+
             cout<<"begin calc splits"<<endl;
             bit_vector D_split(D.size()+1, 0);
             {
-                std::vector<int64_t> last_seen(wtc.sigma, -2);
+                std::vector<int64_t> last_seen(doc_cnt+1, -2);
                 int64_t last_border = -1;
                 for (size_t i=0; i<D.size(); ++i){
                     uint64_t x = D[i];

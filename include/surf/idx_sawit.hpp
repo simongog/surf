@@ -38,31 +38,38 @@ struct term_info{
     uint64_t f_qt; // term_frequency
     uint64_t sp_Dt; // start of interval for term t in the suffix array
     uint64_t ep_Dt; // end of interval for term t in the suffix array
+    uint64_t f_Dt;  // number of distinct document the term occurs in 
 
     term_info() = default;
-    term_info(uint64_t t, uint64_t f_qt, uint64_t sp_Dt, uint64_t ep_Dt) : 
-        t(t), f_qt(f_qt), sp_Dt(sp_Dt), ep_Dt(ep_Dt) {}
+    term_info(uint64_t t, uint64_t f_qt, uint64_t sp_Dt, uint64_t ep_Dt, uint64_t f_Dt) : 
+        t(t), f_qt(f_qt), sp_Dt(sp_Dt), ep_Dt(ep_Dt), f_Dt(f_Dt) {
+        
+    }
 
     term_info(term_info&&) = default;
     term_info(const term_info&) = default;
     term_info& operator=(term_info&&) = default;
     term_info& operator=(const term_info&) = default;
+
+    uint64_t F_Dt() const{
+        return ep_Dt-sp_Dt+1;
+    }
 };
 
 template<typename t_wt_node>
 struct s_state_t{
     double score;
-    t_wt_node v_wtd;
+    t_wt_node v;
     std::vector<term_info*> t_ptrs; // pointers to term_info array
-    std::vector<range_type> ranges; // ranges
+    std::vector<range_type> r; // ranges
 
     s_state_t() = default;
 
-    s_state_t(double score, const t_wt_node& v_wtd, 
+    s_state_t(double score, const t_wt_node& v, 
               const std::vector<term_info*>& t_ptrs,
-              const std::vector<range_type>& ranges):
-        score(score), v_wtd(v_wtd), t_ptrs(t_ptrs),
-        ranges(ranges){}
+              const std::vector<range_type>& r):
+        score(score), v(v), t_ptrs(t_ptrs),
+        r(r){}
 
     s_state_t(s_state_t&&) = default;
     s_state_t(const s_state_t&) = default;
@@ -74,7 +81,7 @@ struct s_state_t{
         if ( score != s.score ){
             return score != s.score;
         }
-        return v_wtd < s.v_wtd;
+        return v < s.v;
     }
 };
 
@@ -93,6 +100,7 @@ public:
     using size_type = sdsl::int_vector<>::size_type;
     typedef t_csa   csa_type;
     typedef t_wtd   wtd_type;
+    typedef typename wtd_type::node_type node_type;
     typedef t_df    df_type;
     typedef t_wtdup wtdup_type;
     typedef rank_bm25<> ranker_type;
@@ -102,35 +110,72 @@ private:
     df_type     m_df;
     wtdup_type  m_wtdup; 
     ranker_type m_r;
+
+    using state_type = s_state_t<typename t_wtd::node_type>;
 public:
     result_t search(std::vector<uint64_t> qry,size_t k) {
-        /*
+        typedef std::priority_queue<state_type> pq_type;
+
         auto qry_frq = unique_and_freq(qry.begin(), qry.end());
         std::vector<term_info> terms;
-        std::vector<term_info*> t_ptrs;
+        std::vector<term_info*> term_ptrs;
         std::vector<range_type> ranges;
 
         for (size_t i=0; i<qry_frq.size(); ++i){
             size_type sp=1, ep=0;
             if ( backward_search(m_csa, 0, m_csa.size()-1, qry_frq[i].first, sp, ep) > 0 ) {
-                terms.emplace_back(qry_frq[i].first, qry_frq[i].second, sp, ep);
-                t_ptrs.emplace_back(&terms.back());
+                terms.emplace_back(qry_frq[i].first, qry_frq[i].second, sp, ep, std::get<0>(m_df(sp,ep)) );
+                term_ptrs.emplace_back(&terms.back());
                 ranges.emplace_back(sp, ep);
                 cout << "interval of " << qry[i] << " ["
                      << sp << "," << ep << "]" << endl;
             }
         }
-        s_state_t<typename t_wtd::node_type> root(std::numeric_limits<double>::max(), 
-                                                  m_wtd.root(),
-                                                  t_ptrs, ranges);
-        std::priority_queue<s_state_t<typename t_wtd::node_type>> pq;
-        */
-        result_t res;
-/*        
-        while ( !pq.empty() and res.size() < k ) {
+
+        auto push_node = [this/*,&m_wtd, &m_r*/](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r){
+            auto min_idx = m_wtd.sym(v) << (m_wtd.max_level - v.level);  
+            auto min_doc_len = m_r.doc_length(min_idx);
+            state_type t; // new state
+            t.v = v;
+            t.score = 0;
+            for (size_t i = 0; i < r.size(); ++i){
+                if ( !empty(r[i]) ){
+                    t.r.push_back(r[i]);
+                    t.t_ptrs.push_back(s.t_ptrs[i]);
+                    t.score += m_r.calculate_docscore(
+                                 t.t_ptrs.back()->f_qt,
+                                 size(t.r.back()),
+                                 t.t_ptrs.back()->f_Dt,
+                                 t.t_ptrs.back()->F_Dt(),
+                                 min_doc_len
+                               );
+                } 
+            }
+            pq.emplace(t);       
+        };
+
+        constexpr double max_score = std::numeric_limits<double>::max();
         
+        pq_type pq;
+        pq.emplace(max_score, m_wtd.root(), term_ptrs, ranges);
+
+        result_t res;
+        while ( !pq.empty() and res.size() < k ) {
+            state_type s = pq.top();
+            pq.pop();
+            if ( m_wtd.is_leaf(s.v) ){
+                res.emplace_back(s.score, m_wtd.sym(s.v));//TODO: symbol ok?
+            } else {
+                auto exp_v = m_wtd.expand(s.v);
+                auto exp_r = m_wtd.expand(s.v, s.r);
+                if ( !m_wtd.empty(std::get<0>(exp_v)) ) {
+                    push_node(pq, s, std::get<0>(exp_v), std::get<0>(exp_r));
+                }
+                if ( !m_wtd.empty(std::get<1>(exp_v)) ) {
+                    push_node(pq, s, std::get<1>(exp_v), std::get<1>(exp_r));
+                }
+            }
         }
-*/        
         return res;
     }
 
