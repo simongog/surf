@@ -49,6 +49,9 @@ endforeach(f)
 ADD_EXECUTABLE(test src/test.cpp)
 TARGET_LINK_LIBRARIES(test sdsl divsufsort divsufsort64 pthread)
 
+ADD_EXECUTABLE(select_random_queries tools/select_random_queries.cpp)
+TARGET_LINK_LIBRARIES(select_random_queries sdsl divsufsort divsufsort64 pthread)
+
 ADD_EXECUTABLE(test_postings_list src/test_postings_list.cpp)
 TARGET_LINK_LIBRARIES(test_postings_list sdsl divsufsort divsufsort64 pthread fastpfor_lib)
 

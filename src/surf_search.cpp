@@ -101,8 +101,8 @@ int main(int argc,char* const argv[])
     size_t num_runs = 3;
     for(size_t i=0;i<num_runs;i++) {
         for(const auto& query: queries) {
-            auto id = query.first;
-            auto qry_tokens = query.second;
+            auto id = std::get<0>(query);
+            auto qry_tokens = std::get<1>(query);
             std::cout << "[" << id << "] |Q|=" << qry_tokens.size(); std::cout.flush();
 
             // run the query
