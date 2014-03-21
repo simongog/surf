@@ -2,10 +2,12 @@
 #include <stdlib.h>
 #include <iostream>
 #include <iomanip>
+#include <ctime>
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include "surf/query.hpp"
 #include "sdsl/config.hpp"
 #include "surf/indexes.hpp"
 #include "surf/query_parser.hpp"
@@ -13,17 +15,19 @@
 typedef struct cmdargs {
     std::string collection_dir;
     std::string query_file;
+    std::string output_file;
     uint64_t k;
 } cmdargs_t;
 
 void
 print_usage(char* program)
 {
-    fprintf(stdout,"%s -c <collection directory> -q <query file> -k <top-k>\n",program);
+    fprintf(stdout,"%s -c <collection directory> -q <query file> -k <top-k> -o <output.csv>\n",program);
     fprintf(stdout,"where\n");
     fprintf(stdout,"  -c <collection directory>  : the directory the collection is stored.\n");
     fprintf(stdout,"  -q <query file>  : the queries to be performed.\n");
     fprintf(stdout,"  -k <top-k>  : the top-k documents to be retrieved for each query.\n");
+    fprintf(stdout,"  -o <output.csv>  : output results to file in csv format.\n");
 };
 
 cmdargs_t
@@ -33,14 +37,18 @@ parse_args(int argc,char* const argv[])
     int op;
     args.collection_dir = "";
     args.query_file = "";
+    args.output_file = "";
     args.k = 10;
-    while ((op=getopt(argc,argv,"c:q:k:")) != -1) {
+    while ((op=getopt(argc,argv,"c:q:k:o:")) != -1) {
         switch (op) {
             case 'c':
                 args.collection_dir = optarg;
                 break;
             case 'q':
                 args.query_file = optarg;
+                break;
+            case 'o':
+                args.output_file = optarg;
                 break;
             case 'k':
                 args.k = std::strtoul(optarg,NULL,10);
@@ -86,12 +94,15 @@ int main(int argc,char* const argv[])
     std::cout << "Index loaded in " << load_time_sec.count() << " seconds." << std::endl;
 
     /* process the queries */
-    std::vector< std::tuple<uint64_t,result_t,std::chrono::microseconds> > timings;
+    std::map<uint64_t,std::chrono::microseconds> query_times;
+    std::map<uint64_t,surf::result_t> query_results;
+    std::map<uint64_t,uint64_t> query_lengths;
+
     size_t num_runs = 3;
     for(size_t i=0;i<num_runs;i++) {
         for(const auto& query: queries) {
-            auto id = query.first;
-            auto qry_tokens = query.second;
+            auto id = std::get<0>(query);
+            auto qry_tokens = std::get<1>(query);
             std::cout << "[" << id << "] |Q|=" << qry_tokens.size(); std::cout.flush();
 
             // run the query
@@ -103,9 +114,55 @@ int main(int argc,char* const argv[])
             std::cout << " TIME = " << std::setprecision(5)
                       << query_time.count() / 1000.0 
                       << " ms" << std::endl;
-            timings.emplace_back(id,results,query_time);
+
+            auto itr = query_times.find(id);
+            if(itr != query_times.end()) {
+                itr->second += query_time;
+            } else {
+                query_times[id] = query_time;
+            }
+
+            if(i==0) {
+                query_results[id] = results;
+                query_lengths[id] = qry_tokens.size();
+            }
         }
     }
+
+    /* output results to csv */
+    std::string output_file = args.output_file;
+    if(output_file.empty()) {
+        char time_buffer [80] = {0};
+        std::time_t t = std::time(NULL);
+        auto timeinfo = localtime (&t);
+        strftime (time_buffer,80,"%F-%H:%M:%S",timeinfo);
+        output_file = "surf-timings-" + index_name + "-k" + std::to_string(args.k) 
+                       + "-" + std::string(time_buffer) + ".csv";
+    }
+    std::cout << "Writing timing results to '" << output_file << "'" << std::endl;
+
+    /* calc average */
+    for(auto& timing : query_times) {
+        timing.second = timing.second / num_runs;
+    }
+
+    /* output */
+    {
+        std::ofstream resfs(output_file);
+        if(resfs.is_open()) {
+            resfs << "id;index;k;num_terms;time_ms" << std::endl;
+            for(const auto& timing: query_times) {
+                auto qry_id = timing.first;
+                auto qry_time = timing.second;
+                resfs << qry_id << ";" << index_name << ";" << args.k << ";"
+                          << query_lengths[qry_id] << ";"
+                          << qry_time.count() / 1000.0 << std::endl;
+            }
+        } else {
+            perror("could not output results to file.");
+        }
+    }
+
 
     return EXIT_SUCCESS;
 }

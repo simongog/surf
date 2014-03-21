@@ -96,6 +96,9 @@ class plist_iterator
         size_t remaining() const {
             return size() - m_cur_pos;
         }
+        size_t offset() const {
+            return m_cur_pos;
+        }
     private:
         void access_and_decode_cur_pos() const;
     private:
@@ -115,7 +118,7 @@ template<compression_codec t_codec=compression_codec::optpfor,uint64_t t_block_s
 class postings_list
 {
     public:
-        const static uint64_t uncompressed_threshold = 20;
+        const static uint64_t uncompressed_threshold = 12;
     public:
         friend class plist_iterator<t_codec,t_block_size>;
         typedef sdsl::int_vector<>::size_type                             size_type;
@@ -155,19 +158,19 @@ class postings_list
             return m_max_doc_weight;
         }
         double block_max(uint64_t bid) const {
-            if(m_size < uncompressed_threshold) {
+            if(m_size <= uncompressed_threshold) {
                 return m_max_doc_weight;
             }
             return m_block_maximums[bid];
         }
         double block_max_doc_weight(uint64_t bid) const {
-            if(m_size < uncompressed_threshold) {
+            if(m_size <= uncompressed_threshold) {
                 return m_list_maximuim;
             }
             return m_block_max_doc_weights[bid];
         }
         uint64_t block_rep(uint64_t bid) const {
-            if(m_size < uncompressed_threshold) {
+            if(m_size <= uncompressed_threshold) {
                 return m_docid_data[m_size-1];
             }
             return m_block_representatives[bid];
@@ -391,7 +394,7 @@ void postings_list<t_codec,t_bs>::create_rank_support(const sdsl::int_vector<32>
         double score = ranker.calculate_docscore(1.0f,f_dt,f_t,F_t,W_d);
         max_score = std::max(max_score,score);
         max_doc_weight = std::max(max_doc_weight,doc_weight);
-        if (i % t_bs == 0 && ids.size() >= uncompressed_threshold ) {
+        if (i % t_bs == 0 && ids.size() > uncompressed_threshold ) {
             m_block_maximums[j] = max_score;
             m_block_max_doc_weights[j] = max_doc_weight;
             m_list_maximuim = std::max(m_list_maximuim,max_score);
@@ -403,7 +406,7 @@ void postings_list<t_codec,t_bs>::create_rank_support(const sdsl::int_vector<32>
         }
         i++;
     }
-    if (ids.size() % t_bs != 0 && ids.size() >= uncompressed_threshold ) {
+    if (ids.size() % t_bs != 0 && ids.size() > uncompressed_threshold ) {
         m_block_maximums[num_blocks-1] = max_score;
         m_block_max_doc_weights[num_blocks-1] = max_doc_weight;
     }
@@ -430,7 +433,8 @@ void postings_list<t_codec,t_bs>::create_block_support(const sdsl::int_vector<32
 template<compression_codec t_codec,uint64_t t_bs>
 void postings_list<t_codec,t_bs>::compress_postings_data(const sdsl::int_vector<32>& ids,const sdsl::int_vector<32>& freqs)
 {
-    if(ids.size() < uncompressed_threshold) {
+    m_size = ids.size();
+    if(ids.size() <= uncompressed_threshold) {
         m_docid_data.resize(ids.size());
         m_freq_data.resize(freqs.size());
         std::copy(ids.begin(),ids.end(),m_docid_data.begin());
@@ -443,7 +447,6 @@ void postings_list<t_codec,t_bs>::compress_postings_data(const sdsl::int_vector<
     if (ids.size() % t_bs != 0) num_blocks++;
     m_id_block_ptr.resize(num_blocks+1);
     m_freq_block_ptr.resize(num_blocks+1);
-    m_size = ids.size();
 
     // encode using pfor
     static std::shared_ptr<FastPFor::IntegerCODEC> codec =
@@ -502,7 +505,7 @@ void postings_list<t_codec,t_bs>::compress_postings_data(const sdsl::int_vector<
 template<compression_codec t_codec,uint64_t t_bs>
 void postings_list<t_codec,t_bs>::decompress_block(size_t bid,pfor_data_type& id_data,pfor_data_type& freq_data) const
 {
-    if(m_size < uncompressed_threshold) {
+    if(m_size <= uncompressed_threshold) {
         id_data.resize(m_size);
         freq_data.resize(m_size);
         std::copy(m_docid_data.begin(),m_docid_data.end(),id_data.begin());
@@ -551,7 +554,7 @@ void postings_list<t_codec,t_bs>::decompress_block(size_t bid,pfor_data_type& id
 template<compression_codec t_codec,uint64_t t_bs>
 size_t postings_list<t_codec,t_bs>::find_block_with_id(uint64_t id,size_t start_block) const
 {
-    if(m_size < uncompressed_threshold) {
+    if(m_size <= uncompressed_threshold) {
         return 0;
     }
     size_t block_id = start_block;

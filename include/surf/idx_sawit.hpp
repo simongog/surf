@@ -12,27 +12,6 @@ namespace surf{
 
 using range_type = sdsl::range_type;
 
-template<class ForwardIterator>
-std::vector<std::pair<typename ForwardIterator::value_type, uint64_t>> 
-unique_and_freq(ForwardIterator first, ForwardIterator last){
-    std::sort(first, last);
-    std::vector<std::pair<typename ForwardIterator::value_type, uint64_t>> res;
-    if ( first == last ){
-        return res;
-    }
-    ForwardIterator result = first;
-    res.emplace_back(*first, 1);
-    while (++first != last){
-        if (!(*result == *first)){
-            *(++result)=*first;
-            res.emplace_back(*first, 1);
-        } else {
-            ++(std::get<1>(res.back()));
-        }
-    }
-    return res;
-}
-
 struct term_info{
     uint64_t t; // term_id
     uint64_t f_qt; // term_frequency
@@ -113,21 +92,20 @@ private:
 
     using state_type = s_state_t<typename t_wtd::node_type>;
 public:
-    result_t search(std::vector<uint64_t> qry,size_t k) {
-        typedef std::priority_queue<state_type> pq_type;
 
-        auto qry_frq = unique_and_freq(qry.begin(), qry.end());
+    result_t search(const std::vector<query_token>& qry,size_t k) {
+        typedef std::priority_queue<state_type> pq_type;
         std::vector<term_info> terms;
         std::vector<term_info*> term_ptrs;
         std::vector<range_type> ranges;
 
-        for (size_t i=0; i<qry_frq.size(); ++i){
+        for (size_t i=0; i<qry.size(); ++i){
             size_type sp=1, ep=0;
-            if ( backward_search(m_csa, 0, m_csa.size()-1, qry_frq[i].first, sp, ep) > 0 ) {
-                terms.emplace_back(qry_frq[i].first, qry_frq[i].second, sp, ep, std::get<0>(m_df(sp,ep)) );
+            if ( backward_search(m_csa, 0, m_csa.size()-1, qry[i].token_id, sp, ep) > 0 ) {
+                terms.emplace_back(qry[i].token_id, qry[i].f_qt, sp, ep, std::get<0>(m_df(sp,ep)) );
                 term_ptrs.emplace_back(&terms.back());
                 ranges.emplace_back(sp, ep);
-                cout << "interval of " << qry[i] << " ["
+                cout << "interval of " << qry[i].token_id << " ["
                      << sp << "," << ep << "]" << endl;
             }
         }

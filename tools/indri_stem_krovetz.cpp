@@ -1,4 +1,5 @@
 
+#include <algorithm>
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -22,10 +23,15 @@ int main( int argc, char** argv ) {
         for(std::string qry_token; std::getline(qry_content_stream,qry_token,' ');) {
             char stem_buf[stemmer_t::MAX_WORD_LENGTH+1] = {0};
             char original_word[stemmer_t::MAX_WORD_LENGTH+1] = {0};
+            std::replace(qry_token.begin(),qry_token.end(),'-',' ');
+            qry_token.erase(std::remove(qry_token.begin(),qry_token.end(),'\''),qry_token.end());
+            qry_token.erase(std::remove(qry_token.begin(),qry_token.end(),'.'),qry_token.end());
+            std::transform(qry_token.begin(), qry_token.end(), qry_token.begin(), ::tolower);
             std::copy(qry_token.begin(),qry_token.end(),std::begin(original_word));
             auto ret = ks.kstem_stem_tobuffer(original_word,stem_buf);
             if (ret > 0) {
-                stemmed_qry.push_back(std::string(stem_buf));
+                std::string tmp(stem_buf);
+                stemmed_qry.push_back(tmp);
             } else {
                 stemmed_qry.push_back(qry_token);
             }

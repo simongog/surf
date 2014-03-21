@@ -28,6 +28,7 @@ const std::string KEY_DOCBORDER = "docborder";
 const std::string KEY_DOC_LENGTHS = "doclengths";
 const std::string KEY_INVFILE_TERM_RANGES = "invfile_term_ranges";
 const std::string KEY_INVFILE_PLISTS = "invfile_postings_lists";
+const std::string KEY_F_T = "Ft";
 const std::string KEY_H = "H";
 const std::string KEY_CSA = "csa";
 
