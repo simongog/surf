@@ -154,7 +154,7 @@ int main(int argc,char* const argv[])
             for(const auto& timing: query_times) {
                 auto qry_id = timing.first;
                 auto qry_time = timing.second;
-                resfs << qry_id << ";" << index_name << ";" << args.k
+                resfs << qry_id << ";" << index_name << ";" << args.k << ";"
                           << query_lengths[qry_id] << ";"
                           << qry_time.count() / 1000.0 << std::endl;
             }
