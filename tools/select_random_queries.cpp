@@ -63,8 +63,8 @@ parse_args(int argc,char* const argv[])
     return args;
 }
 int main( int argc, char** argv ) {
-    if(argc != 3) {
-        std::cout << "USAGE: " << argv[0] << " <indri repository> <surf collection folder>" << std::endl;
+    if(argc < 3) {
+        print_usage(argv[0]);
         return EXIT_FAILURE;
     }
 
