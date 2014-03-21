@@ -76,7 +76,7 @@ int main( int argc, char** argv ) {
 
     /* parse queries */
     std::cout << "Parsing query file '" << args.query_file << "'" << std::endl;
-    auto queries = surf::query_parser::parse_queries(args.collection_dir,args.query_file);
+    auto queries = surf::query_parser::parse_queries(args.collection_dir,args.query_file,true);
     std::cout << "Found " << queries.size() << " queries." << std::endl;
 
     /* select num_queries random ones */
