@@ -3,6 +3,7 @@
 
 #include "surf/config.hpp"
 #include "sdsl/config.hpp"
+#include "construct_doc_cnt.hpp"
 #include "sdsl/int_vector.hpp"
 
 namespace surf{
@@ -87,6 +88,45 @@ void construct_postings_lists(std::vector<t_pl>& postings_lists,sdsl::cache_conf
     std::cout << "load rank"<< std::endl;
     t_rank ranker(cconfig);
 
+    // load mapping if it exists
+    std::cout << "create docid mapping" << std::endl;
+    surf::construct_doc_cnt<int_alphabet_tag::WIDTH>(cconfig);
+    uint64_t doc_cnt = 0;
+    load_from_cache(doc_cnt, surf::KEY_DOCCNT, cconfig);
+    std::vector<uint64_t> doc_mapping(doc_cnt);
+    {
+        auto url_file = cconfig.dir + "/../" + surf::URL2ID_FILENAME;
+        std::ifstream ufs(url_file);
+        if(ufs.is_open()) {
+            /* load current/indri order */
+            std::unordered_map<std::string,uint64_t> id_mapping;
+            auto docnames_file = cconfig.dir + "/../" + surf::DOCNAMES_FILENAME;
+            std::ifstream dfs(url_file);
+            std::string name_mapping;
+            size_t j=0;
+            while( std::getline(dfs,name_mapping) ) {
+                id_mapping[name_mapping] = j;
+                j++;
+            }
+            /* load url sorted order */
+            std::string url_mapping;
+            j=0;
+            while( std::getline(dfs,url_mapping) ) {
+                auto doc_name = url_mapping.substr(url_mapping.find(' ')+1);
+                auto itr = id_mapping.find(doc_name);
+                if(itr != id_mapping.end()) {
+                    doc_mapping[itr->second] = j;
+                } else {
+                    std::cerr << "could not find mapping for '" << doc_name << "'" << std::endl;
+                }
+                j++;
+            }
+        } else {
+            // identity permutation
+            for(size_t i=0;i<doc_mapping.size();i++) doc_mapping[i] = i;
+        }
+    }
+
     // construct plist for each range
     std::cout << "create postings lists"<< endl;
     size_t max_id = ids[ids.size()-1];
@@ -94,7 +134,7 @@ void construct_postings_lists(std::vector<t_pl>& postings_lists,sdsl::cache_conf
     for(size_t i=2;i<ids.size();i++) { // skip \0 and \1
         size_t range_size = ep[i] - sp[i] + 1;
         int_vector<> tmpD(range_size);
-        std::copy(D.begin()+sp[i],D.begin()+ep[i],tmpD.begin());
+        for(size_t j=sp[i];j<=ep[i];j++) tmpD[j-sp[i]] = doc_mapping[D[j]];
         std::cout << "(" << i << ") |<" << sp[i] << "," << ep[i] << ">| = " << range_size << std::endl;
         postings_lists[ids[i]] = t_pl(ranker,tmpD,0,range_size);
     }
