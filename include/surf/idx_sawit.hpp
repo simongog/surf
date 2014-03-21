@@ -105,8 +105,8 @@ public:
                 terms.emplace_back(qry[i].token_id, qry[i].f_qt, sp, ep, std::get<0>(m_df(sp,ep)) );
                 term_ptrs.emplace_back(&terms.back());
                 ranges.emplace_back(sp, ep);
-                cout << "interval of " << qry[i].token_id << " ["
-                     << sp << "," << ep << "]" << endl;
+                std::cerr << "interval of " << qry[i].token_id << " ["
+                     << sp << "," << ep << "]; size = " << ep-sp+1 << endl;
             }
         }
 
@@ -135,7 +135,9 @@ public:
         constexpr double max_score = std::numeric_limits<double>::max();
         
         pq_type pq;
+        size_type search_space=0;
         pq.emplace(max_score, m_wtd.root(), term_ptrs, ranges);
+        ++search_space;
 
         result_t res;
         while ( !pq.empty() and res.size() < k ) {
@@ -148,12 +150,15 @@ public:
                 auto exp_r = m_wtd.expand(s.v, s.r);
                 if ( !m_wtd.empty(std::get<0>(exp_v)) ) {
                     push_node(pq, s, std::get<0>(exp_v), std::get<0>(exp_r));
+                    ++search_space;
                 }
                 if ( !m_wtd.empty(std::get<1>(exp_v)) ) {
                     push_node(pq, s, std::get<1>(exp_v), std::get<1>(exp_r));
+                    ++search_space;
                 }
             }
         }
+        std::cerr << "search_space = " << search_space << std::endl;
         return res;
     }
 
