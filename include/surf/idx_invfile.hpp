@@ -8,6 +8,7 @@
 #include "surf/construct_invidx.hpp"
 #include "surf/construct_darray.hpp"
 #include "surf/construct_doc_border.hpp"
+#include "construct_doc_cnt.hpp"
 #include "surf/invfile_postings_list.hpp"
 #include "surf/util.hpp"
 #include "surf/rank_functions.hpp"
