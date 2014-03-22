@@ -48,11 +48,21 @@ private:
 private:
     std::vector<plist_type> m_postings_lists;
     sdsl::int_vector<> m_F_t;
+    sdsl::int_vector<> m_id_mapping;
     rank_type ranker;
 public:
 	idx_invfile() = default;
     idx_invfile(cache_config& config)
     {
+        if( cache_file_exists<plist_type>(KEY_INVFILE_TERM_IDOCPERM,config) ) {
+            std::ifstream ifs(cache_file_name<plist_type>(KEY_INVFILE_TERM_IDOCPERM,config));
+            m_id_mapping.load(ifs);
+        } else {
+            construct_invidx_doc_permuations(m_id_mapping,config);
+            std::ofstream ofs(cache_file_name<plist_type>(KEY_INVFILE_TERM_IDOCPERM,config));
+            m_id_mapping.serialize(ofs);
+        }
+
         if( cache_file_exists<plist_type>(KEY_F_T,config) ) {
             std::ifstream ifs(cache_file_name<plist_type>(KEY_F_T,config));
             m_F_t.load(ifs);
@@ -83,6 +93,7 @@ public:
     	structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
         size_type written_bytes = 0;
         written_bytes += m_F_t.serialize(out,child,"F_t");
+        written_bytes += m_id_mapping.serialize(out,child,"id mapping");
         size_t num_lists = m_postings_lists.size();
         written_bytes += sdsl::serialize(num_lists,out,child,"num postings lists");
         for(const auto& pl : m_postings_lists) {
@@ -283,7 +294,12 @@ public:
         }
 
         // return the top-k results
-        result_t res;
+        result_t res(score_heap.size());
+        for(size_t i=0;i<res.size();i++) {
+            auto min = score_heap.top(); score_heap.pop();
+            min.doc_id = m_id_mapping[min.doc_id];
+            res[res.size()-1-i] = min;
+        }
 
         return res;
     }

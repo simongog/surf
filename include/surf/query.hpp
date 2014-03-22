@@ -14,6 +14,7 @@ struct doc_score {
     		return doc_id > rhs.doc_id;
         return score > rhs.score;
     }
+    doc_score() {};
     doc_score(uint64_t did,double s) : doc_id(did) , score(s) {};
 };
 

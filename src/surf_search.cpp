@@ -15,7 +15,6 @@
 typedef struct cmdargs {
     std::string collection_dir;
     std::string query_file;
-    std::string output_file;
     uint64_t k;
 } cmdargs_t;
 
@@ -27,7 +26,6 @@ print_usage(char* program)
     fprintf(stdout,"  -c <collection directory>  : the directory the collection is stored.\n");
     fprintf(stdout,"  -q <query file>  : the queries to be performed.\n");
     fprintf(stdout,"  -k <top-k>  : the top-k documents to be retrieved for each query.\n");
-    fprintf(stdout,"  -o <output.csv>  : output results to file in csv format.\n");
 };
 
 cmdargs_t
@@ -37,18 +35,14 @@ parse_args(int argc,char* const argv[])
     int op;
     args.collection_dir = "";
     args.query_file = "";
-    args.output_file = "";
     args.k = 10;
-    while ((op=getopt(argc,argv,"c:q:k:o:")) != -1) {
+    while ((op=getopt(argc,argv,"c:q:k:")) != -1) {
         switch (op) {
             case 'c':
                 args.collection_dir = optarg;
                 break;
             case 'q':
                 args.query_file = optarg;
-                break;
-            case 'o':
-                args.output_file = optarg;
                 break;
             case 'k':
                 args.k = std::strtoul(optarg,NULL,10);
@@ -130,16 +124,14 @@ int main(int argc,char* const argv[])
     }
 
     /* output results to csv */
-    std::string output_file = args.output_file;
-    if(output_file.empty()) {
-        char time_buffer [80] = {0};
-        std::time_t t = std::time(NULL);
-        auto timeinfo = localtime (&t);
-        strftime (time_buffer,80,"%F-%H:%M:%S",timeinfo);
-        output_file = "surf-timings-" + index_name + "-k" + std::to_string(args.k) 
-                       + "-" + std::string(time_buffer) + ".csv";
-    }
-    std::cout << "Writing timing results to '" << output_file << "'" << std::endl;
+    char time_buffer [80] = {0};
+    std::time_t t = std::time(NULL);
+    auto timeinfo = localtime (&t);
+    strftime (time_buffer,80,"%F-%H:%M:%S",timeinfo);
+    std::string time_output_file = "surf-timings-" + index_name + "-k" + std::to_string(args.k) 
+                   + "-" + std::string(time_buffer) + ".csv";
+    std::string res_output_file = "surf-results-" + index_name + "-k" + std::to_string(args.k) 
+                   + "-" + std::string(time_buffer) + ".csv";
 
     /* calc average */
     for(auto& timing : query_times) {
@@ -148,7 +140,8 @@ int main(int argc,char* const argv[])
 
     /* output */
     {
-        std::ofstream resfs(output_file);
+        std::cout << "Writing timing results to '" << time_output_file << "'" << std::endl;     
+        std::ofstream resfs(time_output_file);
         if(resfs.is_open()) {
             resfs << "id;index;k;num_terms;time_ms" << std::endl;
             for(const auto& timing: query_times) {
@@ -156,7 +149,24 @@ int main(int argc,char* const argv[])
                 auto qry_time = timing.second;
                 resfs << qry_id << ";" << index_name << ";" << args.k << ";"
                           << query_lengths[qry_id] << ";"
-                          << qry_time.count() / 1000.0 << std::endl;
+                          << qry_time.count() / 1000.0  << "\n"; 
+            }
+        } else {
+            perror("could not output results to file.");
+        }
+        std::cout << "Writing result listing to '" << time_output_file << "'" << std::endl;
+        std::ofstream res_outfs(res_output_file);
+        if(res_outfs.is_open()) {
+            res_outfs << "id;rank;docid;score" << std::endl;
+            for(const auto& result: query_results) {
+                auto qry_id = result.first;
+                auto qry_res = result.second;
+                for(size_t i=1;i<=qry_res.size();i++) {
+                    res_outfs << qry_id << ";" 
+                              << i  << ";" 
+                              << qry_res[i-1].doc_id << ";" 
+                              << qry_res[i-1].score << "\n"; 
+                }
             }
         } else {
             perror("could not output results to file.");

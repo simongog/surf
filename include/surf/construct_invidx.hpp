@@ -36,6 +36,55 @@ void construct_term_ranges(sdsl::int_vector<>& ids, sdsl::int_vector<>& sp,
     }
 }
 
+void construct_invidx_doc_permuations(sdsl::int_vector<>& id_mapping,sdsl::cache_config& cconfig)
+{
+    surf::construct_doc_cnt<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+    uint64_t doc_cnt = 0;
+    load_from_cache(doc_cnt, surf::KEY_DOCCNT, cconfig);
+    sdsl::int_vector<> doc_mapping(doc_cnt);
+    {
+        auto url_file = cconfig.dir + "/../" + surf::URL2ID_FILENAME;
+        std::ifstream ufs(url_file);
+        if(ufs.is_open()) {
+            /* load current/indri order */
+            std::unordered_map<std::string,uint64_t> id_mapping;
+            auto docnames_file = cconfig.dir + "/../" + surf::DOCNAMES_FILENAME;
+            std::ifstream dfs(url_file);
+            std::string name_mapping;
+            size_t j=0;
+            while( std::getline(dfs,name_mapping) ) {
+                id_mapping[name_mapping] = j;
+                j++;
+            }
+            /* load url sorted order */
+            std::string url_mapping;
+            j=0;
+            while( std::getline(dfs,url_mapping) ) {
+                auto doc_name = url_mapping.substr(url_mapping.find(' ')+1);
+                auto itr = id_mapping.find(doc_name);
+                if(itr != id_mapping.end()) {
+                    doc_mapping[itr->second] = j;
+                } else {
+                    std::cerr << "could not find mapping for '" << doc_name << "'" << std::endl;
+                }
+                j++;
+            }
+        } else {
+            // identity permutation
+            for(size_t i=0;i<doc_mapping.size();i++) doc_mapping[i] = i;
+        }
+    }
+    // create the inverse permutation
+    id_mapping.resize(doc_mapping.size());
+    for(size_t i=0;i<doc_mapping.size();i++) {
+        id_mapping[doc_mapping[i]] = i;
+    }
+
+    // store both to disk
+    store_to_cache(id_mapping, KEY_INVFILE_TERM_IDOCPERM, cconfig);
+    store_to_cache(doc_mapping, KEY_INVFILE_TERM_DOCPERM, cconfig);
+}
+
 void construct_F_t(sdsl::int_vector<>& F_t,sdsl::cache_config& cconfig)
 {
     // load term ranges 
@@ -89,43 +138,9 @@ void construct_postings_lists(std::vector<t_pl>& postings_lists,sdsl::cache_conf
     t_rank ranker(cconfig);
 
     // load mapping if it exists
-    std::cout << "create docid mapping" << std::endl;
-    surf::construct_doc_cnt<int_alphabet_tag::WIDTH>(cconfig);
-    uint64_t doc_cnt = 0;
-    load_from_cache(doc_cnt, surf::KEY_DOCCNT, cconfig);
-    std::vector<uint64_t> doc_mapping(doc_cnt);
-    {
-        auto url_file = cconfig.dir + "/../" + surf::URL2ID_FILENAME;
-        std::ifstream ufs(url_file);
-        if(ufs.is_open()) {
-            /* load current/indri order */
-            std::unordered_map<std::string,uint64_t> id_mapping;
-            auto docnames_file = cconfig.dir + "/../" + surf::DOCNAMES_FILENAME;
-            std::ifstream dfs(url_file);
-            std::string name_mapping;
-            size_t j=0;
-            while( std::getline(dfs,name_mapping) ) {
-                id_mapping[name_mapping] = j;
-                j++;
-            }
-            /* load url sorted order */
-            std::string url_mapping;
-            j=0;
-            while( std::getline(dfs,url_mapping) ) {
-                auto doc_name = url_mapping.substr(url_mapping.find(' ')+1);
-                auto itr = id_mapping.find(doc_name);
-                if(itr != id_mapping.end()) {
-                    doc_mapping[itr->second] = j;
-                } else {
-                    std::cerr << "could not find mapping for '" << doc_name << "'" << std::endl;
-                }
-                j++;
-            }
-        } else {
-            // identity permutation
-            for(size_t i=0;i<doc_mapping.size();i++) doc_mapping[i] = i;
-        }
-    }
+    std::cout << "load docid mapping" << std::endl;
+    sdsl::int_vector<> doc_mapping;
+    load_from_cache(doc_mapping, KEY_INVFILE_TERM_DOCPERM, cconfig);
 
     // construct plist for each range
     std::cout << "create postings lists"<< endl;
