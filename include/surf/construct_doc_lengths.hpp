@@ -22,14 +22,12 @@ void construct_doc_lengths(sdsl::cache_config& cconfig)
     }
     int_vector_buffer<t_width> text(text_file);
     std::vector<uint64_t> doc_lengths;
-    size_t len = 0;
-    for (uint64_t i=0; i < text.size(); ++i){
+    for (uint64_t i=0, len=0; i < text.size(); ++i){
+        ++len;
         if ( 1 == text[i] ){
             doc_lengths.push_back(len);
             len = 0;
-        } else {
-            len++;
-        }
+        } 
     }
     sdsl::int_vector<> sdsl_doc_len(doc_lengths.size());
     for(size_t i=0;i<doc_lengths.size();i++) {

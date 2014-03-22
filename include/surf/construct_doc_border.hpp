@@ -18,7 +18,7 @@ void construct_doc_border(sdsl::cache_config& cc)
         const char* KEY_TEXT  = key_text_trait<t_width>::KEY_TEXT;
         std::string text_file = cache_file_name(KEY_TEXT, cc);
         if (!cache_file_exists(KEY_TEXT, cc)) {
-            std::cerr << "ERROR: construct_doc_cnt: " << text_file
+            std::cerr << "ERROR: construct_doc_border: " << text_file
                       << " does not exist. Abort." << std::endl;
             return;
         }
