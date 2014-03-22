@@ -7,5 +7,6 @@
 #include "idx_dummy.hpp"
 #include "idx_invfile.hpp"
 #include "idx_sawit.hpp"
+#include "idx_sawit2.hpp"
 
 #endif
