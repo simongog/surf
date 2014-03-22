@@ -2,6 +2,7 @@
 #define SURF_DARRAY_HPP
 
 #include "config.hpp"
+#include "construct_doc_perm.hpp"
 #include "construct_doc_border.hpp"
 #include <sdsl/suffix_arrays.hpp>
 #include <algorithm>
@@ -23,9 +24,13 @@ void construct_darray(sdsl::cache_config& cc)
         rank_support_v<> doc_border_rank(&doc_border);
         uint64_t doc_cnt = doc_border_rank(doc_border.size());
 
+        construct_doc_perm<t_width>(cc);
+        doc_perm dp;
+        load_from_cache(dp, KEY_DOCPERM,cc);
+
         int_vector<> darray(sa.size(), 0, bits::hi(doc_cnt)+1);
         for (uint64_t i=0; i<sa.size(); ++i){
-            darray[i] = doc_border_rank(sa[i]);
+            darray[i] = dp.id2len[doc_border_rank(sa[i])];
         }
         store_to_cache(darray, KEY_DARRAY, cc);
     }
