@@ -313,9 +313,10 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
         for (size_t i = 0; i < tmpdup.size(); ++i){
             dup[i] = D_array[tmpdup[i]];
         }
-        std::map<uint64_t, uint64_t> node_list_len;
+//        std::map<uint64_t, uint64_t> node_list_len;
         std::vector<uint64_t> dup_in_node(doc_cnt+1, 0);
         int_vector_buffer<1> bv_h(cache_file_name(surf::KEY_H,cc));
+        
         for (size_t i=0,j=0; i < bv_h.size(); ++i){
             if (bv_h[i] == 0 ){
                 size_t sp = j;
@@ -324,16 +325,14 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
                     ++j; ++i;
                 } 
                 size_t ep = j;
-                ++node_list_len[ep-sp];
+//                ++node_list_len[ep-sp];
                 std::sort(dup_in_node.begin(), dup_in_node.begin()+(ep-sp));
                 for (size_t k = sp; k < ep; ++k){
-                    dup[k] = dup_in_node[j-sp];
+                    dup[k] = dup_in_node[k-sp];
                 }
             }
-//            if ( j >= D.size()-1-doc_cnt){
-//                cout << "j="<<j<<endl;
-//            }
         }
+        
 //        for (auto x : node_list_len){
 //            std::cerr << x.first << ", " << x.second << std::endl;
 //        }
