@@ -93,6 +93,9 @@ parse_collection(std::string collection_dir)
     std::string index_directory = collection_dir+"/index/";
     surf::create_directory(index_directory);
 
+    std::string results_directory = collection_dir+"/results/";
+    surf::create_directory(results_directory);
+
     /* populate cache config */
     sdsl::cache_config config(false,collection_dir+"/index/","SURF");
 

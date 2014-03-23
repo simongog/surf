@@ -128,9 +128,11 @@ int main(int argc,char* const argv[])
     std::time_t t = std::time(NULL);
     auto timeinfo = localtime (&t);
     strftime (time_buffer,80,"%F-%H:%M:%S",timeinfo);
-    std::string time_output_file = "surf-timings-" + index_name + "-k" + std::to_string(args.k) 
+    std::string time_output_file = args.collection_dir + "../results/" 
+                   + "surf-timings-" + index_name + "-k" + std::to_string(args.k) 
                    + "-" + std::string(time_buffer) + ".csv";
-    std::string res_output_file = "surf-results-" + index_name + "-k" + std::to_string(args.k) 
+    std::string res_output_file = args.collection_dir + "../results/" 
+                   + "surf-results-" + index_name + "-k" + std::to_string(args.k) 
                    + "-" + std::string(time_buffer) + ".csv";
 
     /* calc average */
