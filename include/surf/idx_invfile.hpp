@@ -207,8 +207,7 @@ public:
                         size_t k)
     {
         auto doc_id = postings_lists[0]->cur.docid();
-        std::cout << "evaluate_pivot(" << doc_id << ")" << std::endl;
-        double W_d = ranker.doc_length(doc_id);
+        double W_d = ranker.doc_length(m_id_mapping[doc_id]);
         double doc_score = initial_lists * ranker.calc_doc_weight(W_d);
         potential_score -= doc_score;
 
@@ -226,6 +225,12 @@ public:
                 potential_score -= (*itr)->list_max_score;
                 ++((*itr)->cur); // move to next larger doc_id
                 if(potential_score < threshold) {
+                    /* move the other equal ones ahead still! */
+                    itr++;
+                    while( itr != end && (*itr)->cur != (*itr)->end && (*itr)->cur.docid() == doc_id ) {
+                        ++((*itr)->cur);
+                        itr++;
+                    }
                     break;
                 }
             } else {
@@ -262,7 +267,7 @@ public:
             std::cout << " (" << i << ") "
                       << " n=" << pl->cur.size() 
                       << " offset=" << pl->cur.offset() 
-                      << " did=" << pl->cur.docid() 
+                      << " did=" << m_id_mapping[pl->cur.docid()]
                       << " fdt=" << pl->cur.freq()
                       << " rem=" << pl->cur.remaining()
                       << " lm=" << pl->list_max_score
@@ -284,7 +289,7 @@ public:
         auto potential_score = std::get<1>(pivot_and_score);
 
         while(pivot_list != postings_lists.end()) {
-            print_lists(postings_lists,threshold);
+            //print_lists(postings_lists,threshold);
             if (postings_lists[0]->cur.docid() == (*pivot_list)->cur.docid()) {
                 threshold = evaluate_pivot(postings_lists,score_heap,potential_score,threshold,initial_lists,k);
             } else {
@@ -299,8 +304,6 @@ public:
         result_t res(score_heap.size());
         for(size_t i=0;i<res.size();i++) {
             auto min = score_heap.top(); score_heap.pop();
-            std::cout << "(" << res.size()-1-i << ") " << min.doc_id << " -> "
-                      << m_id_mapping[min.doc_id] << std::endl;
             min.doc_id = m_id_mapping[min.doc_id];
             res[res.size()-1-i] = min;
         }
