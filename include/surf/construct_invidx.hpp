@@ -49,7 +49,7 @@ void construct_invidx_doc_permuations(sdsl::int_vector<>& id_mapping,sdsl::cache
             /* load current/indri order */
             std::unordered_map<std::string,uint64_t> id_mapping;
             auto docnames_file = cconfig.dir + "/../" + surf::DOCNAMES_FILENAME;
-            std::ifstream dfs(url_file);
+            std::ifstream dfs(docnames_file);
             std::string name_mapping;
             size_t j=0;
             while( std::getline(dfs,name_mapping) ) {
@@ -59,7 +59,7 @@ void construct_invidx_doc_permuations(sdsl::int_vector<>& id_mapping,sdsl::cache
             /* load url sorted order */
             std::string url_mapping;
             j=0;
-            while( std::getline(dfs,url_mapping) ) {
+            while( std::getline(ufs,url_mapping) ) {
                 auto doc_name = url_mapping.substr(url_mapping.find(' ')+1);
                 auto itr = id_mapping.find(doc_name);
                 if(itr != id_mapping.end()) {
