@@ -64,7 +64,7 @@ public:
         }
 
         if( cache_file_exists(KEY_F_T,config) ) {
-            std::ifstream ifs(cache_file_name<plist_type>(KEY_F_T,config));
+            std::ifstream ifs(cache_file_name(KEY_F_T,config));
             m_F_t.load(ifs);
         } else {
             construct_F_t(m_F_t,config);
@@ -305,19 +305,15 @@ public:
     }
 
     result_t search(const std::vector<query_token>& qry,size_t k) {
-        std::cout << " [";
         std::vector<plist_wrapper> pl_data(qry.size());
         std::vector<plist_wrapper*> postings_lists;
         size_t j=0;
         for(const auto& qry_token : qry) {
-            std::cout << qry_token.token_id << ",";
             pl_data[j++] = plist_wrapper(m_postings_lists[qry_token.token_id],(double)m_F_t[qry_token.token_id],(double)qry_token.f_qt);
             if(pl_data[j-1].list_max_score > 0) {
                 postings_lists.emplace_back(&(pl_data[j-1]));
             }
         }
-        std::cout << "]";
-
         return process_wand(postings_lists,k);
     }
 };
