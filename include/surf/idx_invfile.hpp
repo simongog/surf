@@ -207,6 +207,7 @@ public:
                         size_t k)
     {
         auto doc_id = postings_lists[0]->cur.docid();
+        std::cout << "evaluate_pivot(" << doc_id << ")" << std::endl;
         double W_d = ranker.doc_length(doc_id);
         double doc_score = initial_lists * ranker.calc_doc_weight(W_d);
         potential_score -= doc_score;
@@ -260,7 +261,8 @@ public:
             const auto& pl = postings_lists[i];
             std::cout << " (" << i << ") "
                       << " n=" << pl->cur.size() 
-                      << " did=" << pl->cur.offset() 
+                      << " offset=" << pl->cur.offset() 
+                      << " did=" << pl->cur.docid() 
                       << " fdt=" << pl->cur.freq()
                       << " rem=" << pl->cur.remaining()
                       << " lm=" << pl->list_max_score
@@ -282,7 +284,7 @@ public:
         auto potential_score = std::get<1>(pivot_and_score);
 
         while(pivot_list != postings_lists.end()) {
-            //print_lists(postings_lists,threshold);
+            print_lists(postings_lists,threshold);
             if (postings_lists[0]->cur.docid() == (*pivot_list)->cur.docid()) {
                 threshold = evaluate_pivot(postings_lists,score_heap,potential_score,threshold,initial_lists,k);
             } else {
@@ -297,6 +299,8 @@ public:
         result_t res(score_heap.size());
         for(size_t i=0;i<res.size();i++) {
             auto min = score_heap.top(); score_heap.pop();
+            std::cout << "(" << res.size()-1-i << ") " << min.doc_id << " -> "
+                      << m_id_mapping[min.doc_id] << std::endl;
             min.doc_id = m_id_mapping[min.doc_id];
             res[res.size()-1-i] = min;
         }
@@ -309,7 +313,8 @@ public:
         std::vector<plist_wrapper*> postings_lists;
         size_t j=0;
         for(const auto& qry_token : qry) {
-            pl_data[j++] = plist_wrapper(m_postings_lists[qry_token.token_id],(double)m_F_t[qry_token.token_id],(double)qry_token.f_qt);
+            pl_data[j++] = plist_wrapper(m_postings_lists[qry_token.token_id],
+                    (double)m_F_t[qry_token.token_id],(double)qry_token.f_qt);
             if(pl_data[j-1].list_max_score > 0) {
                 postings_lists.emplace_back(&(pl_data[j-1]));
             }

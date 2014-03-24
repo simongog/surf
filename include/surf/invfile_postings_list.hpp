@@ -251,7 +251,7 @@ postings_list<t_codec,t_bs>::postings_list(const t_rank& ranker,
         throw std::logic_error("trying to create empty postings list.");
     }
 
-    std::sort(D.begin()+sp,D.begin()+ep);
+    std::sort(D.begin()+sp,D.begin()+ep+1);
 
     // count uniq docs
     size_t unique = 1;

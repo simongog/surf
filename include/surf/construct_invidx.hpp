@@ -149,8 +149,8 @@ void construct_postings_lists(std::vector<t_pl>& postings_lists,sdsl::cache_conf
         size_t range_size = ep[i] - sp[i] + 1;
         int_vector<> tmpD(range_size);
         for(size_t j=sp[i];j<=ep[i];j++) tmpD[j-sp[i]] = doc_mapping[D[j]];
-        std::cout << "(" << i << ") |<" << sp[i] << "," << ep[i] << ">| = " << range_size << std::endl;
-        postings_lists[ids[i]] = t_pl(ranker,tmpD,0,range_size);
+        if(range_size>1000) std::cout << "(" << i << ") |<" << sp[i] << "," << ep[i] << ">| = " << range_size << std::endl;
+        postings_lists[ids[i]] = t_pl(ranker,tmpD,0,range_size-1);
     }
 }
 

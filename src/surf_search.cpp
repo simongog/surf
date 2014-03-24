@@ -92,7 +92,7 @@ int main(int argc,char* const argv[])
     std::map<uint64_t,surf::result_t> query_results;
     std::map<uint64_t,uint64_t> query_lengths;
 
-    size_t num_runs = 3;
+    size_t num_runs = 1;
     for(size_t i=0;i<num_runs;i++) {
         for(const auto& query: queries) {
             auto id = std::get<0>(query);
