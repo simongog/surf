@@ -156,7 +156,7 @@ int main(int argc,char* const argv[])
         } else {
             perror("could not output results to file.");
         }
-        std::cout << "Writing result listing to '" << time_output_file << "'" << std::endl;
+        std::cout << "Writing result listing to '" << res_output_file << "'" << std::endl;
         std::ofstream res_outfs(res_output_file);
         if(res_outfs.is_open()) {
             res_outfs << "id;rank;docid;score" << std::endl;
