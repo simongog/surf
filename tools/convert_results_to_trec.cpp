@@ -67,6 +67,7 @@ tokenize(std::string line) {
         tokens.push_back(token);
         line.erase(0, pos + 1);
     }
+    tokens.push_back(line);
     return tokens;
 }
 
@@ -91,12 +92,17 @@ int main( int argc, char** argv ) {
 
     std::ofstream trec_out(args.trec_file);
     std::ifstream surfres_fs(args.surf_file);
+    bool first = true;
     for(std::string line; std::getline(surfres_fs,line);) {
+        if(first) {
+            first = false;
+            continue;
+        }
         auto tokens = tokenize(line);
         auto qry_id = std::strtoul(tokens[0].c_str(),NULL,10);
-        auto rank = std::strtoul(tokens[0].c_str(),NULL,10);
-        auto doc_id = std::strtoul(tokens[0].c_str(),NULL,10);
-        auto doc_score = std::strtod(tokens[0].c_str(),NULL);
+        auto rank = std::strtoul(tokens[1].c_str(),NULL,10);
+        auto doc_id = std::strtoul(tokens[2].c_str(),NULL,10);
+        auto doc_score = std::strtod(tokens[3].c_str(),NULL);
 
         trec_out 
             << qry_id << "\t"
