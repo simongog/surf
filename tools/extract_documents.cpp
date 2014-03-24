@@ -128,9 +128,9 @@ int main( int argc, char** argv ) {
         std::cout << "document length = " << doc_stop - doc_start + 1 << std::endl;
         std::cout << "document content  = '";
         for(size_t i=doc_start;i<=doc_stop;i++) {
-        	std::cout << "<" << id_mapping[T[i]] << ">";
+        	std::cout << id_mapping[T[i]] << " ";
         }
-        std::cout << std::endl;
+        std::cout << "'" << std::endl;
     }
 }
 
