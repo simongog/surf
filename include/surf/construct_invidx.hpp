@@ -3,6 +3,7 @@
 
 #include "surf/config.hpp"
 #include "sdsl/config.hpp"
+#include "surf/doc_perm.hpp"
 #include "construct_doc_cnt.hpp"
 #include "sdsl/int_vector.hpp"
 
@@ -139,6 +140,8 @@ void construct_postings_lists(std::vector<t_pl>& postings_lists,sdsl::cache_conf
     // load mapping if it exists
     std::cout << "load docid mapping" << std::endl;
     sdsl::int_vector<> doc_mapping;
+    doc_perm dp;
+    load_from_cache(dp, KEY_DOCPERM, cconfig);
     load_from_cache(doc_mapping, KEY_INVFILE_DOCPERM, cconfig);
 
     // construct plist for each range
@@ -148,7 +151,7 @@ void construct_postings_lists(std::vector<t_pl>& postings_lists,sdsl::cache_conf
     for(size_t i=2;i<ids.size();i++) { // skip \0 and \1
         size_t range_size = ep[i] - sp[i] + 1;
         int_vector<> tmpD(range_size);
-        for(size_t j=sp[i];j<=ep[i];j++) tmpD[j-sp[i]] = doc_mapping[D[j]];
+        for(size_t j=sp[i];j<=ep[i];j++) tmpD[j-sp[i]] = doc_mapping[dp.len2id[D[j]]];
         if(range_size>1000) std::cout << "(" << i << ") |<" << sp[i] << "," << ep[i] << ">| = " << range_size << std::endl;
         postings_lists[ids[i]] = t_pl(ranker,tmpD,0,range_size-1);
     }
