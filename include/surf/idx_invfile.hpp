@@ -54,21 +54,21 @@ public:
 	idx_invfile() = default;
     idx_invfile(cache_config& config)
     {
-        if( cache_file_exists<plist_type>(KEY_INVFILE_TERM_IDOCPERM,config) ) {
-            std::ifstream ifs(cache_file_name<plist_type>(KEY_INVFILE_TERM_IDOCPERM,config));
+        if( cache_file_exists(KEY_INVFILE_IDOCPERM,config) ) {
+            std::ifstream ifs(cache_file_name(KEY_INVFILE_IDOCPERM,config));
             m_id_mapping.load(ifs);
         } else {
             construct_invidx_doc_permuations(m_id_mapping,config);
-            std::ofstream ofs(cache_file_name<plist_type>(KEY_INVFILE_TERM_IDOCPERM,config));
+            std::ofstream ofs(cache_file_name(KEY_INVFILE_IDOCPERM,config));
             m_id_mapping.serialize(ofs);
         }
 
-        if( cache_file_exists<plist_type>(KEY_F_T,config) ) {
+        if( cache_file_exists(KEY_F_T,config) ) {
             std::ifstream ifs(cache_file_name<plist_type>(KEY_F_T,config));
             m_F_t.load(ifs);
         } else {
             construct_F_t(m_F_t,config);
-            std::ofstream ofs(cache_file_name<plist_type>(KEY_F_T,config));
+            std::ofstream ofs(cache_file_name(KEY_F_T,config));
             m_F_t.serialize(ofs);
         }
     	if( cache_file_exists<plist_type>(KEY_INVFILE_PLISTS,config) ) {

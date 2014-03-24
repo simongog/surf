@@ -80,9 +80,8 @@ void construct_invidx_doc_permuations(sdsl::int_vector<>& id_mapping,sdsl::cache
         id_mapping[doc_mapping[i]] = i;
     }
 
-    // store both to disk
-    store_to_cache(id_mapping, KEY_INVFILE_TERM_IDOCPERM, cconfig);
-    store_to_cache(doc_mapping, KEY_INVFILE_TERM_DOCPERM, cconfig);
+    // store the forward to disk
+    store_to_cache(doc_mapping, KEY_INVFILE_DOCPERM, cconfig);
 }
 
 void construct_F_t(sdsl::int_vector<>& F_t,sdsl::cache_config& cconfig)
@@ -140,7 +139,7 @@ void construct_postings_lists(std::vector<t_pl>& postings_lists,sdsl::cache_conf
     // load mapping if it exists
     std::cout << "load docid mapping" << std::endl;
     sdsl::int_vector<> doc_mapping;
-    load_from_cache(doc_mapping, KEY_INVFILE_TERM_DOCPERM, cconfig);
+    load_from_cache(doc_mapping, KEY_INVFILE_DOCPERM, cconfig);
 
     // construct plist for each range
     std::cout << "create postings lists"<< endl;
