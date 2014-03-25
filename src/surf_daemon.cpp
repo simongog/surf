@@ -12,6 +12,7 @@
 #include "sdsl/config.hpp"
 #include "surf/indexes.hpp"
 #include "surf/query_parser.hpp"
+#include "surf/comm.hpp"
 
 #include "zmq.hpp"
 
@@ -103,49 +104,70 @@ int main(int argc,char* const argv[])
     	std::cout << "Starting daemon mode on port 12345" << std::endl;
     	zmq::context_t context(1);
     	zmq::socket_t server(context, ZMQ_REP);
-    	server.bind("tcp://*:12345");
+    	server.bind("tcp://127.0.0.1:12345");
 
     	while(true) {
     		zmq::message_t request;
     		/* wait for msg */
     		server.recv(&request);
+            surf_qry_request* surf_req = (surf_qry_request*) request.data();
 
-    		auto parsed_request = parse_request(request.data(),request.size());
-    		auto k = std::get<1>(parsed_request);
-    		auto query_str = std::get<2>(parsed_request);
-    		auto req_id = std::get<0>(parsed_request);
+            if(surf_req->req_type == REQ_TYPE_QUIT) {
+                std::cout << "Quitting..." << std::endl;
+                break;
+            }
 
     		/* perform query */
     		auto qry_start = clock::now();
 
     		/* (1) parse qry terms */
-    		auto parsed_query = surf::query_parser::parse_query(term_map,query_str);
+    		auto parsed_query = surf::query_parser::parse_query(term_map,std::string(surf_req->qry_str));
     		if(!parsed_query.first) {
-    			// error
-    			zmq::message_t reply (5);
-    			memcpy(reply.data(),"ERROR",5);
-    			server.send (reply);
+                // error parsing the qry. send back error
+                surf_time_resp surf_resp;
+                surf_resp.status = REQ_PARSE_ERROR;
+                surf_resp.req_id = surf_req->req_id;
+    			zmq::message_t reply (sizeof(surf_time_resp));
+    			memcpy(reply.data(),&surf_resp,sizeof(surf_time_resp));
+    			server.send(reply);
     		} else {
+              
 	    		/* (2) query the index */
 	            auto qry_id = std::get<0>(parsed_query.second);
 	            auto qry_tokens = std::get<1>(parsed_query.second);
 	            auto search_start = clock::now();
-	            auto results = index.search(qry_tokens,k);
+	            auto results = index.search(qry_tokens,surf_req->k);
 	            auto search_stop = clock::now();
 	            auto search_time = std::chrono::duration_cast<std::chrono::microseconds>(search_stop-search_start);
 
 	    		auto qry_stop = clock::now();
 	    		auto query_time = std::chrono::duration_cast<std::chrono::microseconds>(qry_stop-qry_start);
 
-	    		/* (3) create answer */
-	    		std::string response = std::to_string(req_id) + ";" +
-	    							   std::to_string(k) + ";" +
-	    							   std::to_string(qry_id) + ";" +
-	    							   std::to_string(query_time.count()) + ";" +
-	    							   std::to_string(search_time.count());
+                /* (3a) output to qry to console */
+                auto qry_strtokens = std::get<2>(parsed_query.second);
+                std::cout << "REQ=" << std::left << std::setw(10) << surf_req->req_id << " " 
+                          << " k="  << std::setw(5) << surf_req->k 
+                          << " QID=" << std::setw(5) << qry_id 
+                          << " TIME=" << std::setw(7) << query_time.count()/1000.0;
+                std::cout << " [";
+                for(const auto& qst : qry_strtokens) {
+                    std::cout << qst << " ";
+                }
+                std::cout << "]" << std::endl;
 
-	    		zmq::message_t reply (response.size());
-	    		memcpy(reply.data(),response.data(),response.size());
+	    		/* (3) create answer and send */
+                surf_time_resp surf_resp;
+                surf_resp.status = REQ_RESPONE_OK;
+                surf_resp.req_id = surf_req->req_id;
+                surf_resp.k = surf_req->k;
+                surf_resp.qry_id = qry_id;
+                surf_resp.qry_len = qry_tokens.size();
+                surf_resp.result_size = results.size();
+                surf_resp.qry_time = query_time.count();
+                surf_resp.search_time = search_time.count();
+
+	    		zmq::message_t reply (sizeof(surf_time_resp));
+	    		memcpy(reply.data(),&surf_resp,sizeof(surf_time_resp));
 	    		server.send (reply);
 	    	}
     	}

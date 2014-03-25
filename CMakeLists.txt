@@ -9,10 +9,11 @@ project(SURF CXX C)
 INCLUDE_DIRECTORIES(${CMAKE_HOME_DIRECTORY}/include
                     ${CMAKE_HOME_DIRECTORY}/external/fastpfor/headers/
                     ${CMAKE_HOME_DIRECTORY}/external/cppzmq/
+                    ${CMAKE_HOME_DIRECTORY}/external/zeromq/include/
                     ${CMAKE_BINARY_DIR}/external/sdsl-lite/include
                     ${CMAKE_BINARY_DIR}/external/sdsl-lite/external/libdivsufsort-2.0.1/include
-                    ${CMAKE_BINARY_DIR}/external/zeromq/lib/Headers/
                     )
+
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/external/sdsl-lite/lib
 				 ${CMAKE_BINARY_DIR}/external/zeromq/lib
 					)
@@ -23,6 +24,7 @@ append_cxx_compiler_flags("-msse4.2 -std=c++11 -g -funroll-loops -DNDEBUG -stdli
 
 
 ADD_SUBDIRECTORY(external/zeromq)
+SET_PROPERTY(DIRECTORY external/zeromq PROPERTY ZMQ_BUILD_TESTS FALSE)
 
 ADD_SUBDIRECTORY(external/sdsl-lite)
 
@@ -53,11 +55,11 @@ foreach(f ${index_config_files})
 	set_property(TARGET surf_search-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 
 	ADD_EXECUTABLE(surf_daemon-${NAME} src/surf_daemon.cpp)
-	TARGET_LINK_LIBRARIES(surf_daemon-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib zmq)
+	TARGET_LINK_LIBRARIES(surf_daemon-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib libzmq)
 	set_property(TARGET surf_daemon-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 
 	ADD_EXECUTABLE(surf_query-${NAME} src/surf_query.cpp)
-	TARGET_LINK_LIBRARIES(surf_query-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib zmq)
+	TARGET_LINK_LIBRARIES(surf_query-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib libzmq)
 	set_property(TARGET surf_query-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 
 endforeach(f)
