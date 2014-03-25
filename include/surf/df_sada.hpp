@@ -251,10 +251,9 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
     }
     register_cache_file(conf::KEY_LCP, cc);
     using cst_type = typename df_sada<t_bv,t_sel,t_alphabet>::cst_type;
-    cst_type temp_cst;
     if (!cache_file_exists<cst_type>(KEY_TMPCST, cc)) {
         auto event = memory_monitor::event("construct temp_cst");
-        temp_cst = cst_type(cc, true);
+        cst_type temp_cst = cst_type(cc, true);
         store_to_file(temp_cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
     } 
 
@@ -297,6 +296,41 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
     if ( !cache_file_exists<df_sada_type>(surf::KEY_SADADF, cc) ) {
         df_sada_type tmp_sadadf(cc);
         store_to_cache(tmp_sadadf, surf::KEY_SADADF,cc, true);
+    }
+
+    if ( !cache_file_exists(surf::KEY_DPRIME, cc) ) {
+        cout << "Generate DPRIME" << endl;
+        {
+            cst_type temp_cst;
+            load_from_file(temp_cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
+            int_vector_buffer<> D_array(d_file);
+            string dprime_file = cache_file_name(surf::KEY_DPRIME, cc);
+            int_vector_buffer<> dprime(dprime_file, std::ios::out,
+                                       1024*1024, D_array.width());
+            std::vector<int64_t> last_occ(doc_cnt+1, -1);
+
+            auto root = temp_cst.root();
+            for (auto& v : temp_cst.children(root)){
+                auto lb = temp_cst.lb(v);
+                auto rb = temp_cst.rb(v);
+                std::vector<uint64_t> buf;
+                for (auto i = lb; i<=rb; ++i){
+                    auto x = D_array[i];
+                    if ( last_occ[x] < (int64_t)lb ){
+                        buf.push_back(x);
+                    }
+                    last_occ[x] = i;
+                }
+                std::sort(buf.begin(), buf.end());
+                for (size_t i=0; i<buf.size();++i)
+                    dprime.push_back(buf[i]);
+            }
+        }
+        cout << "DPRIME generated" << endl;
+        string dprime_file = cache_file_name(surf::KEY_DPRIME, cc);
+        sdsl::wm_int<rrr_vector<63>> wm;
+        sdsl::construct(wm, dprime_file);
+        cout << "wm_dprime.size()="<<sdsl::size_in_mega_bytes(wm)<<" MiB"<<endl;
     }
 
     if (!cache_file_exists(surf::KEY_DUP, cc)){
