@@ -96,6 +96,7 @@ public:
 
     result_t search(const std::vector<query_token>& qry,size_t k) {
         typedef std::priority_queue<state_type> pq_type;
+        typedef std::priority_queue<double, std::vector<double>, std::greater<double>> pq_min_type;
         std::vector<term_info> terms;
         std::vector<term_info*> term_ptrs;
         std::vector<range_type> ranges;
@@ -104,13 +105,8 @@ public:
             size_type sp=1, ep=0;
             if ( backward_search(m_csa, 0, m_csa.size()-1, qry[i].token_id, sp, ep) > 0 ) {
                 auto f_Dt = std::get<0>(m_df(sp,ep)); // document frequency
-//                std::cerr<<"qry["<<i<<"].f_qt="<<qry[i].f_qt<<std::endl;
-//                if ( f_Dt < m_wtd.sigma/2 ){ // only for BM25 ranger
-                    terms.emplace_back(qry[i].token_id, qry[i].f_qt, sp, ep,  f_Dt);
-                    ranges.emplace_back(sp, ep);
-//                }
-//                std::cerr << "interval of " << qry[i].token_id << " ["
-//                     << sp << "," << ep << "]; size = " << ep-sp+1 << endl;
+                terms.emplace_back(qry[i].token_id, qry[i].f_qt, sp, ep,  f_Dt);
+                ranges.emplace_back(sp, ep);
             }
         }
         term_ptrs.resize(terms.size()); 
@@ -118,10 +114,11 @@ public:
             term_ptrs[i] = &terms[i];
         }
 
-        auto push_node = [this](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r){
+        size_type search_space = 0;
+        auto push_node = [this, &search_space](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r,
+                                pq_min_type& pq_min, const size_t& k){
             auto min_idx = m_wtd.sym(v) << (m_wtd.max_level - v.level);  
             auto min_doc_len = m_r.doc_length(m_docperm.len2id[min_idx]);
-//            std::cerr<<"min_idx="<<min_idx<<" min_doc_len="<<min_doc_len<<" v.size="<<v.size<<", level="<<v.level<<std::endl;
             state_type t; // new state
             t.v = v;
             t.score = 0;
@@ -138,22 +135,29 @@ public:
                                  min_doc_len
                                );
                     t.score += score;
-/*                    
-                    std::cerr<<score<<"-["<<t.t_ptrs.back()->f_qt<<","
-                              <<size(t.r.back())<<","
-                              <<t.t_ptrs.back()->f_Dt<<","
-                              <<t.t_ptrs.back()->F_Dt()<<","
-                              <<min_doc_len<<"] cum = "<<t.score<<std::endl;
-*/                              
                 } 
             }
-            pq.emplace(t);       
+            if ( pq_min.size() < k ){ // not yet k leaves in score queue
+                pq.emplace(t);
+                ++search_space;
+                if ( m_wtd.is_leaf(t.v) )
+                    pq_min.push(t.score);
+            } else { // more than k leaves in score queue
+                if ( t.score > pq_min.top() ){
+                    pq.emplace(t);
+                    ++search_space;
+                    if ( m_wtd.is_leaf(t.v) ){
+                        pq_min.pop();
+                        pq_min.push(t.score);
+                    }
+                } 
+            }
         };
 
         constexpr double max_score = std::numeric_limits<double>::max();
         
+        pq_min_type pq_min;
         pq_type pq;
-        size_type search_space=0;
         pq.emplace(max_score, m_wtd.root(), term_ptrs, ranges);
         ++search_space;
 
@@ -167,16 +171,14 @@ public:
                 auto exp_v = m_wtd.expand(s.v);
                 auto exp_r = m_wtd.expand(s.v, s.r);
                 if ( !m_wtd.empty(std::get<0>(exp_v)) ) {
-                    push_node(pq, s, std::get<0>(exp_v), std::get<0>(exp_r));
-                    ++search_space;
+                    push_node(pq, s, std::get<0>(exp_v), std::get<0>(exp_r), pq_min, k);
                 }
                 if ( !m_wtd.empty(std::get<1>(exp_v)) ) {
-                    push_node(pq, s, std::get<1>(exp_v), std::get<1>(exp_r));
-                    ++search_space;
+                    push_node(pq, s, std::get<1>(exp_v), std::get<1>(exp_r), pq_min, k);
                 }
             }
         }
-        std::cerr << "search_space = " << search_space << std::endl;
+        std::cerr << "\nsearch_space = " << search_space << std::endl;
         for(size_t i=0; i<res.size(); ++i){
             std::cerr<<res[i].score<<","<<res[i].doc_id<<std::endl;
         }
@@ -190,9 +192,6 @@ public:
         load_from_cache(m_wtdup, surf::KEY_WTDUP, cc, true);
         load_from_cache(m_docperm, surf::KEY_DOCPERM, cc); 
         m_r = ranker_type(cc);
-//        for(size_t i=0; i<m_wtd.sigma and i<20; ++i){
-//            std::cerr<<"doc_len_id="<<i<<" doc_length="<<m_r.doc_length(m_docperm.len2id[i])<<std::endl;
-//        }
     }
 
     size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const {
@@ -231,7 +230,7 @@ void construct(idx_sawit<t_csa,t_wtd,t_df,t_wtdup>& idx,
         construct_doc_perm<t_csa::alphabet_type::int_width>(cc);
         construct_darray<t_csa::alphabet_type::int_width>(cc);
         t_wtd wtd;
-        construct(wtd, cache_file_name(surf::KEY_DARRAY, cc));
+        construct(wtd, cache_file_name(surf::KEY_DARRAY, cc), cc);
         cout << "wtd.size() = " << wtd.size() << endl;
         cout << "wtd.sigma = " << wtd.sigma << endl;
         store_to_cache(wtd, surf::KEY_WTD, cc, true);
@@ -246,7 +245,7 @@ void construct(idx_sawit<t_csa,t_wtd,t_df,t_wtdup>& idx,
     cout<<"...WTDUP"<<endl;
     if (!cache_file_exists<t_wtdup>(surf::KEY_WTDUP,cc)){
         t_wtdup wtdup;
-        construct(wtdup, cache_file_name(surf::KEY_DUP, cc));
+        construct(wtdup, cache_file_name(surf::KEY_DUP, cc), cc);
         store_to_cache(wtdup, surf::KEY_WTDUP, cc, true);
         cout << "wtdup.size() = " << wtdup.size() << endl;
         cout << "wtdup.sigma = " << wtdup.sigma << endl;
