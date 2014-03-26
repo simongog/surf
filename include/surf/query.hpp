@@ -21,6 +21,7 @@ struct doc_score {
 struct result {
     std::vector<doc_score> list;
     uint64_t wt_search_space = 0;
+    uint64_t wt_nodes = 0;
     uint64_t postings_evaluated = 0;
     uint64_t postings_total = 0;
 };

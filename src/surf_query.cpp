@@ -144,6 +144,7 @@ int main(int argc,char* const argv[])
                       << surf_resp->qry_time << ";"
                       << surf_resp->search_time << ";"
                       << surf_resp->wt_search_space << ";"
+                      << surf_resp->wt_nodes << ";"
                       << surf_resp->postings_evaluated << ";"
                       << surf_resp->postings_total << ";"
                       << req_time.count() << std::endl;

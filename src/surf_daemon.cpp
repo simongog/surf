@@ -174,6 +174,7 @@ int main(int argc,char* const argv[])
                 surf_resp.qry_time = query_time.count();
                 surf_resp.search_time = search_time.count();
                 surf_resp.wt_search_space = results.wt_search_space;
+                surf_resp.wt_nodes = results.wt_nodes;
                 surf_resp.postings_evaluated = results.postings_evaluated;
                 surf_resp.postings_total = results.postings_total;
 

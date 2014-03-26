@@ -23,6 +23,7 @@ struct surf_time_resp {
     uint64_t qry_time;
     uint64_t search_time;
     uint64_t wt_search_space;
+    uint64_t wt_nodes;
     uint64_t postings_evaluated;
     uint64_t postings_total;
 };
