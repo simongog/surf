@@ -58,11 +58,10 @@ foreach(f ${index_config_files})
 	TARGET_LINK_LIBRARIES(surf_daemon-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib libzmq)
 	set_property(TARGET surf_daemon-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 
-	ADD_EXECUTABLE(surf_query-${NAME} src/surf_query.cpp)
-	TARGET_LINK_LIBRARIES(surf_query-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib libzmq)
-	set_property(TARGET surf_query-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
-
 endforeach(f)
+
+ADD_EXECUTABLE(surf_query src/surf_query.cpp)
+TARGET_LINK_LIBRARIES(surf_query libzmq)
 
 ADD_EXECUTABLE(test src/test.cpp)
 TARGET_LINK_LIBRARIES(test sdsl divsufsort divsufsort64 pthread)

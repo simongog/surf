@@ -18,7 +18,12 @@ struct doc_score {
     doc_score(uint64_t did,double s) : doc_id(did) , score(s) {};
 };
 
-using result_t = std::vector<doc_score>;
+struct result {
+    std::vector<doc_score> list;
+    uint64_t wt_search_space = 0;
+    uint64_t postings_evaluated = 0;
+    uint64_t postings_total = 0;
+};
 
 struct query_token{
 	uint64_t token_id;

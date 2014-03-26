@@ -77,12 +77,13 @@ private:
     using state_type = s_state2_t<node_type, node2_type>;
 public:
 
-    result_t search(const std::vector<query_token>& qry,size_t k) {
+    result search(const std::vector<query_token>& qry,size_t k,bool ranked_and = false,bool profile = false) {
         typedef std::priority_queue<state_type> pq_type;
         std::vector<term_info> terms;
         std::vector<term_info*> term_ptrs;
         std::vector<range_type> v_ranges; // ranges in wtd
         std::vector<range_type> w_ranges; // ranges in wtdup
+        result res;
 
         for (size_t i=0; i<qry.size(); ++i){
             size_type sp=1, ep=0;
@@ -169,14 +170,13 @@ public:
         pq_type pq;
         size_type search_space=0;
         pq.emplace(max_score, m_wtd.root(), term_ptrs, v_ranges, m_wtdup.root(), w_ranges);
-        ++search_space;
+        if(profile) res.wt_search_space++;
 
-        result_t res;
-        while ( !pq.empty() and res.size() < k ) {
+        while ( !pq.empty() and res.list.size() < k ) {
             state_type s = pq.top();
             pq.pop();
             if ( m_wtd.is_leaf(s.v) ){
-                res.emplace_back(m_docperm.len2id[m_wtd.sym(s.v)], s.score);
+                res.list.emplace_back(m_docperm.len2id[m_wtd.sym(s.v)], s.score);
             } else {
                 auto exp_v = m_wtd.expand(s.v);
                 auto exp_r_v = m_wtd.expand(s.v, s.r_v);
@@ -185,18 +185,14 @@ public:
                 if ( !m_wtd.empty(std::get<0>(exp_v)) ) {
                     push_node(pq, s, std::get<0>(exp_v), std::get<0>(exp_r_v), 
                                      std::get<0>(exp_w), std::get<0>(exp_r_w));
-                    ++search_space;
+                    if(profile) res.wt_search_space++;
                 }
                 if ( !m_wtd.empty(std::get<1>(exp_v)) ) {
                     push_node(pq, s, std::get<1>(exp_v), std::get<1>(exp_r_v),
                                      std::get<1>(exp_w), std::get<1>(exp_r_w));
-                    ++search_space;
+                    if(profile) res.wt_search_space++;
                 }
             }
-        }
-        std::cerr << "search_space = " << search_space << std::endl;
-        for(size_t i=0; i<res.size(); ++i){
-            std::cerr<<res[i].score<<","<<res[i].doc_id<<std::endl;
         }
         return res;
     }

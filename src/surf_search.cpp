@@ -89,7 +89,7 @@ int main(int argc,char* const argv[])
 
     /* process the queries */
     std::map<uint64_t,std::chrono::microseconds> query_times;
-    std::map<uint64_t,surf::result_t> query_results;
+    std::map<uint64_t,surf::result> query_results;
     std::map<uint64_t,uint64_t> query_lengths;
 
     size_t num_runs = 1;
@@ -162,7 +162,7 @@ int main(int argc,char* const argv[])
             res_outfs << "id;rank;docid;score" << std::endl;
             for(const auto& result: query_results) {
                 auto qry_id = result.first;
-                auto qry_res = result.second;
+                auto qry_res = result.second.list;
                 for(size_t i=1;i<=qry_res.size();i++) {
                     res_outfs << qry_id << ";" 
                               << i  << ";" 

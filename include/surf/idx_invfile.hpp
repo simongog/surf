@@ -276,9 +276,16 @@ public:
         }
     }
 
-    result_t process_wand(std::vector<plist_wrapper*>& postings_lists,size_t k) {
+    result process_wand(std::vector<plist_wrapper*>& postings_lists,size_t k,bool ranked_and,bool profile) {
+        result res;
         // heap containing the top-k docs
         std::priority_queue<doc_score,std::vector<doc_score>,std::greater<doc_score>> score_heap;
+
+        if(profile) {
+            for(const auto& pl : postings_lists) {
+                res.postings_total += pl->cur.size();
+            }
+        }
 
         // init list processing 
         auto threshold = 0.0f;
@@ -291,6 +298,7 @@ public:
         while(pivot_list != postings_lists.end()) {
             //print_lists(postings_lists,threshold);
             if (postings_lists[0]->cur.docid() == (*pivot_list)->cur.docid()) {
+                if(profile) res.postings_evaluated++;
                 threshold = evaluate_pivot(postings_lists,score_heap,potential_score,threshold,initial_lists,k);
             } else {
                 forward_lists(postings_lists,pivot_list-1,(*pivot_list)->cur.docid());
@@ -301,17 +309,17 @@ public:
         }
 
         // return the top-k results
-        result_t res(score_heap.size());
-        for(size_t i=0;i<res.size();i++) {
+        res.list.resize(score_heap.size());
+        for(size_t i=0;i<res.list.size();i++) {
             auto min = score_heap.top(); score_heap.pop();
             min.doc_id = m_id_mapping[min.doc_id];
-            res[res.size()-1-i] = min;
+            res.list[res.list.size()-1-i] = min;
         }
 
         return res;
     }
 
-    result_t search(const std::vector<query_token>& qry,size_t k) {
+    result search(const std::vector<query_token>& qry,size_t k,bool ranked_and = false,bool profile = false) {
         std::vector<plist_wrapper> pl_data(qry.size());
         std::vector<plist_wrapper*> postings_lists;
         size_t j=0;
@@ -322,7 +330,7 @@ public:
                 postings_lists.emplace_back(&(pl_data[j-1]));
             }
         }
-        return process_wand(postings_lists,k);
+        return process_wand(postings_lists,k,ranked_and,profile);
     }
 };
 

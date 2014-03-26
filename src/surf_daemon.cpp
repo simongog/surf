@@ -112,7 +112,7 @@ int main(int argc,char* const argv[])
     		server.recv(&request);
             surf_qry_request* surf_req = (surf_qry_request*) request.data();
 
-            if(surf_req->req_type == REQ_TYPE_QUIT) {
+            if(surf_req->type == REQ_TYPE_QUIT) {
                 std::cout << "Quitting..." << std::endl;
                 break;
             }
@@ -126,17 +126,25 @@ int main(int argc,char* const argv[])
                 // error parsing the qry. send back error
                 surf_time_resp surf_resp;
                 surf_resp.status = REQ_PARSE_ERROR;
-                surf_resp.req_id = surf_req->req_id;
+                surf_resp.req_id = surf_req->id;
     			zmq::message_t reply (sizeof(surf_time_resp));
     			memcpy(reply.data(),&surf_resp,sizeof(surf_time_resp));
     			server.send(reply);
     		} else {
-              
+                bool profile = false;
+                if(surf_req->mode == REQ_MODE_PROFILE) {
+                    profile = true;
+                }
+                bool ranked_and = false;
+                if(surf_req->type == REQ_TYPE_QRY_AND) {
+                    ranked_and = true;
+                }
+
 	    		/* (2) query the index */
 	            auto qry_id = std::get<0>(parsed_query.second);
 	            auto qry_tokens = std::get<1>(parsed_query.second);
 	            auto search_start = clock::now();
-	            auto results = index.search(qry_tokens,surf_req->k);
+	            auto results = index.search(qry_tokens,surf_req->k,ranked_and,profile);
 	            auto search_stop = clock::now();
 	            auto search_time = std::chrono::duration_cast<std::chrono::microseconds>(search_stop-search_start);
 
@@ -145,7 +153,7 @@ int main(int argc,char* const argv[])
 
                 /* (3a) output to qry to console */
                 auto qry_strtokens = std::get<2>(parsed_query.second);
-                std::cout << "REQ=" << std::left << std::setw(10) << surf_req->req_id << " " 
+                std::cout << "REQ=" << std::left << std::setw(10) << surf_req->id << " " 
                           << " k="  << std::setw(5) << surf_req->k 
                           << " QID=" << std::setw(5) << qry_id 
                           << " TIME=" << std::setw(7) << query_time.count()/1000.0;
@@ -158,13 +166,16 @@ int main(int argc,char* const argv[])
 	    		/* (3) create answer and send */
                 surf_time_resp surf_resp;
                 surf_resp.status = REQ_RESPONE_OK;
-                surf_resp.req_id = surf_req->req_id;
+                surf_resp.req_id = surf_req->id;
                 surf_resp.k = surf_req->k;
                 surf_resp.qry_id = qry_id;
                 surf_resp.qry_len = qry_tokens.size();
-                surf_resp.result_size = results.size();
+                surf_resp.result_size = results.list.size();
                 surf_resp.qry_time = query_time.count();
                 surf_resp.search_time = search_time.count();
+                surf_resp.wt_search_space = results.wt_search_space;
+                surf_resp.postings_evaluated = results.postings_evaluated;
+                surf_resp.postings_total = results.postings_total;
 
 	    		zmq::message_t reply (sizeof(surf_time_resp));
 	    		memcpy(reply.data(),&surf_resp,sizeof(surf_time_resp));
