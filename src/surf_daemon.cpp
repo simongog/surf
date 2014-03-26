@@ -18,14 +18,16 @@
 
 typedef struct cmdargs {
     std::string collection_dir;
+    std::string port;
 } cmdargs_t;
 
 void
 print_usage(char* program)
 {
-    fprintf(stdout,"%s -c <collection directory> -q <query file> -k <top-k> -o <output.csv>\n",program);
+    fprintf(stdout,"%s -c <collection directory> -p <port>\n",program);
     fprintf(stdout,"where\n");
     fprintf(stdout,"  -c <collection directory>  : the directory the collection is stored.\n");
+    fprintf(stdout,"  -p <port>  : the port the daemon is running on.\n");
 };
 
 cmdargs_t
@@ -34,10 +36,14 @@ parse_args(int argc,char* const argv[])
     cmdargs_t args;
     int op;
     args.collection_dir = "";
-    while ((op=getopt(argc,argv,"c:q:k:")) != -1) {
+    args.port = std::to_string(12345);
+    while ((op=getopt(argc,argv,"c:p:")) != -1) {
         switch (op) {
             case 'c':
                 args.collection_dir = optarg;
+                break;
+            case 'p':
+                args.port = optarg;
                 break;
             case '?':
             default:
@@ -101,10 +107,10 @@ int main(int argc,char* const argv[])
 
     /* daemon mode */
     {
-    	std::cout << "Starting daemon mode on port 12345" << std::endl;
+    	std::cout << "Starting daemon mode on port " << args.port << std::endl;
     	zmq::context_t context(1);
     	zmq::socket_t server(context, ZMQ_REP);
-    	server.bind("tcp://127.0.0.1:12345");
+    	server.bind(std::string("tcp://*:"+args.port).c_str());
 
     	while(true) {
     		zmq::message_t request;

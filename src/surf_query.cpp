@@ -19,18 +19,20 @@ typedef struct cmdargs {
     uint64_t k;
     bool profile;
     bool quit;
+    bool ranked_and;
 } cmdargs_t;
 
 void
 print_usage(char* program)
 {
-    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -p -s\n",program);
+    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -p -s -a\n",program);
     fprintf(stdout,"where\n");
     fprintf(stdout,"  -h <host>  : host of the daemon.\n");
     fprintf(stdout,"  -q <query file>  : the queries to be performed.\n");
     fprintf(stdout,"  -k <top-k>  : the top-k documents to be retrieved for each query.\n");
     fprintf(stdout,"  -p : run queries in profile mode.\n");
     fprintf(stdout,"  -s : stop the daemon after queries are processed.\n");
+    fprintf(stdout,"  -a : perform ranked AND instead of ranked OR.\n");
 };
 
 cmdargs_t
@@ -43,7 +45,8 @@ parse_args(int argc,char* const argv[])
     args.k = 10;
     args.profile = false;
     args.quit = false;
-    while ((op=getopt(argc,argv,"h:q:k:ps")) != -1) {
+    args.ranked_and = false;
+    while ((op=getopt(argc,argv,"h:q:k:psa")) != -1) {
         switch (op) {
             case 'h':
                 args.host = optarg;
@@ -53,6 +56,9 @@ parse_args(int argc,char* const argv[])
                 break;
             case 's':
                 args.quit = true;
+                break;
+            case 'a':
+                args.ranked_and = true;
                 break;
             case 'q':
                 args.query_file = optarg;
@@ -110,6 +116,9 @@ int main(int argc,char* const argv[])
 
             surf_qry_request surf_req;
             surf_req.type = REQ_TYPE_QRY_OR;
+            if(args.ranked_and) {
+                surf_req.type = REQ_TYPE_QRY_AND;
+            }
             if(args.profile) {
                 surf_req.mode = REQ_MODE_PROFILE;
             } else {
