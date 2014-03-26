@@ -87,7 +87,7 @@ int main(int argc,char* const argv[])
     auto cc = surf::parse_collection(args.collection_dir);
 
     /* parse queries */
-    std::cout << "Loading dictionary and creating term map.";
+    std::cout << "Loading dictionary and creating term map." << std::endl;
     auto term_map = surf::query_parser::load_dictionary(args.collection_dir);
 
     /* define types */
