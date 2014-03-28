@@ -298,15 +298,18 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
         store_to_cache(tmp_sadadf, surf::KEY_SADADF,cc, true);
     }
 
-    if ( !cache_file_exists(surf::KEY_DPRIME, cc) ) {
-        cout << "Generate DPRIME" << endl;
+    if ( !cache_file_exists(surf::KEY_U, cc) ) {
+        cout << "Generate UNIQUE array" << endl;
         {
             cst_type temp_cst;
             load_from_file(temp_cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
             int_vector_buffer<> D_array(d_file);
-            string dprime_file = cache_file_name(surf::KEY_DPRIME, cc);
-            int_vector_buffer<> dprime(dprime_file, std::ios::out,
+            string u_file = cache_file_name(surf::KEY_U, cc);
+            int_vector_buffer<> U(u_file, std::ios::out,
                                        1024*1024, D_array.width());
+            string umark_file = cache_file_name(surf::KEY_UMARK, cc);
+            int_vector_buffer<1> Umark(umark_file, std::ios::out);
+
             std::vector<int64_t> last_occ(doc_cnt+1, -1);
 
             auto root = temp_cst.root();
@@ -322,15 +325,16 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
                     last_occ[x] = i;
                 }
                 std::sort(buf.begin(), buf.end());
-                for (size_t i=0; i<buf.size();++i)
-                    dprime.push_back(buf[i]);
+                for (size_t i=0; i<buf.size();++i){
+                    U.push_back(buf[i]);
+                    Umark.push_back(1);
+                }
+                for (size_t i=0; i < rb-lb+1-buf.size(); ++i){
+                    Umark.push_back(0);
+                }
             }
         }
         cout << "DPRIME generated" << endl;
-        string dprime_file = cache_file_name(surf::KEY_DPRIME, cc);
-        sdsl::wm_int<rrr_vector<63>> wm;
-        sdsl::construct(wm, dprime_file);
-        cout << "wm_dprime.size()="<<sdsl::size_in_mega_bytes(wm)<<" MiB"<<endl;
     }
 
     if (!cache_file_exists(surf::KEY_DUP, cc)){
