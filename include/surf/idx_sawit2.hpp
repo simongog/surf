@@ -110,7 +110,7 @@ public:
             term_ptrs[i] = &terms[i];
         }
 
-        auto push_node = [this](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r_v,
+        auto push_node = [this,&res,&profile,&ranked_and](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r_v,
                                 node2_type& w, std::vector<range_type>& r_w){
             auto min_idx = m_wtu.sym(v) << (m_wtu.max_level - v.level);  
             auto min_doc_len = m_r.doc_length(m_docperm.len2id[min_idx]);
@@ -133,9 +133,12 @@ public:
                                  min_doc_len
                                );
                     t.score += score;
-                } 
+                } else if ( ranked_and ) {
+                    return;
+                }
             }
             if (eval){ 
+                if (profile) res.wt_search_space++;
                 pq.emplace(t);       
             }
         };
