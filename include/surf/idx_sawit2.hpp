@@ -100,10 +100,6 @@ public:
                 auto f_Dt = std::get<0>(df_info); // document frequency
                 sp = m_urank(sp);
                 ep = sp+f_Dt-1;
-                for(size_t j=sp; j<=ep; ++j){
-                    std::cerr<< m_wtu[j]<<",";
-                }
-                std::cout<<std::endl;
                 terms.emplace_back(qry[i].token_id, qry[i].f_qt, sp, ep,  f_Dt);
                 v_ranges.emplace_back(sp, ep);
                 w_ranges.emplace_back(std::get<1>(df_info),std::get<2>(df_info));
