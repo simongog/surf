@@ -81,3 +81,6 @@ TARGET_LINK_LIBRARIES(convert_results_to_trec sdsl divsufsort divsufsort64 pthre
 ADD_EXECUTABLE(extract_documents tools/extract_documents.cpp)
 TARGET_LINK_LIBRARIES(extract_documents sdsl divsufsort divsufsort64 pthread fastpfor_lib)
 
+ADD_EXECUTABLE(surf_collection_info tools/surf_collection_info.cpp)
+TARGET_LINK_LIBRARIES(surf_collection_info sdsl divsufsort divsufsort64 pthread fastpfor_lib)
+
