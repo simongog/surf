@@ -14,10 +14,6 @@ namespace surf{
 using range_type = sdsl::range_type;
 
 
-typedef sdsl::wt_int<sdsl::bit_vector, sdsl::rank_support_v5<>, sdsl::select_support_scan<1>, sdsl::select_support_scan<0>>
-    t_wtd;
-typedef typename t_wtd::node_type t_wtd_node;
-
 template<typename t_wtu_node, typename t_wtp_node>
 struct s_state2_t{
     double score;
@@ -26,8 +22,6 @@ struct s_state2_t{
     std::vector<range_type> r_v; // ranges in v
     t_wtp_node w; // node in duplication array wavelet tree
     std::vector<range_type> r_w; // ranges in w
-t_wtd_node x;
-std::vector<range_type> r_x;
 
     s_state2_t() = default;
 
@@ -35,13 +29,9 @@ std::vector<range_type> r_x;
               const std::vector<term_info*>& t_ptrs,
               const std::vector<range_type>& r_v,
               const t_wtp_node& w,
-              const std::vector<range_type>& r_w
-,const t_wtd_node& x,
-const std::vector<range_type>& r_x
-              ):
+              const std::vector<range_type>& r_w):
         score(score), v(v), t_ptrs(t_ptrs),
         r_v(r_v),w(w),r_w(r_w)
-,x(x),r_x(r_x)
     {}
 
     s_state2_t(s_state2_t&&) = default;
@@ -92,7 +82,6 @@ private:
     doc_perm    m_docperm;
     ranker_type m_r;
 
-t_wtd    m_wtd;
     using state_type = s_state2_t<node_type, node2_type>;
 public:
 
@@ -102,23 +91,15 @@ public:
         std::vector<term_info*> term_ptrs;
         std::vector<range_type> v_ranges; // ranges in wtd
         std::vector<range_type> w_ranges; // ranges in wtdup
-std::vector<range_type> x_ranges; // ranges in wtdup
         result res;
 
         for (size_t i=0; i<qry.size(); ++i){
             size_type sp=1, ep=0;
             if ( backward_search(m_csa, 0, m_csa.size()-1, qry[i].token_id, sp, ep) > 0 ) {
-x_ranges.emplace_back(sp, ep);
                 auto df_info = m_df(sp,ep);
-                std::cerr<<"[sp,ep]=["<<sp<<","<<ep<<"] size="<<ep-sp+1<<std::endl;
-                for(size_t j=sp; j<=ep; ++j){
-                    std::cerr<< m_wtd[j]<<",";
-                }
-                std::cout<<std::endl;
                 auto f_Dt = std::get<0>(df_info); // document frequency
                 sp = m_urank(sp);
                 ep = sp+f_Dt-1;
-                std::cerr<<"[sp',ep']=["<<sp<<","<<ep<<"] size="<<ep-sp+1<<std::endl;
                 for(size_t j=sp; j<=ep; ++j){
                     std::cerr<< m_wtu[j]<<",";
                 }
@@ -134,15 +115,12 @@ x_ranges.emplace_back(sp, ep);
         }
 
         auto push_node = [this](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r_v,
-                                node2_type& w, std::vector<range_type>& r_w
-,t_wtd_node& x, std::vector<range_type>& r_x
-                                ){
+                                node2_type& w, std::vector<range_type>& r_w){
             auto min_idx = m_wtu.sym(v) << (m_wtu.max_level - v.level);  
             auto min_doc_len = m_r.doc_length(m_docperm.len2id[min_idx]);
             state_type t; // new state
             t.v = v;
             t.w = w;
-t.x = x;
             t.score = 0;
             bool eval = false;
             for (size_t i = 0; i < r_v.size(); ++i){
@@ -150,12 +128,7 @@ t.x = x;
                     eval = true;
                     t.r_v.push_back(r_v[i]);
                     t.r_w.push_back(r_w[i]);
-t.r_x.push_back(r_x[i]);                    
                     t.t_ptrs.push_back(s.t_ptrs[i]);
-                    std::cout<<" ("<<size(t.r_x.back())<<
-                               "/"<<size(t.r_v.back())<<
-                               "/"<<size(t.r_w.back())<<"-"<<t.t_ptrs.back()->t<<") ";
-
                     auto score = m_r.calculate_docscore(
                                  t.t_ptrs.back()->f_qt,
                                  size(t.r_w.back())+1,
@@ -164,14 +137,9 @@ t.r_x.push_back(r_x[i]);
                                  min_doc_len
                                );
                     t.score += score;
-                } else {
-                    if (!empty(r_x[i])){
-                        std::cerr<<"r_v[i] empty but not r_x[i]"<<std::endl;
-                    }
-                }
+                } 
             }
             if (eval){ 
-                std::cerr<<" level="<<v.level<<" min_idx="<<min_idx<<std::endl;
                 pq.emplace(t);       
             }
         };
@@ -180,10 +148,7 @@ t.r_x.push_back(r_x[i]);
         
         pq_type pq;
         size_type search_space=0;
-        pq.emplace(max_score, m_wtu.root(), term_ptrs, v_ranges, m_wtp.root(), w_ranges
-, m_wtd.root()
-, x_ranges
-);
+        pq.emplace(max_score, m_wtu.root(), term_ptrs, v_ranges, m_wtp.root(), w_ranges);
         if(profile) res.wt_search_space++;
 
         while ( !pq.empty() and res.list.size() < k ) {
@@ -197,25 +162,14 @@ t.r_x.push_back(r_x[i]);
                 auto exp_w = m_wtp.expand(s.w);
                 auto exp_r_w = m_wtp.expand(s.w, s.r_w);
 
-                auto exp_x = m_wtd.expand(s.x);
-                auto exp_r_x = m_wtd.expand(s.x, s.r_x);
-
-
-
-//if ( m_wtu.empty(std::get<>) )
-
                 if ( !m_wtu.empty(std::get<0>(exp_v)) ) {
                     push_node(pq, s, std::get<0>(exp_v), std::get<0>(exp_r_v), 
-                                     std::get<0>(exp_w), std::get<0>(exp_r_w)
-,std::get<0>(exp_x), std::get<0>(exp_r_x)
-                                     );
+                                     std::get<0>(exp_w), std::get<0>(exp_r_w));
                     if(profile) res.wt_search_space++;
                 }
                 if ( !m_wtu.empty(std::get<1>(exp_v)) ) {
                     push_node(pq, s, std::get<1>(exp_v), std::get<1>(exp_r_v),
-                                     std::get<1>(exp_w), std::get<1>(exp_r_w)
-,std::get<1>(exp_x), std::get<1>(exp_r_x)
-                                     );
+                                     std::get<1>(exp_w), std::get<1>(exp_r_w));
                     if(profile) res.wt_search_space++;
                 }
             }
@@ -237,11 +191,6 @@ t.r_x.push_back(r_x[i]);
         load_from_cache(m_urank, surf::KEY_URANK, cc, true);
         m_urank.set_vector(&m_ubv);
         load_from_cache(m_docperm, surf::KEY_DOCPERM, cc); 
-
-load_from_cache(m_wtd, surf::KEY_WTD, cc, true);
-        std::cerr<<"m_wtd.size()="<<m_wtd.size()<<std::endl;
-        std::cerr<<"m_wtd.sigma()="<<m_wtd.sigma<<std::endl;
-
         m_r = ranker_type(cc);
     }
 

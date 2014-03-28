@@ -119,15 +119,19 @@ public:
             term_ptrs[i] = &terms[i];
         }
 
-        auto push_node = [this, &res,&profile](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r,
-                                pq_min_type& pq_min, const size_t& k){
+        auto push_node = [this, &res,&profile,&ranked_and]
+                         (pq_type& pq, state_type& s,node_type& v,
+                          std::vector<range_type>& r,
+                          pq_min_type& pq_min, const size_t& k){
             auto min_idx = m_wtd.sym(v) << (m_wtd.max_level - v.level);  
             auto min_doc_len = m_r.doc_length(m_docperm.len2id[min_idx]);
             state_type t; // new state
             t.v = v;
             t.score = 0;
+            bool eval = false;
             for (size_t i = 0; i < r.size(); ++i){
                 if ( !empty(r[i]) ){
+                    eval = true;
                     t.r.push_back(r[i]);
                     t.t_ptrs.push_back(s.t_ptrs[i]);
 
@@ -139,17 +143,22 @@ public:
                                  min_doc_len
                                );
                     t.score += score;
-                } 
+                } else if ( ranked_and ){
+                    return;
+                }
+            }
+            if (!eval){
+                return;
             }
             if ( pq_min.size() < k ){ // not yet k leaves in score queue
                 pq.emplace(t);
-                if(profile) res.wt_search_space++;
+                if (profile) res.wt_search_space++;
                 if ( m_wtd.is_leaf(t.v) )
                     pq_min.push(t.score);
             } else { // more than k leaves in score queue
                 if ( t.score > pq_min.top() ){
                     pq.emplace(t);
-                    if(profile) res.wt_search_space++;
+                    if (profile) res.wt_search_space++;
                     if ( m_wtd.is_leaf(t.v) ){
                         pq_min.pop();
                         pq_min.push(t.score);
