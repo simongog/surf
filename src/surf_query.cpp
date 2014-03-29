@@ -17,6 +17,7 @@ typedef struct cmdargs {
     std::string host;
     std::string query_file;
     uint64_t k;
+    uint64_t runs;
     bool profile;
     bool quit;
     bool ranked_and;
@@ -25,11 +26,12 @@ typedef struct cmdargs {
 void
 print_usage(char* program)
 {
-    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -p -s -a\n",program);
+    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -r <runs> -p -s -a\n",program);
     fprintf(stdout,"where\n");
     fprintf(stdout,"  -h <host>  : host of the daemon.\n");
     fprintf(stdout,"  -q <query file>  : the queries to be performed.\n");
     fprintf(stdout,"  -k <top-k>  : the top-k documents to be retrieved for each query.\n");
+    fprintf(stdout,"  -r <runs>  : the number of runs.\n");
     fprintf(stdout,"  -p : run queries in profile mode.\n");
     fprintf(stdout,"  -s : stop the daemon after queries are processed.\n");
     fprintf(stdout,"  -a : perform ranked AND instead of ranked OR.\n");
@@ -42,12 +44,16 @@ parse_args(int argc,char* const argv[])
     int op;
     args.host = "127.0.0.1:12345";
     args.query_file = "";
-    args.k = 10;
+    args.k = 10;    
+    args.runs = 3;
     args.profile = false;
     args.quit = false;
     args.ranked_and = false;
-    while ((op=getopt(argc,argv,"h:q:k:psa")) != -1) {
+    while ((op=getopt(argc,argv,"r:h:q:k:psa")) != -1) {
         switch (op) {
+            case 'r':
+                args.runs = std::strtoul(optarg,NULL,10);
+                break;
             case 'h':
                 args.host = optarg;
                 break;
@@ -108,7 +114,7 @@ int main(int argc,char* const argv[])
 
     /* process the queries */
     std::cerr << "Processing queries..." << std::endl;
-    size_t num_runs = 3;
+    size_t num_runs = args.runs;
     for(size_t i=0;i<num_runs;i++) {
         for(const auto& query: queries) {
 
