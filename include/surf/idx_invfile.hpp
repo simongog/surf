@@ -339,22 +339,8 @@ void construct(idx_invfile<t_pl,t_rank> &idx, const std::string& file,
                sdsl::cache_config& cconfig, uint8_t num_bytes)
 {
     using namespace sdsl;
-
     cout << "construct(idx_invfile)"<< endl;
     register_cache_file(sdsl::conf::KEY_TEXT_INT, cconfig);
-
-    if (!cache_file_exists(sdsl::conf::KEY_SA, cconfig)) {
-        construct_sa<sdsl::int_alphabet_tag::WIDTH>(cconfig);
-    }
-    register_cache_file(sdsl::conf::KEY_SA, cconfig);
-
-    if (!cache_file_exists(surf::KEY_DOCBORDER, cconfig)){
-        construct_doc_border<sdsl::int_alphabet_tag::WIDTH>(cconfig);
-    }
-    if (!cache_file_exists(surf::KEY_DARRAY, cconfig)){
-        construct_darray<sdsl::int_alphabet_tag::WIDTH>(cconfig);
-    }
-
     idx = idx_invfile<t_pl,t_rank>(cconfig);
 }
 

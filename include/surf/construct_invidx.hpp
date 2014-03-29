@@ -5,6 +5,8 @@
 #include "sdsl/config.hpp"
 #include "surf/doc_perm.hpp"
 #include "construct_doc_cnt.hpp"
+#include "surf/construct_darray.hpp"
+#include "surf/construct_doc_border.hpp"
 #include "sdsl/int_vector.hpp"
 
 namespace surf{
@@ -13,6 +15,11 @@ namespace surf{
 void construct_term_ranges(sdsl::int_vector<>& ids, sdsl::int_vector<>& sp, 
                             sdsl::int_vector<>& ep,sdsl::cache_config& cconfig)
 {
+    if (!cache_file_exists(sdsl::conf::KEY_SA, cconfig)) {
+        sdsl::construct_sa<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+    }
+    register_cache_file(sdsl::conf::KEY_SA, cconfig);
+
     sdsl::int_vector_buffer<> sa(cache_file_name(sdsl::conf::KEY_SA,cconfig));
     sdsl::int_vector<> T;
     load_from_cache(T,sdsl::conf::KEY_TEXT_INT,cconfig);
@@ -127,6 +134,14 @@ void construct_postings_lists(std::vector<t_pl>& postings_lists,sdsl::cache_conf
         serialize(ids,ofs);
         serialize(sp,ofs);
         serialize(ep,ofs);
+    }
+
+
+    if (!cache_file_exists(surf::KEY_DOCBORDER, cconfig)){
+        construct_doc_border<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+    }
+    if (!cache_file_exists(surf::KEY_DARRAY, cconfig)){
+        construct_darray<sdsl::int_alphabet_tag::WIDTH>(cconfig);
     }
 
     // load or construct D array
