@@ -72,8 +72,7 @@ struct s_state_t{
  */
 template<typename t_csa,
          typename t_wtd,
-         typename t_df,
-         typename t_wtdup>
+         typename t_df>
 class idx_sawit{
 public:
     using size_type = sdsl::int_vector<>::size_type;
@@ -81,13 +80,11 @@ public:
     typedef t_wtd   wtd_type;
     typedef typename wtd_type::node_type node_type;
     typedef t_df    df_type;
-    typedef t_wtdup wtdup_type;
     typedef rank_bm25<> ranker_type;
 private:
     csa_type    m_csa;
     wtd_type    m_wtd;
     df_type     m_df;
-    wtdup_type  m_wtdup; 
     doc_perm    m_docperm;
     ranker_type m_r;
 
@@ -119,15 +116,19 @@ public:
             term_ptrs[i] = &terms[i];
         }
 
-        auto push_node = [this, &res,&profile](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r,
-                                pq_min_type& pq_min, const size_t& k){
+        auto push_node = [this, &res,&profile,&ranked_and]
+                         (pq_type& pq, state_type& s,node_type& v,
+                          std::vector<range_type>& r,
+                          pq_min_type& pq_min, const size_t& k){
             auto min_idx = m_wtd.sym(v) << (m_wtd.max_level - v.level);  
             auto min_doc_len = m_r.doc_length(m_docperm.len2id[min_idx]);
             state_type t; // new state
             t.v = v;
             t.score = 0;
+            bool eval = false;
             for (size_t i = 0; i < r.size(); ++i){
                 if ( !empty(r[i]) ){
+                    eval = true;
                     t.r.push_back(r[i]);
                     t.t_ptrs.push_back(s.t_ptrs[i]);
 
@@ -139,17 +140,22 @@ public:
                                  min_doc_len
                                );
                     t.score += score;
-                } 
+                } else if ( ranked_and ){
+                    return;
+                }
+            }
+            if (!eval){
+                return;
             }
             if ( pq_min.size() < k ){ // not yet k leaves in score queue
                 pq.emplace(t);
-                if(profile) res.wt_search_space++;
+                if (profile) res.wt_search_space++;
                 if ( m_wtd.is_leaf(t.v) )
                     pq_min.push(t.score);
             } else { // more than k leaves in score queue
                 if ( t.score > pq_min.top() ){
                     pq.emplace(t);
-                    if(profile) res.wt_search_space++;
+                    if (profile) res.wt_search_space++;
                     if ( m_wtd.is_leaf(t.v) ){
                         pq_min.pop();
                         pq_min.push(t.score);
@@ -188,7 +194,6 @@ public:
         load_from_cache(m_csa, surf::KEY_CSA, cc, true);
         load_from_cache(m_wtd, surf::KEY_WTD, cc, true);
         load_from_cache(m_df, surf::KEY_SADADF, cc, true);
-        load_from_cache(m_wtdup, surf::KEY_WTDUP, cc, true);
         load_from_cache(m_docperm, surf::KEY_DOCPERM, cc); 
         m_r = ranker_type(cc);
     }
@@ -199,7 +204,6 @@ public:
         written_bytes += m_csa.serialize(out, child, "csa");
         written_bytes += m_wtd.serialize(out, child, "wtd");
         written_bytes += m_df.serialize(out, child, "df");
-        written_bytes += m_wtdup.serialize(out, child, "wtdup");
         written_bytes += m_docperm.serialize(out, child, "docperm");
         structure_tree::add_size(child, written_bytes);
         return written_bytes;
@@ -209,9 +213,9 @@ public:
 
 template<typename t_csa,
          typename t_wtd,
-         typename t_df,
-         typename t_wtdup>
-void construct(idx_sawit<t_csa,t_wtd,t_df,t_wtdup>& idx,
+         typename t_df
+        >
+void construct(idx_sawit<t_csa,t_wtd,t_df>& idx,
                const std::string&,
                sdsl::cache_config& cc, uint8_t num_bytes)
 {    
@@ -240,14 +244,6 @@ void construct(idx_sawit<t_csa,t_wtd,t_df,t_wtdup>& idx,
         t_df df;
         construct(df, "", cc, 0);
         store_to_cache(df, surf::KEY_SADADF, cc, true);
-    }
-    cout<<"...WTDUP"<<endl;
-    if (!cache_file_exists<t_wtdup>(surf::KEY_WTDUP,cc)){
-        t_wtdup wtdup;
-        construct(wtdup, cache_file_name(surf::KEY_DUP, cc), cc);
-        store_to_cache(wtdup, surf::KEY_WTDUP, cc, true);
-        cout << "wtdup.size() = " << wtdup.size() << endl;
-        cout << "wtdup.sigma = " << wtdup.sigma << endl;
     }
 }
 

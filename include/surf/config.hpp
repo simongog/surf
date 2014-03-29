@@ -15,7 +15,10 @@ const std::string SPACEUSAGE_FILENAME = "space_usage";
 
 const std::string KEY_DOCWEIGHT = "docweights";
 const std::string KEY_DARRAY = "darray";
-const std::string KEY_DPRIME = "dprime";
+const std::string KEY_U = "U";
+const std::string KEY_WTU = "wtu";
+const std::string KEY_UMARK = "Umark";
+const std::string KEY_URANK = "Urank";
 const std::string KEY_DOCPERM = "docperm";
 const std::string KEY_SADADF = "sadadf";
 const std::string KEY_WTD = "wtd";
@@ -24,6 +27,7 @@ const std::string KEY_WTC = "wtc";
 const std::string KEY_TMPCST = "tempcst";
 const std::string KEY_TMPDUP = "tmpdup";
 const std::string KEY_WTDUP  = "wtdup";
+const std::string KEY_WTDP  = "wtdp";
 const std::string KEY_DUP  = "dup";
 const std::string KEY_DOCCNT  = "doccnt";
 const std::string KEY_DOCBORDER = "docborder";
@@ -51,6 +55,10 @@ std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_INVFILE_TERM_RANGES,
 										 KEY_INVFILE_PLISTS,
                                          KEY_H,
+                                         KEY_U,
+                                         KEY_WTU,
+                                         KEY_UMARK,
+                                         KEY_URANK,
                                          KEY_CSA,
                                          sdsl::conf::KEY_TEXT,
                                          sdsl::conf::KEY_TEXT_INT,
