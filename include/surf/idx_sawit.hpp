@@ -72,8 +72,7 @@ struct s_state_t{
  */
 template<typename t_csa,
          typename t_wtd,
-         typename t_df,
-         typename t_wtdup>
+         typename t_df>
 class idx_sawit{
 public:
     using size_type = sdsl::int_vector<>::size_type;
@@ -81,13 +80,11 @@ public:
     typedef t_wtd   wtd_type;
     typedef typename wtd_type::node_type node_type;
     typedef t_df    df_type;
-    typedef t_wtdup wtdup_type;
     typedef rank_bm25<> ranker_type;
 private:
     csa_type    m_csa;
     wtd_type    m_wtd;
     df_type     m_df;
-    wtdup_type  m_wtdup; 
     doc_perm    m_docperm;
     ranker_type m_r;
 
@@ -197,7 +194,6 @@ public:
         load_from_cache(m_csa, surf::KEY_CSA, cc, true);
         load_from_cache(m_wtd, surf::KEY_WTD, cc, true);
         load_from_cache(m_df, surf::KEY_SADADF, cc, true);
-        load_from_cache(m_wtdup, surf::KEY_WTDUP, cc, true);
         load_from_cache(m_docperm, surf::KEY_DOCPERM, cc); 
         m_r = ranker_type(cc);
     }
@@ -208,7 +204,6 @@ public:
         written_bytes += m_csa.serialize(out, child, "csa");
         written_bytes += m_wtd.serialize(out, child, "wtd");
         written_bytes += m_df.serialize(out, child, "df");
-        written_bytes += m_wtdup.serialize(out, child, "wtdup");
         written_bytes += m_docperm.serialize(out, child, "docperm");
         structure_tree::add_size(child, written_bytes);
         return written_bytes;
@@ -218,9 +213,9 @@ public:
 
 template<typename t_csa,
          typename t_wtd,
-         typename t_df,
-         typename t_wtdup>
-void construct(idx_sawit<t_csa,t_wtd,t_df,t_wtdup>& idx,
+         typename t_df
+        >
+void construct(idx_sawit<t_csa,t_wtd,t_df>& idx,
                const std::string&,
                sdsl::cache_config& cc, uint8_t num_bytes)
 {    
@@ -249,14 +244,6 @@ void construct(idx_sawit<t_csa,t_wtd,t_df,t_wtdup>& idx,
         t_df df;
         construct(df, "", cc, 0);
         store_to_cache(df, surf::KEY_SADADF, cc, true);
-    }
-    cout<<"...WTDUP"<<endl;
-    if (!cache_file_exists<t_wtdup>(surf::KEY_WTDUP,cc)){
-        t_wtdup wtdup;
-        construct(wtdup, cache_file_name(surf::KEY_DUP, cc), cc);
-        store_to_cache(wtdup, surf::KEY_WTDUP, cc, true);
-        cout << "wtdup.size() = " << wtdup.size() << endl;
-        cout << "wtdup.sigma = " << wtdup.sigma << endl;
     }
 }
 
