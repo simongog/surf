@@ -153,6 +153,8 @@ int main(int argc,char* const argv[])
 
             /* output */
             std::cout << surf_resp->qry_id << ";" 
+                      << surf_resp->collection << ";"
+                      << surf_resp->index << ";"
                       << surf_resp->k << ";"
                       << surf_resp->qry_len << ";"
                       << surf_resp->result_size << ";"

@@ -85,6 +85,9 @@ int main(int argc,char* const argv[])
 
     /* parse repo */
     auto cc = surf::parse_collection(args.collection_dir);
+    char tmp_str[256] = {0};
+    strncpy(tmp_str,args.collection_dir.c_str(),256);
+    std::string base_name = basename(tmp_str);
 
     /* parse queries */
     std::cout << "Loading dictionary and creating term map." << std::endl;
@@ -162,7 +165,8 @@ int main(int argc,char* const argv[])
                 std::cout << "REQ=" << std::left << std::setw(10) << surf_req->id << " " 
                           << " k="  << std::setw(5) << surf_req->k 
                           << " QID=" << std::setw(5) << qry_id 
-                          << " TIME=" << std::setw(7) << query_time.count()/1000.0;
+                          << " TIME=" << std::setw(7) << query_time.count()/1000.0
+                          << " AND=" << ranked_and;
                 std::cout << " [";
                 for(const auto& qst : qry_strtokens) {
                     std::cout << qst << " ";
@@ -172,6 +176,8 @@ int main(int argc,char* const argv[])
 	    		/* (3) create answer and send */
                 surf_time_resp surf_resp;
                 surf_resp.status = REQ_RESPONE_OK;
+                strncpy(surf_resp.index,index_name.c_str(),sizeof(surf_resp.index));
+                strncpy(surf_resp.collection,base_name.c_str(),sizeof(surf_resp.collection));
                 surf_resp.req_id = surf_req->id;
                 surf_resp.k = surf_req->k;
                 surf_resp.qry_id = qry_id;
