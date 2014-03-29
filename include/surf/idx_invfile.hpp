@@ -6,9 +6,8 @@
 #include "sdsl/config.hpp"
 #include "sdsl/int_vector.hpp"
 #include "surf/construct_invidx.hpp"
-#include "surf/construct_darray.hpp"
-#include "surf/construct_doc_border.hpp"
 #include "construct_doc_cnt.hpp"
+#include "construct_col_len.hpp"
 #include "surf/invfile_postings_list.hpp"
 #include "surf/util.hpp"
 #include "surf/rank_functions.hpp"
@@ -341,6 +340,9 @@ void construct(idx_invfile<t_pl,t_rank> &idx, const std::string& file,
     using namespace sdsl;
     cout << "construct(idx_invfile)"<< endl;
     register_cache_file(sdsl::conf::KEY_TEXT_INT, cconfig);
+
+    surf::construct_col_len<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+
     idx = idx_invfile<t_pl,t_rank>(cconfig);
 }
 

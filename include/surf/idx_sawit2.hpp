@@ -5,6 +5,7 @@
 #include "surf/df_sada.hpp"
 #include "surf/rank_functions.hpp"
 #include "surf/idx_sawit.hpp"
+#include "surf/construct_col_len.hpp"
 #include <algorithm>
 #include <limits>
 #include <queue>
@@ -221,6 +222,9 @@ void construct(idx_sawit2<t_csa,t_df,t_wtp,t_wtu, t_ubv, t_urank>& idx,
 {    
     using namespace sdsl;
     using namespace std;
+
+    construct_col_len<t_df::alphabet_category::WIDTH>(cc);
+
     cout<<"...CSA"<<endl;
     if ( !cache_file_exists<t_csa>(surf::KEY_CSA, cc) )
     {

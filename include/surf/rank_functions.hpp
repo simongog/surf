@@ -26,15 +26,14 @@ struct rank_bm25 {
     rank_bm25& operator=(const rank_bm25&) = default;
 
 	rank_bm25(cache_config& cconfig) {
+		uint64_t num_terms;
+        load_from_cache(num_terms, surf::KEY_COLLEN, cconfig);
         if (!cache_file_exists(surf::KEY_DOC_LENGTHS, cconfig)){
             surf::construct_doc_lengths<sdsl::int_alphabet_tag::WIDTH>(cconfig);
         }
         load_from_cache(doc_lengths, surf::KEY_DOC_LENGTHS, cconfig);
 		num_docs = doc_lengths.size();
         std::cerr<<"num_docs="<<num_docs<<std::endl;
-	    std::string d_file = cache_file_name(surf::KEY_DARRAY, cconfig);
-	    int_vector_buffer<> D(d_file);
-	    num_terms = D.size();
 	    avg_doc_len = (double)num_terms / (double)num_docs;
         std::cerr<<"avg_doc_len"<<avg_doc_len<<std::endl;
 	}

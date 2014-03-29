@@ -30,6 +30,7 @@ const std::string KEY_WTDUP  = "wtdup";
 const std::string KEY_WTDP  = "wtdp";
 const std::string KEY_DUP  = "dup";
 const std::string KEY_DOCCNT  = "doccnt";
+const std::string KEY_COLLEN  = "collen";
 const std::string KEY_DOCBORDER = "docborder";
 const std::string KEY_DOC_LENGTHS = "doclengths";
 const std::string KEY_INVFILE_TERM_RANGES = "invfile_term_ranges";
@@ -52,6 +53,7 @@ std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_WTDUP,
 										 KEY_DOCCNT,
 										 KEY_DOC_LENGTHS,
+                                         KEY_COLLEN,
 										 KEY_INVFILE_TERM_RANGES,
 										 KEY_INVFILE_PLISTS,
                                          KEY_H,
