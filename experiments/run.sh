@@ -16,14 +16,10 @@ do
         $idx -c $col -p $PORT &
         for k in 10 100 1000 
         do
-            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2005-efficiency-1000.qry -k $k >> trec-2005-or-time-$IDXNAME.csv
-            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2006-efficiency-1000.qry -k $k >> trec-2006-or-time-$IDXNAME.csv
-            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2005-efficiency-1000.qry -k $k -r 1 -p >> trec-2005-or-profile-$IDXNAME.csv
-            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2006-efficiency-1000.qry -k $k -r 1 -p >> trec-2006-or-profile-$IDXNAME.csv
-            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2005-efficiency-1000.qry -k $k -a >> trec-2005-and-time-$IDXNAME.csv
-            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2006-efficiency-1000.qry -k $k -a >> trec-2006-and-time-$IDXNAME.csv
-            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2005-efficiency-1000.qry -k $k -r 1 -a -p >> trec-2005-and-profile-$IDXNAME.csv
-            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2006-efficiency-1000.qry -k $k -r 1 -a -p >> trec-2006-and-profile-$IDXNAME.csv
+            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2005-efficiency-100.qry -k $k -r 1 -p >> trec-2005.csv
+            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2006-efficiency-100.qry -k $k -r 1 -p >> trec-2006.csv
+            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2005-efficiency-100.qry -k $k -r 1 -p -a >> trec-2005.csv
+            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2006-efficiency-100.qry -k $k -r 1 -p -a >> trec-2006.csv
         done
         # shut down daemon
         $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/wiki.q -k 1 -s > /dev/null
