@@ -323,8 +323,8 @@ public:
         std::vector<plist_wrapper*> postings_lists;
         size_t j=0;
         for(const auto& qry_token : qry) {
-            pl_data[j++] = plist_wrapper(m_postings_lists[qry_token.token_id],
-                    (double)m_F_t[qry_token.token_id],(double)qry_token.f_qt);
+            pl_data[j++] = plist_wrapper(m_postings_lists[qry_token.token_ids[0]],
+                    (double)m_F_t[qry_token.token_ids[0]],(double)qry_token.f_qt);
             if(pl_data[j-1].list_max_score > 0) {
                 postings_lists.emplace_back(&(pl_data[j-1]));
             }
