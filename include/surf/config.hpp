@@ -27,8 +27,12 @@ const std::string KEY_WTC = "wtc";
 const std::string KEY_TMPCST = "tempcst";
 const std::string KEY_TMPDUP = "tmpdup";
 const std::string KEY_WTDUP  = "wtdup";
+const std::string KEY_WTDUP2  = "wtdup2";
 const std::string KEY_WTDP  = "wtdp";
 const std::string KEY_DUP  = "dup";
+const std::string KEY_DUPMARK  = "DUPmark";
+const std::string KEY_DUPRANK  = "DUPrank";
+const std::string KEY_DUP2  = "dup2";
 const std::string KEY_DOCCNT  = "doccnt";
 const std::string KEY_COLLEN  = "collen";
 const std::string KEY_DOCBORDER = "docborder";
@@ -50,7 +54,10 @@ std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_WTC,
 										 KEY_TMPCST,
 										 KEY_TMPDUP,
+										 KEY_DUP,
+										 KEY_DUP2,
 										 KEY_WTDUP,
+										 KEY_WTDUP2,
 										 KEY_DOCCNT,
 										 KEY_DOC_LENGTHS,
                                          KEY_COLLEN,
