@@ -5,5 +5,6 @@
 #include "idx_invfile.hpp"
 #include "idx_sawit.hpp"
 #include "idx_sawit2.hpp"
+#include "idx_sawit3.hpp"
 
 #endif
