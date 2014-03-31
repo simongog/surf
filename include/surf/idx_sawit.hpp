@@ -14,14 +14,14 @@ namespace surf{
 using range_type = sdsl::range_type;
 
 struct term_info{
-    uint64_t t; // term_id
+    std::vector<uint64_t> t; // term_id
     uint64_t f_qt; // term_frequency
     uint64_t sp_Dt; // start of interval for term t in the suffix array
     uint64_t ep_Dt; // end of interval for term t in the suffix array
     uint64_t f_Dt;  // number of distinct document the term occurs in 
 
     term_info() = default;
-    term_info(uint64_t t, uint64_t f_qt, uint64_t sp_Dt, uint64_t ep_Dt, uint64_t f_Dt) : 
+    term_info(const std::vector<uint64_t>& t, uint64_t f_qt, uint64_t sp_Dt, uint64_t ep_Dt, uint64_t f_Dt) : 
         t(t), f_qt(f_qt), sp_Dt(sp_Dt), ep_Dt(ep_Dt), f_Dt(f_Dt) {
         
     }
@@ -106,9 +106,12 @@ public:
 
         for (size_t i=0; i<qry.size(); ++i){
             size_type sp=1, ep=0;
-            if ( backward_search(m_csa, 0, m_csa.size()-1, qry[i].token_id, sp, ep) > 0 ) {
+            if ( backward_search(m_csa, 0, m_csa.size()-1, 
+                                 qry[i].token_ids.begin(),
+                                 qry[i].token_ids.end(),
+                                 sp, ep) > 0 ) {
                 auto f_Dt = std::get<0>(m_df(sp,ep)); // document frequency
-                terms.emplace_back(qry[i].token_id, qry[i].f_qt, sp, ep,  f_Dt);
+                terms.emplace_back(qry[i].token_ids, qry[i].f_qt, sp, ep,  f_Dt);
                 ranges.emplace_back(sp, ep);
             }
         }

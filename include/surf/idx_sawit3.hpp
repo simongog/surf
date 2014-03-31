@@ -70,12 +70,15 @@ public:
 
         for (size_t i=0; i<qry.size(); ++i){
             size_type sp=1, ep=0;
-            if ( backward_search(m_csa, 0, m_csa.size()-1, qry[i].token_id, sp, ep) > 0 ) {
+            if ( backward_search(m_csa, 0, m_csa.size()-1, 
+                                qry[i].token_ids.begin(),
+                                qry[i].token_ids.end(),
+                                sp, ep) > 0 ) {
                 auto df_info = m_df(sp,ep);
                 auto f_Dt = std::get<0>(df_info); // document frequency
                 sp = m_urank(sp);
                 ep = sp+f_Dt-1;
-                terms.emplace_back(qry[i].token_id, qry[i].f_qt, sp, ep,  f_Dt);
+                terms.emplace_back(qry[i].token_ids, qry[i].f_qt, sp, ep,  f_Dt);
                 v_ranges.emplace_back(sp, ep);
                 w_ranges.emplace_back(m_prank(std::get<1>(df_info)),
                                       m_prank(std::get<2>(df_info)+1)-1);
