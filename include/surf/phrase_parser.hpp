@@ -6,6 +6,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <ratio>
+#include <chrono>
 
 #include "surf/config.hpp"
 #include "surf/query.hpp"
@@ -19,7 +20,7 @@ struct phrase_parser {
     template<class t_csa>
     static query_t phrase_segmentation(t_csa& csa,
     						const std::vector<uint64_t>& query_ids,
-    						const std::unordered_map<uint64_t,std::string> reverse_mapping)
+    						const std::unordered_map<uint64_t,std::string>& reverse_mapping)
     {
     	double threshold = t_thres::num / t_thres::den;
 
@@ -39,6 +40,13 @@ struct phrase_parser {
     		bool phrase_found = false;
     		bool phrase_added = false;
     		for(size_t i=start+1;i<stop;i++) {
+                // if we start at a very frequent word, a phrase can't start 
+                // there.
+                auto single_cnt = sdsl::count(csa,query_ids.begin()+start,query_ids.begin()+start+1);
+                if( single_cnt * 100 > csa.size() ) {
+                    break;
+                }
+
     			auto cnt = sdsl::count(csa,query_ids.begin()+start,query_ids.begin()+i+1);
     			double prob = (double)cnt / (double)csa.size();
 
@@ -49,6 +57,17 @@ struct phrase_parser {
     			// calc ratio
     			double assoc_ratio = log(prob)-log(single);
 
+                // debug
+                /*
+                std::cout << "SCORE(";            
+                for(size_t l=start;l<=i;l++) {
+                    auto id = query_ids[l];
+                    auto stritr = reverse_mapping.find(id);
+                    std::cout << stritr->second << " ";
+                }
+                std::cout << ") -> " << assoc_ratio << std::endl;
+                */
+
     			if(assoc_ratio < threshold) {
     				// not a phrase. if the prev one was a phrase we use it
     				if(phrase_found) {
@@ -57,10 +76,10 @@ struct phrase_parser {
     						phrase.push_back(query_ids[j]);
     					}
     					phrases.push_back(phrase);
+    				    phrase_added = true;
+    				    start = i;
+    				    break;
     				}
-    				phrase_added = true;
-    				start = i;
-    				break;
     			} else {
     				// still a phrase. continue!
     				phrase_found = true;
@@ -72,8 +91,8 @@ struct phrase_parser {
     				std::vector<uint64_t> phrase;
     				for(size_t i=start;i<stop;i++) {
     					phrase.push_back(query_ids[i]);
-    					phrases.push_back(phrase);
     				}
+    				phrases.push_back(phrase);
     				start = stop;
     			} else {
     				// for this term we have not found any phrase 
