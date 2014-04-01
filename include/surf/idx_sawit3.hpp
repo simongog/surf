@@ -252,7 +252,10 @@ void construct(idx_sawit3<t_csa,t_df,t_wtp,t_wtu, t_ubv, t_urank, t_pbv, t_prank
         store_to_cache(urank, surf::KEY_URANK, cc, true);
     }
     cout<<"...WTP2"<<endl;
-    if (!cache_file_exists<t_wtp>(surf::KEY_WTDUP2,cc)){
+    const uint64_t depth=1; // depth of sorting in the repetition structure
+    std::string R_KEY = surf::KEY_R+"-"+to_string(depth);
+    std::string WTR_KEY = surf::KEY_WTR+"-"+to_string(depth);
+    if (!cache_file_exists<t_wtp>(WTR_KEY,cc)){
         string dup2_file = cache_file_name(surf::KEY_DUP2,cc);
         if (!cache_file_exists(surf::KEY_DUP2,cc)){
             cout<<"......dup2 does not exist. Generate it..."<<endl;
@@ -281,8 +284,6 @@ void construct(idx_sawit3<t_csa,t_df,t_wtp,t_wtu, t_ubv, t_urank, t_pbv, t_prank
                 auto lb = cst.lb(v);
                 auto rb = cst.rb(v);
                 auto df_info = df(lb, rb);
-//                cout<<"("<<lb<<","<<rb<<",="<<rb-lb+1<<") - ("<< std::get<0>(df_info)<<","<<
-//                std::get<1>(df_info)<<","<<std::get<2>(df_info)<<")"<<std::endl;
                 std::vector<uint64_t> buf;
                 for (uint64_t i = std::get<1>(df_info); i <= std::get<2>(df_info); ++i) {
                     buf.push_back(dup[i]); 
@@ -291,7 +292,6 @@ void construct(idx_sawit3<t_csa,t_df,t_wtp,t_wtu, t_ubv, t_urank, t_pbv, t_prank
                     dup_mark[i] = 0;
                 }
                 next_idx = std::get<2>(df_info)+1;
-//                std::sort(buf.begin(), buf.end());
                 for (size_t i=0; i < buf.size(); ++i){
                     dup2.push_back(buf[i]);
                 }
@@ -308,11 +308,44 @@ void construct(idx_sawit3<t_csa,t_df,t_wtp,t_wtu, t_ubv, t_urank, t_pbv, t_prank
             t_prank prank(&pbv);
             store_to_cache(prank, surf::KEY_DUPRANK, cc, true);
         }
+        if ( !cache_file_exists(R_KEY, cc) ) {
+            std::cout<<"generate "<<R_KEY<<" file"<<std::endl;
+            cout<<".........load df"<<endl;
+            t_df df;
+            load_from_cache(df, surf::KEY_SADADF, cc, true);
+            cout<<".........load cst"<<endl;
+            using cst_type =  typename t_df::cst_type;
+            cst_type cst;
+            load_from_file(cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
+            cout<<".........cst.size()="<<cst.size()<<endl;
+            int_vector_buffer<> dup(cache_file_name(surf::KEY_DUP, cc));
+            cout<<"dup.size()="<<dup.size()<<" dup.width()="<<(int)dup.width()<<endl;
+            int_vector_buffer<> R(cache_file_name(R_KEY,cc), 
+                                  std::ios::out, 1024*1024, dup.width());
+            cout<<"R intialized"<<endl;
+            auto root = cst.root();
+            auto left_most_leaf = cst.select_leaf(1);
+            for (const auto& v : cst.children(root) ){
+                if ( v == left_most_leaf )
+                    continue;
+                auto lb = cst.lb(v);
+                auto rb = cst.rb(v);
+                auto df_info = df(lb, rb);
+                std::vector<uint64_t> buf;
+                for (uint64_t i = std::get<1>(df_info); i <= std::get<2>(df_info); ++i) {
+                    buf.push_back(dup[i]); 
+                }
+                std::sort(buf.begin(), buf.end());
+                for (size_t i=0; i < buf.size(); ++i){
+                    R.push_back(buf[i]);
+                }
+            }
+        }
         {
             cout<<"......generate WT"<<endl;
             t_wtp wtp2;
-            construct(wtp2, cache_file_name(surf::KEY_DUP2, cc), cc);
-            store_to_cache(wtp2, surf::KEY_WTDUP2, cc, true);
+            construct(wtp2, cache_file_name(R_KEY, cc), cc);
+            store_to_cache(wtp2, WTR_KEY,cc,true);
         }
     }
 }
