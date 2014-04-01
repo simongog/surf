@@ -28,11 +28,14 @@ struct result {
 
 struct query_token{
     std::vector<uint64_t> token_ids;
+    std::vector<std::string> token_strs;
 	uint64_t f_qt;
-	query_token(std::vector<uint64_t>  ids,uint64_t f) : token_ids(ids), f_qt(f) {}
+	query_token(const std::vector<uint64_t>& ids,
+                const std::vector<std::string>& strs,
+                uint64_t f) : token_ids(ids), token_strs(strs), f_qt(f) {}
 };
 
-using query_t = std::tuple<uint64_t,std::vector<query_token>,std::vector<std::string>>;
+using query_t = std::tuple<uint64_t,std::vector<query_token>>;
 
 
 }

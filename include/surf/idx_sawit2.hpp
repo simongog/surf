@@ -73,7 +73,7 @@ public:
     typedef t_ubv                        ubv_type;
     typedef t_urank                      urank_type;
     typedef rank_bm25<>                  ranker_type;
-private:
+public:
     csa_type    m_csa;
     df_type     m_df;
     wtp_type    m_wtp; 

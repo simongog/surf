@@ -92,11 +92,11 @@ int main( int argc, char** argv ) {
     if(selected_fs.is_open()) {
         for(size_t i=0;i<args.num_qrys;i++) {
             selected_fs << std::get<0>(queries[i]) << ";";
-            const auto& raw_tokens = std::get<2>(queries[i]);
-            for(size_t j=0;j<raw_tokens.size()-1;j++) {
-                selected_fs << raw_tokens[j] << " ";
+            const auto& tokens = std::get<1>(queries[i]);
+            for(size_t j=0;j<tokens.size()-1;j++) {
+                selected_fs << tokens[j].token_strs[0] << " ";
             }
-            selected_fs << raw_tokens.back() << std::endl;
+            selected_fs << tokens.back().token_strs[0] << std::endl;
         }
     } else {
         perror("could not open output file.");

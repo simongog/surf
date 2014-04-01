@@ -82,7 +82,7 @@ public:
     typedef typename wtd_type::node_type node_type;
     typedef t_df    df_type;
     typedef rank_bm25<> ranker_type;
-private:
+public:
     csa_type    m_csa;
     wtd_type    m_wtd;
     df_type     m_df;
