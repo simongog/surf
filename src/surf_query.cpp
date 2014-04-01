@@ -21,18 +21,20 @@ typedef struct cmdargs {
     bool profile;
     bool quit;
     bool ranked_and;
+    bool phrases;
 } cmdargs_t;
 
 void
 print_usage(char* program)
 {
-    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -r <runs> -p -s -a\n",program);
+    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -r <runs> -p -P -s -a\n",program);
     fprintf(stdout,"where\n");
     fprintf(stdout,"  -h <host>  : host of the daemon.\n");
     fprintf(stdout,"  -q <query file>  : the queries to be performed.\n");
     fprintf(stdout,"  -k <top-k>  : the top-k documents to be retrieved for each query.\n");
     fprintf(stdout,"  -r <runs>  : the number of runs.\n");
     fprintf(stdout,"  -p : run queries in profile mode.\n");
+    fprintf(stdout,"  -P : run queries with phrase parsing enabled.\n");
     fprintf(stdout,"  -s : stop the daemon after queries are processed.\n");
     fprintf(stdout,"  -a : perform ranked AND instead of ranked OR.\n");
 };
@@ -49,7 +51,8 @@ parse_args(int argc,char* const argv[])
     args.profile = false;
     args.quit = false;
     args.ranked_and = false;
-    while ((op=getopt(argc,argv,"r:h:q:k:psa")) != -1) {
+    args.phrases = false;
+    while ((op=getopt(argc,argv,"r:h:q:k:psaP")) != -1) {
         switch (op) {
             case 'r':
                 args.runs = std::strtoul(optarg,NULL,10);
@@ -59,6 +62,9 @@ parse_args(int argc,char* const argv[])
                 break;
             case 'p':
                 args.profile = true;
+                break;
+            case 'P':
+                args.phrases = true;
                 break;
             case 's':
                 args.quit = true;
@@ -125,6 +131,13 @@ int main(int argc,char* const argv[])
             if(args.ranked_and) {
                 surf_req.type = REQ_TYPE_QRY_AND;
             }
+
+            if(args.phrases) {
+                surf_req.phrases = 1;
+            } else {
+                surf_req.phrases = 0;
+            }
+
             if(args.profile) {
                 surf_req.mode = REQ_MODE_PROFILE;
             } else {
@@ -151,21 +164,25 @@ int main(int argc,char* const argv[])
                 std::cerr << "ERROR: got response for wrong request id!" << std::endl;
             }
 
-            /* output */
-            std::cout << surf_resp->qry_id << ";" 
-                      << surf_resp->collection << ";"
-                      << surf_resp->index << ";"
-                      << args.ranked_and << ";"
-                      << surf_resp->k << ";"
-                      << surf_resp->qry_len << ";"
-                      << surf_resp->result_size << ";"
-                      << surf_resp->qry_time << ";"
-                      << surf_resp->search_time << ";"
-                      << surf_resp->wt_search_space << ";"
-                      << surf_resp->wt_nodes << ";"
-                      << surf_resp->postings_evaluated << ";"
-                      << surf_resp->postings_total << ";"
-                      << req_time.count() << std::endl;
+            if(surf_resp->status != REQ_PARSE_ERROR) {
+                /* output */
+                std::cout << surf_resp->qry_id << ";" 
+                          << surf_resp->collection << ";"
+                          << surf_resp->index << ";"
+                          << args.ranked_and << ";"
+                          << surf_resp->k << ";"
+                          << surf_resp->qry_len << ";"
+                          << surf_resp->result_size << ";"
+                          << surf_resp->qry_time << ";"
+                          << surf_resp->search_time << ";"
+                          << surf_resp->wt_search_space << ";"
+                          << surf_resp->wt_nodes << ";"
+                          << surf_resp->postings_evaluated << ";"
+                          << surf_resp->postings_total << ";"
+                          << req_time.count() << std::endl;
+            } else {
+                std::cerr << "Error processing query '" << query << "'" << std::endl;
+            }
         }
     }
 

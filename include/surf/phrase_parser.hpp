@@ -6,6 +6,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <ratio>
+#include <chrono>
 
 #include "surf/config.hpp"
 #include "surf/query.hpp"
@@ -17,7 +18,9 @@ struct phrase_parser {
     phrase_parser() = delete;
 
     template<class t_csa>
-    static query_t phrase_segmentation(t_csa& csa,const std::vector<uint64_t>& query_ids)
+    static query_t phrase_segmentation(t_csa& csa,
+    						const std::vector<uint64_t>& query_ids,
+    						const std::unordered_map<uint64_t,std::string>& reverse_mapping)
     {
     	double threshold = t_thres::num / t_thres::den;
 
@@ -30,13 +33,20 @@ struct phrase_parser {
     	}
 
     	//compute all probabilities
-    	std::vector<std::vector<uint64_t> phrases;
+    	std::vector<std::vector<uint64_t>> phrases;
     	size_t start = 0;
-    	size_t stop = qry_ids.size();
+    	size_t stop = query_ids.size();
     	while(start < stop) {
     		bool phrase_found = false;
     		bool phrase_added = false;
     		for(size_t i=start+1;i<stop;i++) {
+                // if we start at a very frequent word, a phrase can't start 
+                // there.
+                auto single_cnt = sdsl::count(csa,query_ids.begin()+start,query_ids.begin()+start+1);
+                if( single_cnt * 100 > csa.size() ) {
+                    break;
+                }
+
     			auto cnt = sdsl::count(csa,query_ids.begin()+start,query_ids.begin()+i+1);
     			double prob = (double)cnt / (double)csa.size();
 
@@ -47,6 +57,17 @@ struct phrase_parser {
     			// calc ratio
     			double assoc_ratio = log(prob)-log(single);
 
+                // debug
+                /*
+                std::cout << "SCORE(";            
+                for(size_t l=start;l<=i;l++) {
+                    auto id = query_ids[l];
+                    auto stritr = reverse_mapping.find(id);
+                    std::cout << stritr->second << " ";
+                }
+                std::cout << ") -> " << assoc_ratio << std::endl;
+                */
+
     			if(assoc_ratio < threshold) {
     				// not a phrase. if the prev one was a phrase we use it
     				if(phrase_found) {
@@ -55,10 +76,10 @@ struct phrase_parser {
     						phrase.push_back(query_ids[j]);
     					}
     					phrases.push_back(phrase);
+    				    phrase_added = true;
+    				    start = i;
+    				    break;
     				}
-    				phrase_added = true;
-    				start = i;
-    				break;
     			} else {
     				// still a phrase. continue!
     				phrase_found = true;
@@ -70,8 +91,8 @@ struct phrase_parser {
     				std::vector<uint64_t> phrase;
     				for(size_t i=start;i<stop;i++) {
     					phrase.push_back(query_ids[i]);
-    					phrases.push_back(phrase);
     				}
+    				phrases.push_back(phrase);
     				start = stop;
     			} else {
     				// for this term we have not found any phrase 
@@ -88,10 +109,10 @@ struct phrase_parser {
     	query_t q;
     	auto itr = phrases.begin();
     	while(itr != phrases.end()) {
+    		auto cur_list = *itr;
     		uint64_t num_equal = 0;
     		auto next = itr+1;
     		while(next != phrases.end()) {
-    			auto cur_list = *itr;
     			auto next_list = *next;
     			if(std::equal(cur_list.begin(),cur_list.end(),next_list.begin())) {
     				num_equal++;
@@ -100,20 +121,29 @@ struct phrase_parser {
     				next++;
     			}
     		}
-    		q.emplace_back(*itr,num_equal)
+
+    		/* get the string representation */
+    		std::vector<std::string> qry_str;
+    		for(const auto& id : cur_list) {
+    			auto rmitr = reverse_mapping.find(id);
+    			qry_str.push_back(rmitr->second);
+    		}
+    		std::get<1>(q).emplace_back(*itr,qry_str,num_equal);
     		itr++;
     	}
     	return q;
     }
 
-    static std::vector<query_t> parse_queries(sdsl::cache_config& cc
+    static std::vector<query_t> parse_queries(sdsl::cache_config& cc,
     										  const std::string& collection_dir,
                                               const std::string& query_file) 
     {
         std::vector<query_t> queries;
 
         /* load the mapping */
-        auto id_mapping = query_parser::load_dictionary(collection_dir);
+        auto mapping = query_parser::load_dictionary(collection_dir);
+        const auto& id_mapping = mapping.first;
+        const auto& reverse_mapping = mapping.second;
 
         /* load csa */
         using csa_type = sdsl::csa_wt<sdsl::wt_int<sdsl::rrr_vector<63>>,1000000,1000000>;
@@ -129,11 +159,10 @@ struct phrase_parser {
 
         std::string query_str;
         while( std::getline(qfs,query_str) ) {
-        	auto qry_mapping = query_parser::map_to_ids(id_mapping,query_str,only_complete)
-
-        	if(qry_mapping.first) {
-        		auto qry_ids = qry_mapping.second;
-        		auto parsed_qry = phrase_segmentation(csa,qry_ids);
+        	auto qry_mapping = query_parser::map_to_ids(id_mapping,query_str,true);
+        	if( std::get<0>(qry_mapping)) {
+        		auto qry_ids = std::get<1>(qry_mapping);
+        		auto parsed_qry = phrase_segmentation(csa,qry_ids,reverse_mapping);
         		queries.emplace_back(parsed_qry);
         	}
         }
