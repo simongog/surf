@@ -139,8 +139,8 @@ int main(int argc,char* const argv[])
                 auto qry_mapping = surf::query_parser::map_to_ids(id_mapping,
                                             std::string(surf_req->qry_str),true);
                 if(std::get<0>(qry_mapping)) {
-                    auto qid = std::get<0>(qry_mapping);
-                    auto qry_ids = std::get<1>(qry_mapping);
+                    auto qid = std::get<1>(qry_mapping);
+                    auto qry_ids = std::get<2>(qry_mapping);
                     prased_query = surf::phrase_parser<std::ratio<1,2>>::phrase_segmentation(index.m_csa,qry_ids,reverse_mapping);
                     std::get<0>(prased_query) = qid;
                     parse_ok = true;
@@ -204,7 +204,7 @@ int main(int argc,char* const argv[])
                     }
                     std::cout << ") ";
                 } else {
-                    std::cout << token.token_ids[0] << " ";
+                    std::cout << token.token_strs[0] << " ";
                 }
             }
             std::cout << "]" << std::endl;

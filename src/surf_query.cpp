@@ -180,6 +180,8 @@ int main(int argc,char* const argv[])
                           << surf_resp->postings_evaluated << ";"
                           << surf_resp->postings_total << ";"
                           << req_time.count() << std::endl;
+            } else {
+                std::cerr << "Error processing query '" << query << "'" << std::endl;
             }
         }
     }

@@ -42,12 +42,17 @@ struct query_parser {
         return {id_mapping,reverse_id_mapping};
     }
 
-    static std::tuple<bool,std::vector<uint64_t>> 
+    static std::tuple<bool,uint64_t,std::vector<uint64_t>> 
         map_to_ids(const std::unordered_map<std::string,uint64_t>& id_mapping,
                    std::string query_str,bool only_complete)
     {
+        auto id_sep_pos = query_str.find(';');
+        auto qryid_str = query_str.substr(0,id_sep_pos);
+        auto qry_id = std::stoull(qryid_str);
+        auto qry_content = query_str.substr(id_sep_pos+1);
+
         std::vector<uint64_t> ids;
-        std::istringstream qry_content_stream(query_str);
+        std::istringstream qry_content_stream(qry_content);
         for(std::string qry_token; std::getline(qry_content_stream,qry_token,' ');) {
             auto id_itr = id_mapping.find(qry_token);
             if(id_itr != id_mapping.end()) {
@@ -55,28 +60,26 @@ struct query_parser {
             } else {
                 std::cerr << "ERROR: could not find '" << qry_token << "' in the dictionary." << std::endl;
                 if(only_complete) {
-                    return std::make_tuple(false,ids);
+                    return std::make_tuple(false,qry_id,ids);
                 }
             }
         }
-        return std::make_tuple(true,ids);
+        return std::make_tuple(true,qry_id,ids);
     }
 
     static std::pair<bool,query_t> parse_query(const mapping_t& mapping,
                 const std::string& query_str,bool only_complete = false)
     {
-        auto id_sep_pos = query_str.find(';');
-        auto qryid_str = query_str.substr(0,id_sep_pos);
-        auto qry_id = std::stoull(qryid_str);
-        auto qry_content = query_str.substr(id_sep_pos+1);
+
         const auto& id_mapping = mapping.first;
         const auto& reverse_mapping = mapping.second;
-        auto mapped_qry = map_to_ids(id_mapping,qry_content,only_complete);
+        auto mapped_qry = map_to_ids(id_mapping,query_str,only_complete);
 
         bool parse_ok = std::get<0>(mapped_qry);
+        auto qry_id = std::get<1>(mapped_qry);
         if(parse_ok) {
             std::unordered_map<uint64_t,uint64_t> qry_set;
-            const auto& qids = std::get<1>(mapped_qry);
+            const auto& qids = std::get<2>(mapped_qry);
             for(const auto& qid : qids) {
                 qry_set[qid] += 1;
             }
