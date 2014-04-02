@@ -3,24 +3,28 @@ CUR_DIR=`pwd`
 MY_DIR="$( cd "$( dirname "$0" )" && pwd )" # gets the directory where the script is located in
 cd "${MY_DIR}"
 MY_DIR=`pwd`
-SURF_PATH="$MY_DIR/.."
+SURF_PATH=$MY_DIR/..
 
-COLLECTIONS="/devhome3/sgog/ESA2014/surf/collections/gov2/"
+COLLECTIONS="$SURF_PATH/collections/gov2"
+#COLLECTIONS="$SURF_PATH/collections/trec8"
+EXP_DIR="$SURF_PATH/experiments"
 PORT=12345
 
-INDEXES="IDX_D IDX_D_SANSLEN IDX_DR IDX_DR_SANSLEN"
+INDEXES="IDX_DR IDX_DR_SANSLEN IDX_D IDX_D_SANSLEN"
+
+echo "qryid;collection;index;qrymode;k;qrylen;res_size;qry_time;search_time;nodes_evaluated;nodes_total;postings_evaluated;postings_total;client_time" > $EXP_DIR/nodes_evaluated.csv
 
 for col in $COLLECTIONS
 do
     for idx in $INDEXES
     do
-        echo "$SURF_PATH/build/surf_daemon_$idx -c $col -p $PORT &"
+        $SURF_PATH/build/surf_daemon-$idx -c $col -p $PORT &
         for k in 10 100 1000 
         do
-            echo "$SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2005-efficiency-100.qry -k $k -r 1 -p >> nodes_evaluated.csv"
+            $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/trec2005-efficiency-1000.qry -k $k -r 1 -p >> $EXP_DIR/nodes_evaluated.csv
 		done
         # shut down daemon
-        echo "$SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/wiki.q -k 1 -s > /dev/null"
+        $SURF_PATH/build/surf_query -h localhost:$PORT -q $SURF_PATH/queries/wiki.q -k 1 -s > /dev/null
     done
 done
 
