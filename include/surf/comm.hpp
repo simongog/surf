@@ -37,7 +37,13 @@ struct surf_qry_request {
     double phrase_threshold;
 	uint64_t id;
 	uint64_t k;
+    uint8_t output_results;
 	char qry_str[MAX_QRY_LEN] = {0};
+};
+
+struct surf_results {
+    uint64_t size;
+    double data[0];
 };
 
 

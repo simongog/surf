@@ -211,25 +211,37 @@ int main(int argc,char* const argv[])
             std::cout << "]" << std::endl;
 
     		/* (3) create answer and send */
-            surf_time_resp surf_resp;
-            surf_resp.status = REQ_RESPONE_OK;
-            strncpy(surf_resp.index,index_name.c_str(),sizeof(surf_resp.index));
-            strncpy(surf_resp.collection,base_name.c_str(),sizeof(surf_resp.collection));
-            surf_resp.req_id = surf_req->id;
-            surf_resp.k = surf_req->k;
-            surf_resp.qry_id = qry_id;
-            surf_resp.qry_len = qry_tokens.size();
-            surf_resp.result_size = results.list.size();
-            surf_resp.qry_time = query_time.count();
-            surf_resp.search_time = search_time.count();
-            surf_resp.wt_search_space = results.wt_search_space;
-            surf_resp.wt_nodes = results.wt_nodes;
-            surf_resp.postings_evaluated = results.postings_evaluated;
-            surf_resp.postings_total = results.postings_total;
+            if(!surf_req->output_results) {
+                surf_time_resp surf_resp;
+                surf_resp.status = REQ_RESPONE_OK;
+                strncpy(surf_resp.index,index_name.c_str(),sizeof(surf_resp.index));
+                strncpy(surf_resp.collection,base_name.c_str(),sizeof(surf_resp.collection));
+                surf_resp.req_id = surf_req->id;
+                surf_resp.k = surf_req->k;
+                surf_resp.qry_id = qry_id;
+                surf_resp.qry_len = qry_tokens.size();
+                surf_resp.result_size = results.list.size();
+                surf_resp.qry_time = query_time.count();
+                surf_resp.search_time = search_time.count();
+                surf_resp.wt_search_space = results.wt_search_space;
+                surf_resp.wt_nodes = results.wt_nodes;
+                surf_resp.postings_evaluated = results.postings_evaluated;
+                surf_resp.postings_total = results.postings_total;
 
-    		zmq::message_t reply (sizeof(surf_time_resp));
-    		memcpy(reply.data(),&surf_resp,sizeof(surf_time_resp));
-    		server.send (reply);
+        		zmq::message_t reply (sizeof(surf_time_resp));
+        		memcpy(reply.data(),&surf_resp,sizeof(surf_time_resp));
+        		server.send (reply);
+            } else {
+                size_t res_size = results.list.size()*2*sizeof(double) + sizeof(uint64_t);
+                zmq::message_t zmq_results (res_size);
+                surf_results* sr = (surf_results*)(zmq_results.data());
+                sr->size = results.list.size();
+                for(size_t i=0;i<results.list.size();i++) {
+                    sr->data[i*2] = results.list[i].doc_id;
+                    sr->data[i*2+1] = results.list[i].score;
+                }
+                server.send (zmq_results);
+            }
     	}
     }
 
