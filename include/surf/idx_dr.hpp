@@ -80,6 +80,8 @@ public:
     df_type     m_df;
     wtr_type    m_wtr; 
     t_wtd       m_wtd;
+    rbv_type    m_rbv;
+    rrank_type  m_rrank;
     doc_perm    m_docperm;
     ranker_type m_ranker;
 
@@ -104,7 +106,9 @@ public:
                 auto f_Dt = std::get<0>(df_info); // document frequency
                 terms.emplace_back(qry[i].token_ids, qry[i].f_qt, sp, ep,  f_Dt);
                 v_ranges.emplace_back(sp, ep);
-                w_ranges.emplace_back(std::get<1>(df_info),std::get<2>(df_info));
+                w_ranges.emplace_back(m_rrank(std::get<1>(df_info)),
+                                      m_rrank(std::get<2>(df_info)+1)-1);
+
             }
         }
         term_ptrs.resize(terms.size()); 
@@ -179,12 +183,17 @@ public:
     void load(sdsl::cache_config& cc){
         load_from_cache(m_csa, surf::KEY_CSA, cc, true);
         load_from_cache(m_df, surf::KEY_SADADF, cc, true);
-        load_from_cache(m_wtr, surf::KEY_WTDUP, cc, true);
+        load_from_cache(m_wtr, surf::KEY_WTDUP2, cc, true);
         std::cerr<<"m_wtr.size()="<<m_wtr.size()<<std::endl;
         std::cerr<<"m_wtr.sigma()="<<m_wtr.sigma<<std::endl;
         load_from_cache(m_wtd, surf::KEY_WTD, cc, true);
         std::cerr<<"m_wtd.size()="<<m_wtd.size()<<std::endl;
         std::cerr<<"m_wtd.sigma()="<<m_wtd.sigma<<std::endl;
+        load_from_cache(m_rbv, surf::KEY_DUPMARK, cc, true);
+        std::cerr<<"m_rbv.size()="<<m_rbv.size()<<std::endl;
+        load_from_cache(m_rrank, surf::KEY_DUPRANK, cc, true);
+        m_rrank.set_vector(&m_rbv);
+        std::cerr<<"m_rrank(m_rbv.size())="<<m_rrank(m_rbv.size())<<std::endl;
         load_from_cache(m_docperm, surf::KEY_DOCPERM, cc); 
         m_ranker = ranker_type(cc);
     }
@@ -192,11 +201,13 @@ public:
     size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const {
         structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
         size_type written_bytes = 0;
-        written_bytes += m_csa.serialize(out, child, "csa");
-        written_bytes += m_df.serialize(out, child, "df");
-        written_bytes += m_wtd.serialize(out, child, "wtd");
-        written_bytes += m_wtr.serialize(out, child, "wtr");
-        written_bytes += m_docperm.serialize(out, child, "docperm");
+        written_bytes += m_csa.serialize(out, child, "CSA");
+        written_bytes += m_df.serialize(out, child, "DF");
+        written_bytes += m_wtd.serialize(out, child, "WTD");
+        written_bytes += m_wtr.serialize(out, child, "WTR");
+        written_bytes += m_rbv.serialize(out, child, "R_BV");
+        written_bytes += m_rrank.serialize(out, child, "R_RANK");
+        written_bytes += m_docperm.serialize(out, child, "DOCPERM");
         structure_tree::add_size(child, written_bytes);
         return written_bytes;
     }
@@ -252,14 +263,14 @@ void construct(idx_dr<t_csa,t_df,t_wtd,t_wtr, t_ranker, t_rbv, t_rrank>& idx,
         cout << "wtr.size() = " << wtr.size() << endl;
         cout << "wtr.sigma = " << wtr.sigma << endl;
     }
-    cout<<"...WTR_BV"<<endl;
-    if (!cache_file_exists<t_rbv>(surf::KEY_UMARK, cc) ){
+    cout<<"...R_BV"<<endl;
+    if (!cache_file_exists<t_rbv>(surf::KEY_DUPMARK, cc) ){
         bit_vector bv;
-        load_from_cache(bv, surf::KEY_UMARK, cc);
+        load_from_cache(bv, surf::KEY_DUPMARK, cc);
         t_rbv rbv(bv);
-        store_to_cache(rbv, surf::KEY_UMARK, cc, true);
+        store_to_cache(rbv, surf::KEY_DUPMARK, cc, true);
         t_rrank rrank(&rbv);
-        store_to_cache(rrank, surf::KEY_URANK, cc, true);
+        store_to_cache(rrank, surf::KEY_DUPRANK, cc, true);
     }
 }
 
