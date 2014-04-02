@@ -121,7 +121,7 @@ public:
         }
 
         auto push_node = [this, &res,&profile,&ranked_and]
-                         (pq_type& pq, state_type& s,node_type& v,
+                         (pq_type& pq, const std::vector<term_info*>& t_ptrs,node_type& v,
                           std::vector<range_type>& r,
                           pq_min_type& pq_min, const size_t& k){
             auto min_idx = m_wtd.sym(v) << (m_wtd.max_level - v.level);  
@@ -134,7 +134,7 @@ public:
                 if ( !empty(r[i]) ){
                     eval = true;
                     t.r.push_back(r[i]);
-                    t.t_ptrs.push_back(s.t_ptrs[i]);
+                    t.t_ptrs.push_back(t_ptrs[i]);
 
                     auto score = m_ranker.calculate_docscore(
                                  t.t_ptrs.back()->f_qt,
@@ -182,13 +182,24 @@ public:
             if ( m_wtd.is_leaf(s.v) ){
                 res.list.emplace_back(m_docperm.len2id[m_wtd.sym(s.v)], s.score);
             } else {
+//fast_expand:               
                 auto exp_v = m_wtd.expand(s.v);
-                auto exp_r = m_wtd.expand(s.v, s.r);
-                if ( !m_wtd.empty(std::get<0>(exp_v)) ) {
-                    push_node(pq, s, std::get<0>(exp_v), std::get<0>(exp_r), pq_min, k);
+                bool left_empty = m_wtd.empty(std::get<0>(exp_v));
+                bool right_empty = m_wtd.empty(std::get<1>(exp_v));
+                auto exp_r = m_wtd.expand(s.v, std::move(s.r));
+                if ( std::get<1>(exp_r).size() == 0 and std::get<0>(exp_r).size() > 0 and !m_wtd.is_leaf(std::get<0>(exp_v) )){
+                    std::cout<<"easy"<<std::endl;
+                } 
+
+                if ( !left_empty ) {
+                    push_node(pq, s.t_ptrs, std::get<0>(exp_v), std::get<0>(exp_r), pq_min, k);
+                } else{
+                    std::cout<<"left_empty"<<std::endl;
                 }
-                if ( !m_wtd.empty(std::get<1>(exp_v)) ) {
-                    push_node(pq, s, std::get<1>(exp_v), std::get<1>(exp_r), pq_min, k);
+                if ( !right_empty ) {
+                    push_node(pq, s.t_ptrs, std::get<1>(exp_v), std::get<1>(exp_r), pq_min, k);
+                } else{
+                    std::cout<<"right_empty"<<std::endl;
                 }
             }
         }
