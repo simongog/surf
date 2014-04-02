@@ -3,8 +3,8 @@
 #define SURF_INDEXES_HPP
 
 #include "idx_invfile.hpp"
-#include "idx_sawit.hpp"
-#include "idx_sawit2.hpp"
-#include "idx_sawit3.hpp"
+#include "idx_d.hpp"
+#include "idx_dr.hpp"
+#include "idx_d1r1.hpp"
 
 #endif
