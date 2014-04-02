@@ -23,17 +23,19 @@ typedef struct cmdargs {
     bool ranked_and;
     bool phrases;
     double phrase_threshold;
+    bool output_results;
 } cmdargs_t;
 
 void
 print_usage(char* program)
 {
-    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -r <runs> -p -P <thres> -s -a\n",program);
+    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -r <runs> -p -P <thres> -s -a -R\n",program);
     fprintf(stdout,"where\n");
     fprintf(stdout,"  -h <host>  : host of the daemon.\n");
     fprintf(stdout,"  -q <query file>  : the queries to be performed.\n");
     fprintf(stdout,"  -k <top-k>  : the top-k documents to be retrieved for each query.\n");
     fprintf(stdout,"  -r <runs>  : the number of runs.\n");
+    fprintf(stdout,"  -R : output results only\n");
     fprintf(stdout,"  -p : run queries in profile mode.\n");
     fprintf(stdout,"  -P <thres> : run queries with phrase parsing enabled and threshold <thres>.\n");
     fprintf(stdout,"  -s : stop the daemon after queries are processed.\n");
@@ -54,7 +56,8 @@ parse_args(int argc,char* const argv[])
     args.ranked_and = false;
     args.phrases = false;
     args.phrase_threshold = 0.0f;
-    while ((op=getopt(argc,argv,"r:h:q:k:psaP:")) != -1) {
+    args.output_results = false;
+    while ((op=getopt(argc,argv,"r:h:q:k:psaP:R")) != -1) {
         switch (op) {
             case 'r':
                 args.runs = std::strtoul(optarg,NULL,10);
@@ -74,6 +77,9 @@ parse_args(int argc,char* const argv[])
                 break;
             case 'a':
                 args.ranked_and = true;
+                break;
+            case 'R':
+                args.output_results = true;
                 break;
             case 'q':
                 args.query_file = optarg;
@@ -152,6 +158,12 @@ int main(int argc,char* const argv[])
                 surf_req.mode = REQ_MODE_TIME;
             }
 
+            if(args.output_results) {
+                surf_req.output_results = 1;
+            } else {
+                surf_req.output_results = 0;
+            }
+
             surf_req.id = rand();
             surf_req.k = args.k;
             memcpy(surf_req.qry_str,query.data(),query.size());
@@ -161,35 +173,47 @@ int main(int argc,char* const argv[])
             socket.send (request);
 
             /* wait for reply */
-            zmq::message_t reply;
-            socket.recv (&reply);
-            surf_time_resp* surf_resp = static_cast<surf_time_resp*>(reply.data());
+            if(!args.output_results) {
+                zmq::message_t reply;
+                socket.recv (&reply);
+                surf_time_resp* surf_resp = static_cast<surf_time_resp*>(reply.data());
 
-            auto req_stop = clock::now();
-            auto req_time = std::chrono::duration_cast<std::chrono::microseconds>(req_stop-req_start);
+                auto req_stop = clock::now();
+                auto req_time = std::chrono::duration_cast<std::chrono::microseconds>(req_stop-req_start);
 
-            if(surf_resp->req_id != surf_req.id) {
-                std::cerr << "ERROR: got response for wrong request id!" << std::endl;
-            }
+                if(surf_resp->req_id != surf_req.id) {
+                    std::cerr << "ERROR: got response for wrong request id!" << std::endl;
+                }
 
-            if(surf_resp->status != REQ_PARSE_ERROR) {
-                /* output */
-                std::cout << surf_resp->qry_id << ";" 
-                          << surf_resp->collection << ";"
-                          << surf_resp->index << ";"
-                          << qry_mode << ";"
-                          << surf_resp->k << ";"
-                          << surf_resp->qry_len << ";"
-                          << surf_resp->result_size << ";"
-                          << surf_resp->qry_time << ";"
-                          << surf_resp->search_time << ";"
-                          << surf_resp->wt_search_space << ";"
-                          << surf_resp->wt_nodes << ";"
-                          << surf_resp->postings_evaluated << ";"
-                          << surf_resp->postings_total << ";"
-                          << req_time.count() << std::endl;
+                if(surf_resp->status != REQ_PARSE_ERROR) {
+                    /* output */
+                    std::cout << surf_resp->qry_id << ";" 
+                              << surf_resp->collection << ";"
+                              << surf_resp->index << ";"
+                              << qry_mode << ";"
+                              << surf_resp->k << ";"
+                              << surf_resp->qry_len << ";"
+                              << surf_resp->result_size << ";"
+                              << surf_resp->qry_time << ";"
+                              << surf_resp->search_time << ";"
+                              << surf_resp->wt_search_space << ";"
+                              << surf_resp->wt_nodes << ";"
+                              << surf_resp->postings_evaluated << ";"
+                              << surf_resp->postings_total << ";"
+                              << req_time.count() << std::endl;
+                } else {
+                    std::cerr << "Error processing query '" << query << "'" << std::endl;
+                }
             } else {
-                std::cerr << "Error processing query '" << query << "'" << std::endl;
+                zmq::message_t output;
+                socket.recv (&output);
+                surf_results* sr = (surf_results*)(output.data());
+                for(size_t j=0;j<sr->size;j++) {
+                    std::cout << "(" << j+1 << ") : " 
+                              << (uint64_t)sr->data[j*2]
+                              << " - "
+                              << sr->data[j*2+1] << std::endl;
+                }
             }
         }
     }
