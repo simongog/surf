@@ -22,19 +22,20 @@ typedef struct cmdargs {
     bool quit;
     bool ranked_and;
     bool phrases;
+    double phrase_threshold;
 } cmdargs_t;
 
 void
 print_usage(char* program)
 {
-    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -r <runs> -p -P -s -a\n",program);
+    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -r <runs> -p -P <thres> -s -a\n",program);
     fprintf(stdout,"where\n");
     fprintf(stdout,"  -h <host>  : host of the daemon.\n");
     fprintf(stdout,"  -q <query file>  : the queries to be performed.\n");
     fprintf(stdout,"  -k <top-k>  : the top-k documents to be retrieved for each query.\n");
     fprintf(stdout,"  -r <runs>  : the number of runs.\n");
     fprintf(stdout,"  -p : run queries in profile mode.\n");
-    fprintf(stdout,"  -P : run queries with phrase parsing enabled.\n");
+    fprintf(stdout,"  -P <thres> : run queries with phrase parsing enabled and threshold <thres>.\n");
     fprintf(stdout,"  -s : stop the daemon after queries are processed.\n");
     fprintf(stdout,"  -a : perform ranked AND instead of ranked OR.\n");
 };
@@ -52,7 +53,8 @@ parse_args(int argc,char* const argv[])
     args.quit = false;
     args.ranked_and = false;
     args.phrases = false;
-    while ((op=getopt(argc,argv,"r:h:q:k:psaP")) != -1) {
+    args.phrase_threshold = 0.0f;
+    while ((op=getopt(argc,argv,"r:h:q:k:psaP:")) != -1) {
         switch (op) {
             case 'r':
                 args.runs = std::strtoul(optarg,NULL,10);
@@ -65,6 +67,7 @@ parse_args(int argc,char* const argv[])
                 break;
             case 'P':
                 args.phrases = true;
+                args.phrase_threshold = std::strtod(optarg,NULL);
                 break;
             case 's':
                 args.quit = true;
@@ -128,14 +131,19 @@ int main(int argc,char* const argv[])
 
             surf_qry_request surf_req;
             surf_req.type = REQ_TYPE_QRY_OR;
+            uint8_t qry_mode = 0;
             if(args.ranked_and) {
                 surf_req.type = REQ_TYPE_QRY_AND;
+                qry_mode = 1;
             }
 
             if(args.phrases) {
                 surf_req.phrases = 1;
+                surf_req.phrase_threshold =  args.phrase_threshold;
+                qry_mode += 2;
             } else {
                 surf_req.phrases = 0;
+                surf_req.phrase_threshold = 0.0;
             }
 
             if(args.profile) {
@@ -169,7 +177,7 @@ int main(int argc,char* const argv[])
                 std::cout << surf_resp->qry_id << ";" 
                           << surf_resp->collection << ";"
                           << surf_resp->index << ";"
-                          << args.ranked_and << ";"
+                          << (int)qry_mode << ";"
                           << surf_resp->k << ";"
                           << surf_resp->qry_len << ";"
                           << surf_resp->result_size << ";"

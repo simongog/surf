@@ -391,7 +391,7 @@ void postings_list<t_codec,t_bs>::create_rank_support(const sdsl::int_vector<32>
         auto f_dt = freqs[l];
         double W_d = ranker.doc_length(id);
         double doc_weight = ranker.calc_doc_weight(W_d);
-        double score = ranker.calculate_docscore(1.0f,f_dt,f_t,F_t,W_d);
+        double score = ranker.calculate_docscore(1.0f,f_dt,f_t,F_t,W_d,true);
         max_score = std::max(max_score,score);
         max_doc_weight = std::max(max_doc_weight,doc_weight);
         if (i % t_bs == 0 && ids.size() > uncompressed_threshold ) {

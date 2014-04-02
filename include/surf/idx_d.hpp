@@ -1,5 +1,5 @@
-#ifndef SURF_IDX_SAWIT_HPP
-#define SURF_IDX_SAWIT_HPP
+#ifndef SURF_IDX_D_HPP
+#define SURF_IDX_D_HPP
 
 #include "sdsl/suffix_trees.hpp"
 #include "surf/df_sada.hpp"
@@ -65,29 +65,29 @@ struct s_state_t{
     }
 };
 
-/*! Class sawit (Suffix Array Wavelet tree Index Type) consists of a
- *  (compressed) suffix array, a wavelet tree over the document array,
- *  a (succinct) document frequency structure, and a wavelet tree
- *  over the duplication array.
- *  
+/*! Class idx_d consists of a 
+ *   - CSA over the collection concatenation
+ *   - document frequency structure
+ *   - a WT over the D array
  */
 template<typename t_csa,
          typename t_wtd,
-         typename t_df>
-class idx_sawit{
+         typename t_df,
+         typename t_ranker=rank_bm25<>>
+class idx_d{
 public:
     using size_type = sdsl::int_vector<>::size_type;
-    typedef t_csa   csa_type;
-    typedef t_wtd   wtd_type;
+    typedef t_csa    csa_type;
+    typedef t_wtd    wtd_type;
     typedef typename wtd_type::node_type node_type;
-    typedef t_df    df_type;
-    typedef rank_bm25<> ranker_type;
+    typedef t_df     df_type;
+    typedef t_ranker ranker_type;
 public:
     csa_type    m_csa;
     wtd_type    m_wtd;
     df_type     m_df;
     doc_perm    m_docperm;
-    ranker_type m_r;
+    ranker_type m_ranker;
 
     using state_type = s_state_t<typename t_wtd::node_type>;
 public:
@@ -125,7 +125,7 @@ public:
                           std::vector<range_type>& r,
                           pq_min_type& pq_min, const size_t& k){
             auto min_idx = m_wtd.sym(v) << (m_wtd.max_level - v.level);  
-            auto min_doc_len = m_r.doc_length(m_docperm.len2id[min_idx]);
+            auto min_doc_len = m_ranker.doc_length(m_docperm.len2id[min_idx]);
             state_type t; // new state
             t.v = v;
             t.score = 0;
@@ -136,12 +136,13 @@ public:
                     t.r.push_back(r[i]);
                     t.t_ptrs.push_back(s.t_ptrs[i]);
 
-                    auto score = m_r.calculate_docscore(
+                    auto score = m_ranker.calculate_docscore(
                                  t.t_ptrs.back()->f_qt,
                                  size(t.r.back()),
                                  t.t_ptrs.back()->f_Dt,
                                  t.t_ptrs.back()->F_Dt(),
-                                 min_doc_len
+                                 min_doc_len,
+                                 m_wtd.is_leaf(v)
                                );
                     t.score += score;
                 } else if ( ranked_and ){
@@ -199,7 +200,7 @@ public:
         load_from_cache(m_wtd, surf::KEY_WTD, cc, true);
         load_from_cache(m_df, surf::KEY_SADADF, cc, true);
         load_from_cache(m_docperm, surf::KEY_DOCPERM, cc); 
-        m_r = ranker_type(cc);
+        m_ranker = ranker_type(cc);
     }
 
     size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const {
@@ -217,9 +218,10 @@ public:
 
 template<typename t_csa,
          typename t_wtd,
-         typename t_df
+         typename t_df,
+         typename t_ranker
         >
-void construct(idx_sawit<t_csa,t_wtd,t_df>& idx,
+void construct(idx_d<t_csa,t_wtd,t_df,t_ranker>& idx,
                const std::string&,
                sdsl::cache_config& cc, uint8_t num_bytes)
 {    

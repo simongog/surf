@@ -31,10 +31,10 @@ const std::string KEY_WTDUP2  = "wtdup2";
 const std::string KEY_WTR  = "wtr";
 const std::string KEY_WTDP  = "wtdp";
 const std::string KEY_DUP  = "dup";
-const std::string KEY_R  = "R";
+const std::string KEY_R  = "R";                // =R1 in the paper
 const std::string KEY_DUPMARK  = "DUPmark";
 const std::string KEY_DUPRANK  = "DUPrank";
-const std::string KEY_DUP2  = "dup2";
+const std::string KEY_DUP2  = "dup2";          // =R in the paper
 const std::string KEY_DOCCNT  = "doccnt";
 const std::string KEY_COLLEN  = "collen";
 const std::string KEY_DOCBORDER = "docborder";

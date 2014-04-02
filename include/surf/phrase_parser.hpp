@@ -13,17 +13,15 @@
 
 namespace surf{
 
-template<class t_thres = std::ratio<1,2>>
 struct phrase_parser {
     phrase_parser() = delete;
 
     template<class t_csa>
     static query_t phrase_segmentation(t_csa& csa,
     						const std::vector<uint64_t>& query_ids,
-    						const std::unordered_map<uint64_t,std::string>& reverse_mapping)
+    						const std::unordered_map<uint64_t,std::string>& reverse_mapping,
+                            double threshold)
     {
-    	double threshold = t_thres::num / t_thres::den;
-
     	//compute single term probabilities
     	std::vector<double> P_single;
     	for(size_t i=0;i<query_ids.size();i++) {
@@ -133,44 +131,7 @@ struct phrase_parser {
     	}
     	return q;
     }
-
-    static std::vector<query_t> parse_queries(sdsl::cache_config& cc,
-    										  const std::string& collection_dir,
-                                              const std::string& query_file) 
-    {
-        std::vector<query_t> queries;
-
-        /* load the mapping */
-        auto mapping = query_parser::load_dictionary(collection_dir);
-        const auto& id_mapping = mapping.first;
-        const auto& reverse_mapping = mapping.second;
-
-        /* load csa */
-        using csa_type = sdsl::csa_wt<sdsl::wt_int<sdsl::rrr_vector<63>>,1000000,1000000>;
-        csa_type csa;
-        load_from_cache(csa, surf::KEY_CSA, cc, true);
-
-        /* parse queries */
-        std::ifstream qfs(query_file); 
-        if(!qfs.is_open()) {
-            std::cerr << "cannot load query file.";
-            exit(EXIT_FAILURE);
-        }
-
-        std::string query_str;
-        while( std::getline(qfs,query_str) ) {
-        	auto qry_mapping = query_parser::map_to_ids(id_mapping,query_str,true);
-        	if( std::get<0>(qry_mapping)) {
-        		auto qry_ids = std::get<1>(qry_mapping);
-        		auto parsed_qry = phrase_segmentation(csa,qry_ids,reverse_mapping);
-        		queries.emplace_back(parsed_qry);
-        	}
-        }
-
-        return queries;
-    }
 };
-
 }// end namespace
 
 #endif

@@ -4,8 +4,8 @@
 #include "sdsl/suffix_trees.hpp"
 #include "surf/df_sada.hpp"
 #include "surf/rank_functions.hpp"
-#include "surf/idx_sawit.hpp"
-#include "surf/idx_sawit2.hpp"
+#include "surf/idx_d.hpp"
+#include "surf/idx_dr.hpp"
 #include "surf/construct_col_len.hpp"
 #include <algorithm>
 #include <limits>
@@ -16,30 +16,30 @@ namespace surf{
 using range_type = sdsl::range_type;
 
 
-/*! Class sawit3 (Suffix Array Wavelet tree Index Type) consists of a
- *  (compressed) suffix array, a wavelet tree over the reduced duplicate array,
- *  a (succinct) document frequency structure, and a wavelet tree
- *  over the unique array.
- *  
+/*! Class idx_d1r1 consists of a 
+ *   - CSA over the collection concatenation
+ *   - document frequency structure
+ *   - a WT over the reduced D array (only 1-phrases)
+ *   - a WT over the (1-phrases) sorted repetition array
  */
 template<typename t_csa,
          typename t_df,
-         typename t_wtp,
+         typename t_wtr,
          typename t_wtu,
          typename t_ubv=sdsl::rrr_vector<63>,
          typename t_urank=typename t_ubv::rank_1_type,
          typename t_pbv=sdsl::rrr_vector<63>,
          typename t_prank=typename t_pbv::rank_1_type
          >
-class idx_sawit3{
+class idx_d1r1{
 public:
     using size_type = sdsl::int_vector<>::size_type;
     typedef t_csa                        csa_type;
     typedef t_wtu                        wtu_type;
     typedef typename wtu_type::node_type node_type;
     typedef t_df                         df_type;
-    typedef t_wtp                        wtp_type;
-    typedef typename wtp_type::node_type node2_type;
+    typedef t_wtr                        wtr_type;
+    typedef typename wtr_type::node_type node2_type;
     typedef t_ubv                        ubv_type;
     typedef t_urank                      urank_type;
     typedef t_pbv                        pbv_type;
@@ -48,14 +48,14 @@ public:
 private:
     csa_type    m_csa;
     df_type     m_df;
-    wtp_type    m_wtr; 
+    wtr_type    m_wtr; 
     t_wtu       m_wtu;
     ubv_type    m_ubv;
     urank_type  m_urank;
     pbv_type    m_pbv;
     prank_type  m_prank;
     doc_perm    m_docperm;
-    ranker_type m_r;
+    ranker_type m_ranker;
 
     using state_type = s_state2_t<node_type, node2_type>;
 public:
@@ -92,7 +92,7 @@ public:
         auto push_node = [this,&res,&profile,&ranked_and](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r_v,
                                 node2_type& w, std::vector<range_type>& r_w){
             auto min_idx = m_wtu.sym(v) << (m_wtu.max_level - v.level);  
-            auto min_doc_len = m_r.doc_length(m_docperm.len2id[min_idx]);
+            auto min_doc_len = m_ranker.doc_length(m_docperm.len2id[min_idx]);
             state_type t; // new state
             t.v = v;
             t.w = w;
@@ -104,12 +104,13 @@ public:
                     t.r_v.push_back(r_v[i]);
                     t.r_w.push_back(r_w[i]);
                     t.t_ptrs.push_back(s.t_ptrs[i]);
-                    auto score = m_r.calculate_docscore(
+                    auto score = m_ranker.calculate_docscore(
                                  t.t_ptrs.back()->f_qt,
                                  size(t.r_w.back())+1,
                                  t.t_ptrs.back()->f_Dt,
                                  t.t_ptrs.back()->F_Dt(),
-                                 min_doc_len
+                                 min_doc_len,
+                                 m_wtu.is_leaf(v)
                                );
                     t.score += score;
                 } else if ( ranked_and ) {
@@ -143,12 +144,10 @@ public:
                 if ( !m_wtu.empty(std::get<0>(exp_v)) ) {
                     push_node(pq, s, std::get<0>(exp_v), std::get<0>(exp_r_v), 
                                      std::get<0>(exp_w), std::get<0>(exp_r_w));
-                    if(profile) res.wt_search_space++;
                 }
                 if ( !m_wtu.empty(std::get<1>(exp_v)) ) {
                     push_node(pq, s, std::get<1>(exp_v), std::get<1>(exp_r_v),
                                      std::get<1>(exp_w), std::get<1>(exp_r_w));
-                    if(profile) res.wt_search_space++;
                 }
             }
         }
@@ -175,7 +174,7 @@ public:
         m_prank.set_vector(&m_pbv);
         std::cerr<<"m_prank(m_pbv.size())="<<m_prank(m_pbv.size())<<std::endl;
         load_from_cache(m_docperm, surf::KEY_DOCPERM, cc); 
-        m_r = ranker_type(cc);
+        m_ranker = ranker_type(cc);
     }
 
     size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const {
@@ -183,7 +182,7 @@ public:
         size_type written_bytes = 0;
         written_bytes += m_csa.serialize(out, child, "csa");
         written_bytes += m_df.serialize(out, child, "df");
-        written_bytes += m_wtr.serialize(out, child, "wtp");
+        written_bytes += m_wtr.serialize(out, child, "wtr");
         written_bytes += m_wtu.serialize(out, child, "wtu");
         written_bytes += m_ubv.serialize(out, child, "ubv");
         written_bytes += m_urank.serialize(out, child, "urank");
@@ -198,13 +197,13 @@ public:
 
 template<typename t_csa,
          typename t_df,
-         typename t_wtp,
+         typename t_wtr,
          typename t_wtu,
          typename t_ubv,
          typename t_urank,
          typename t_pbv,
          typename t_prank>
-void construct(idx_sawit3<t_csa,t_df,t_wtp,t_wtu, t_ubv, t_urank, t_pbv, t_prank>& idx,
+void construct(idx_d1r1<t_csa,t_df,t_wtr,t_wtu, t_ubv, t_urank, t_pbv, t_prank>& idx,
                const std::string&,
                sdsl::cache_config& cc, uint8_t num_bytes)
 {    
@@ -228,12 +227,12 @@ void construct(idx_sawit3<t_csa,t_df,t_wtp,t_wtu, t_ubv, t_urank, t_pbv, t_prank
         store_to_cache(df, surf::KEY_SADADF, cc, true);
     }
     cout<<"...WTP"<<endl;
-    if (!cache_file_exists<t_wtp>(surf::KEY_WTDUP,cc)){
-        t_wtp wtp;
-        construct(wtp, cache_file_name(surf::KEY_DUP, cc), cc);
-        store_to_cache(wtp, surf::KEY_WTDUP, cc, true);
-        cout << "wtp.size() = " << wtp.size() << endl;
-        cout << "wtp.sigma = " << wtp.sigma << endl;
+    if (!cache_file_exists<t_wtr>(surf::KEY_WTDUP,cc)){
+        t_wtr wtr;
+        construct(wtr, cache_file_name(surf::KEY_DUP, cc), cc);
+        store_to_cache(wtr, surf::KEY_WTDUP, cc, true);
+        cout << "wtr.size() = " << wtr.size() << endl;
+        cout << "wtr.sigma = " << wtr.sigma << endl;
     }
     cout<<"...WTU"<<endl;
     if (!cache_file_exists<t_wtu>(surf::KEY_WTU, cc) ){
@@ -256,7 +255,7 @@ void construct(idx_sawit3<t_csa,t_df,t_wtp,t_wtu, t_ubv, t_urank, t_pbv, t_prank
     const uint64_t depth=1; // depth of sorting in the repetition structure
     std::string R_KEY = surf::KEY_R+"-"+to_string(depth);
     std::string WTR_KEY = surf::KEY_WTR+"-"+to_string(depth);
-    if (!cache_file_exists<t_wtp>(WTR_KEY,cc)){
+    if (!cache_file_exists<t_wtr>(WTR_KEY,cc)){
         string dup2_file = cache_file_name(surf::KEY_DUP2,cc);
         if (!cache_file_exists(surf::KEY_DUP2,cc)){
             cout<<"......dup2 does not exist. Generate it..."<<endl;
@@ -344,9 +343,9 @@ void construct(idx_sawit3<t_csa,t_df,t_wtp,t_wtu, t_ubv, t_urank, t_pbv, t_prank
         }
         {
             cout<<"......generate WT"<<endl;
-            t_wtp wtp2;
-            construct(wtp2, cache_file_name(R_KEY, cc), cc);
-            store_to_cache(wtp2, WTR_KEY,cc,true);
+            t_wtr wtr2;
+            construct(wtr2, cache_file_name(R_KEY, cc), cc);
+            store_to_cache(wtr2, WTR_KEY,cc,true);
         }
     }
 }
