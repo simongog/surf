@@ -218,7 +218,8 @@ public:
                                                          (*itr)->cur.freq(),
                                                          (*itr)->f_t,
                                                          (*itr)->F_t,
-                                                         W_d);
+                                                         W_d,
+                                                         true);
                 doc_score += contrib;
                 potential_score += contrib;
                 potential_score -= (*itr)->list_max_score;

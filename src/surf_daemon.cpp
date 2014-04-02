@@ -141,7 +141,8 @@ int main(int argc,char* const argv[])
                 if(std::get<0>(qry_mapping)) {
                     auto qid = std::get<1>(qry_mapping);
                     auto qry_ids = std::get<2>(qry_mapping);
-                    prased_query = surf::phrase_parser<std::ratio<10,1>>::phrase_segmentation(index.m_csa,qry_ids,reverse_mapping);
+                    prased_query = surf::phrase_parser::phrase_segmentation(index.m_csa,qry_ids,reverse_mapping,
+                                                                           surf_req->phrase_threshold);
                     std::get<0>(prased_query) = qid;
                     parse_ok = true;
                 }

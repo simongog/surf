@@ -109,7 +109,8 @@ public:
                                  size(t.r_w.back())+1,
                                  t.t_ptrs.back()->f_Dt,
                                  t.t_ptrs.back()->F_Dt(),
-                                 min_doc_len
+                                 min_doc_len,
+                                 m_wtu.is_leaf(v)
                                );
                     t.score += score;
                 } else if ( ranked_and ) {
