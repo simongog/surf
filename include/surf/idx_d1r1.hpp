@@ -25,35 +25,36 @@ using range_type = sdsl::range_type;
 template<typename t_csa,
          typename t_df,
          typename t_wtr,
-         typename t_wtu,
-         typename t_ubv=sdsl::rrr_vector<63>,
-         typename t_urank=typename t_ubv::rank_1_type,
-         typename t_pbv=sdsl::rrr_vector<63>,
-         typename t_prank=typename t_pbv::rank_1_type
+         typename t_wtd1,
+         typename t_ranker=rank_bm25<>,
+         typename t_d1bv=sdsl::rrr_vector<63>,
+         typename t_d1rank=typename t_d1bv::rank_1_type,
+         typename t_rbv=sdsl::rrr_vector<63>,
+         typename t_rrank=typename t_rbv::rank_1_type
          >
 class idx_d1r1{
 public:
     using size_type = sdsl::int_vector<>::size_type;
     typedef t_csa                        csa_type;
-    typedef t_wtu                        wtu_type;
-    typedef typename wtu_type::node_type node_type;
+    typedef t_wtd1                        wtd1_type;
+    typedef typename wtd1_type::node_type node_type;
     typedef t_df                         df_type;
     typedef t_wtr                        wtr_type;
     typedef typename wtr_type::node_type node2_type;
-    typedef t_ubv                        ubv_type;
-    typedef t_urank                      urank_type;
-    typedef t_pbv                        pbv_type;
-    typedef t_prank                      prank_type;
-    typedef rank_bm25<>                  ranker_type;
+    typedef t_d1bv                       d1bv_type;
+    typedef t_d1rank                     d1rank_type;
+    typedef t_rbv                        rbv_type;
+    typedef t_rrank                      rrank_type;
+    typedef t_ranker                     ranker_type;
 private:
     csa_type    m_csa;
     df_type     m_df;
     wtr_type    m_wtr; 
-    t_wtu       m_wtu;
-    ubv_type    m_ubv;
-    urank_type  m_urank;
-    pbv_type    m_pbv;
-    prank_type  m_prank;
+    t_wtd1       m_wtd1;
+    d1bv_type   m_d1bv;
+    d1rank_type m_d1rank;
+    rbv_type    m_rbv;
+    rrank_type  m_rrank;
     doc_perm    m_docperm;
     ranker_type m_ranker;
 
@@ -76,12 +77,12 @@ public:
                                 sp, ep) > 0 ) {
                 auto df_info = m_df(sp,ep);
                 auto f_Dt = std::get<0>(df_info); // document frequency
-                sp = m_urank(sp);
-                ep = sp+f_Dt-1;
                 terms.emplace_back(qry[i].token_ids, qry[i].f_qt, sp, ep,  f_Dt);
+                sp = m_d1rank(sp);
+                ep = sp+f_Dt-1;
                 v_ranges.emplace_back(sp, ep);
-                w_ranges.emplace_back(m_prank(std::get<1>(df_info)),
-                                      m_prank(std::get<2>(df_info)+1)-1);
+                w_ranges.emplace_back(m_rrank(std::get<1>(df_info)),
+                                      m_rrank(std::get<2>(df_info)+1)-1);
             }
         }
         term_ptrs.resize(terms.size()); 
@@ -91,7 +92,7 @@ public:
 
         auto push_node = [this,&res,&profile,&ranked_and](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r_v,
                                 node2_type& w, std::vector<range_type>& r_w){
-            auto min_idx = m_wtu.sym(v) << (m_wtu.max_level - v.level);  
+            auto min_idx = m_wtd1.sym(v) << (m_wtd1.max_level - v.level);  
             auto min_doc_len = m_ranker.doc_length(m_docperm.len2id[min_idx]);
             state_type t; // new state
             t.v = v;
@@ -126,25 +127,25 @@ public:
         
         pq_type pq;
         size_type search_space=0;
-        pq.emplace(max_score, m_wtu.root(), term_ptrs, v_ranges, m_wtr.root(), w_ranges);
+        pq.emplace(max_score, m_wtd1.root(), term_ptrs, v_ranges, m_wtr.root(), w_ranges);
         if(profile) res.wt_search_space++;
 
         while ( !pq.empty() and res.list.size() < k ) {
             state_type s = pq.top();
             pq.pop();
-            if ( m_wtu.is_leaf(s.v) ){
-                res.list.emplace_back(m_docperm.len2id[m_wtu.sym(s.v)], s.score);
+            if ( m_wtd1.is_leaf(s.v) ){
+                res.list.emplace_back(m_docperm.len2id[m_wtd1.sym(s.v)], s.score);
             } else {
-                auto exp_v = m_wtu.expand(s.v);
-                auto exp_r_v = m_wtu.expand(s.v, s.r_v);
+                auto exp_v = m_wtd1.expand(s.v);
+                auto exp_r_v = m_wtd1.expand(s.v, s.r_v);
                 auto exp_w = m_wtr.expand(s.w);
                 auto exp_r_w = m_wtr.expand(s.w, s.r_w);
 
-                if ( !m_wtu.empty(std::get<0>(exp_v)) ) {
+                if ( !m_wtd1.empty(std::get<0>(exp_v)) ) {
                     push_node(pq, s, std::get<0>(exp_v), std::get<0>(exp_r_v), 
                                      std::get<0>(exp_w), std::get<0>(exp_r_w));
                 }
-                if ( !m_wtu.empty(std::get<1>(exp_v)) ) {
+                if ( !m_wtd1.empty(std::get<1>(exp_v)) ) {
                     push_node(pq, s, std::get<1>(exp_v), std::get<1>(exp_r_v),
                                      std::get<1>(exp_w), std::get<1>(exp_r_w));
                 }
@@ -159,18 +160,18 @@ public:
         load_from_cache(m_wtr, surf::KEY_WTDUP2, cc, true);
         std::cerr<<"m_wtr.size()="<<m_wtr.size()<<std::endl;
         std::cerr<<"m_wtr.sigma()="<<m_wtr.sigma<<std::endl;
-        load_from_cache(m_wtu, surf::KEY_WTU, cc, true);
-        std::cerr<<"m_wtu.size()="<<m_wtu.size()<<std::endl;
-        std::cerr<<"m_wtu.sigma()="<<m_wtu.sigma<<std::endl;
-        load_from_cache(m_ubv, surf::KEY_UMARK, cc, true);
-        std::cerr<<"m_ubv.size()="<<m_ubv.size()<<std::endl;
-        load_from_cache(m_urank, surf::KEY_URANK, cc, true);
-        m_urank.set_vector(&m_ubv);
-        load_from_cache(m_pbv, surf::KEY_DUPMARK, cc, true);
-        std::cerr<<"m_pbv.size()="<<m_pbv.size()<<std::endl;
-        load_from_cache(m_prank, surf::KEY_DUPRANK, cc, true);
-        m_prank.set_vector(&m_pbv);
-        std::cerr<<"m_prank(m_pbv.size())="<<m_prank(m_pbv.size())<<std::endl;
+        load_from_cache(m_wtd1, surf::KEY_WTU, cc, true);
+        std::cerr<<"m_wtd1.size()="<<m_wtd1.size()<<std::endl;
+        std::cerr<<"m_wtd1.sigma()="<<m_wtd1.sigma<<std::endl;
+        load_from_cache(m_d1bv, surf::KEY_UMARK, cc, true);
+        std::cerr<<"m_d1bv.size()="<<m_d1bv.size()<<std::endl;
+        load_from_cache(m_d1rank, surf::KEY_URANK, cc, true);
+        m_d1rank.set_vector(&m_d1bv);
+        load_from_cache(m_rbv, surf::KEY_DUPMARK, cc, true);
+        std::cerr<<"m_rbv.size()="<<m_rbv.size()<<std::endl;
+        load_from_cache(m_rrank, surf::KEY_DUPRANK, cc, true);
+        m_rrank.set_vector(&m_rbv);
+        std::cerr<<"m_rrank(m_rbv.size())="<<m_rrank(m_rbv.size())<<std::endl;
         load_from_cache(m_docperm, surf::KEY_DOCPERM, cc); 
         m_ranker = ranker_type(cc);
     }
@@ -178,15 +179,15 @@ public:
     size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const {
         structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
         size_type written_bytes = 0;
-        written_bytes += m_csa.serialize(out, child, "csa");
-        written_bytes += m_df.serialize(out, child, "df");
-        written_bytes += m_wtr.serialize(out, child, "wtr");
-        written_bytes += m_wtu.serialize(out, child, "wtu");
-        written_bytes += m_ubv.serialize(out, child, "ubv");
-        written_bytes += m_urank.serialize(out, child, "urank");
-        written_bytes += m_pbv.serialize(out, child, "pbv");
-        written_bytes += m_prank.serialize(out, child, "prank");
-        written_bytes += m_docperm.serialize(out, child, "docperm");
+        written_bytes += m_csa.serialize(out, child, "CSA");
+        written_bytes += m_df.serialize(out, child, "DF");
+        written_bytes += m_wtr.serialize(out, child, "WTR");
+        written_bytes += m_wtd1.serialize(out, child, "WTD1");
+        written_bytes += m_d1bv.serialize(out, child, "D1_BV");
+        written_bytes += m_d1rank.serialize(out, child, "D1_RANK");
+        written_bytes += m_rbv.serialize(out, child, "R_BV");
+        written_bytes += m_rrank.serialize(out, child, "R_RANK");
+        written_bytes += m_docperm.serialize(out, child, "DOCPERM");
         structure_tree::add_size(child, written_bytes);
         return written_bytes;
     }
@@ -196,12 +197,13 @@ public:
 template<typename t_csa,
          typename t_df,
          typename t_wtr,
-         typename t_wtu,
-         typename t_ubv,
-         typename t_urank,
-         typename t_pbv,
-         typename t_prank>
-void construct(idx_d1r1<t_csa,t_df,t_wtr,t_wtu, t_ubv, t_urank, t_pbv, t_prank>& idx,
+         typename t_wtd1,
+         typename t_ranker,
+         typename t_d1bv,
+         typename t_d1rank,
+         typename t_rbv,
+         typename t_rrank>
+void construct(idx_d1r1<t_csa,t_df,t_wtr,t_wtd1, t_ranker, t_d1bv, t_d1rank, t_rbv, t_rrank>& idx,
                const std::string&,
                sdsl::cache_config& cc, uint8_t num_bytes)
 {    
@@ -224,7 +226,7 @@ void construct(idx_d1r1<t_csa,t_df,t_wtr,t_wtu, t_ubv, t_urank, t_pbv, t_prank>&
         construct(df, "", cc, 0);
         store_to_cache(df, surf::KEY_SADADF, cc, true);
     }
-    cout<<"...WTP"<<endl;
+    cout<<"...WTR"<<endl;
     if (!cache_file_exists<t_wtr>(surf::KEY_WTDUP,cc)){
         t_wtr wtr;
         construct(wtr, cache_file_name(surf::KEY_DUP, cc), cc);
@@ -233,23 +235,23 @@ void construct(idx_d1r1<t_csa,t_df,t_wtr,t_wtu, t_ubv, t_urank, t_pbv, t_prank>&
         cout << "wtr.sigma = " << wtr.sigma << endl;
     }
     cout<<"...WTU"<<endl;
-    if (!cache_file_exists<t_wtu>(surf::KEY_WTU, cc) ){
-        t_wtu wtu;
-        construct(wtu, cache_file_name(surf::KEY_U, cc), cc);
-        cout << "wtu.size() = " << wtu.size() << endl;
-        cout << "wtu.sigma = " << wtu.sigma << endl;
-        store_to_cache(wtu, surf::KEY_WTU, cc, true);
+    if (!cache_file_exists<t_wtd1>(surf::KEY_WTU, cc) ){
+        t_wtd1 wtd1;
+        construct(wtd1, cache_file_name(surf::KEY_U, cc), cc);
+        cout << "wtd1.size() = " << wtd1.size() << endl;
+        cout << "wtd1.sigma = " << wtd1.sigma << endl;
+        store_to_cache(wtd1, surf::KEY_WTU, cc, true);
     }
-    cout<<"...UMARK"<<endl;
-    if (!cache_file_exists<t_ubv>(surf::KEY_UMARK, cc) ){
+    cout<<"...D1_BV"<<endl;
+    if (!cache_file_exists<t_d1bv>(surf::KEY_UMARK, cc) ){
         bit_vector bv;
         load_from_cache(bv, surf::KEY_UMARK, cc);
-        t_ubv ubv(bv);
-        store_to_cache(ubv, surf::KEY_UMARK, cc, true);
-        t_urank urank(&ubv);
-        store_to_cache(urank, surf::KEY_URANK, cc, true);
+        t_d1bv d1bv(bv);
+        store_to_cache(d1bv, surf::KEY_UMARK, cc, true);
+        t_d1rank d1rank(&d1bv);
+        store_to_cache(d1rank, surf::KEY_URANK, cc, true);
     }
-    cout<<"...WTP2"<<endl;
+    cout<<"...WTR2"<<endl;
     const uint64_t depth=1; // depth of sorting in the repetition structure
     std::string R_KEY = surf::KEY_R+"-"+to_string(depth);
     std::string WTR_KEY = surf::KEY_WTR+"-"+to_string(depth);
@@ -298,13 +300,13 @@ void construct(idx_d1r1<t_csa,t_df,t_wtr,t_wtu, t_ubv, t_urank, t_pbv, t_prank>&
                 dup_mark[i]=0;
             }
         }
-        if (!cache_file_exists<t_pbv>(surf::KEY_DUPMARK, cc) ){
+        if (!cache_file_exists<t_rbv>(surf::KEY_DUPMARK, cc) ){
             bit_vector bv;
             load_from_cache(bv, surf::KEY_DUPMARK, cc);
-            t_pbv pbv(bv);
-            store_to_cache(pbv, surf::KEY_DUPMARK, cc, true);
-            t_prank prank(&pbv);
-            store_to_cache(prank, surf::KEY_DUPRANK, cc, true);
+            t_rbv rbv(bv);
+            store_to_cache(rbv, surf::KEY_DUPMARK, cc, true);
+            t_rrank rrank(&rbv);
+            store_to_cache(rrank, surf::KEY_DUPRANK, cc, true);
         }
         if ( !cache_file_exists(R_KEY, cc) ) {
             std::cout<<"generate "<<R_KEY<<" file"<<std::endl;
