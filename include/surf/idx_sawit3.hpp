@@ -48,7 +48,7 @@ public:
 private:
     csa_type    m_csa;
     df_type     m_df;
-    wtp_type    m_wtp; 
+    wtp_type    m_wtr; 
     t_wtu       m_wtu;
     ubv_type    m_ubv;
     urank_type  m_urank;
@@ -126,7 +126,7 @@ public:
         
         pq_type pq;
         size_type search_space=0;
-        pq.emplace(max_score, m_wtu.root(), term_ptrs, v_ranges, m_wtp.root(), w_ranges);
+        pq.emplace(max_score, m_wtu.root(), term_ptrs, v_ranges, m_wtr.root(), w_ranges);
         if(profile) res.wt_search_space++;
 
         while ( !pq.empty() and res.list.size() < k ) {
@@ -137,8 +137,8 @@ public:
             } else {
                 auto exp_v = m_wtu.expand(s.v);
                 auto exp_r_v = m_wtu.expand(s.v, s.r_v);
-                auto exp_w = m_wtp.expand(s.w);
-                auto exp_r_w = m_wtp.expand(s.w, s.r_w);
+                auto exp_w = m_wtr.expand(s.w);
+                auto exp_r_w = m_wtr.expand(s.w, s.r_w);
 
                 if ( !m_wtu.empty(std::get<0>(exp_v)) ) {
                     push_node(pq, s, std::get<0>(exp_v), std::get<0>(exp_r_v), 
@@ -158,9 +158,10 @@ public:
     void load(sdsl::cache_config& cc){
         load_from_cache(m_csa, surf::KEY_CSA, cc, true);
         load_from_cache(m_df, surf::KEY_SADADF, cc, true);
-        load_from_cache(m_wtp, surf::KEY_WTDUP2, cc, true);
-        std::cerr<<"m_wtp.size()="<<m_wtp.size()<<std::endl;
-        std::cerr<<"m_wtp.sigma()="<<m_wtp.sigma<<std::endl;
+    	std::string WTR_KEY = surf::KEY_WTR+"-"+std::to_string(1);
+        load_from_cache(m_wtr, WTR_KEY, cc, true);
+        std::cerr<<"m_wtr.size()="<<m_wtr.size()<<std::endl;
+        std::cerr<<"m_wtr.sigma()="<<m_wtr.sigma<<std::endl;
         load_from_cache(m_wtu, surf::KEY_WTU, cc, true);
         std::cerr<<"m_wtu.size()="<<m_wtu.size()<<std::endl;
         std::cerr<<"m_wtu.sigma()="<<m_wtu.sigma<<std::endl;
@@ -182,7 +183,7 @@ public:
         size_type written_bytes = 0;
         written_bytes += m_csa.serialize(out, child, "csa");
         written_bytes += m_df.serialize(out, child, "df");
-        written_bytes += m_wtp.serialize(out, child, "wtp");
+        written_bytes += m_wtr.serialize(out, child, "wtp");
         written_bytes += m_wtu.serialize(out, child, "wtu");
         written_bytes += m_ubv.serialize(out, child, "ubv");
         written_bytes += m_urank.serialize(out, child, "urank");
