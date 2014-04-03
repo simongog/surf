@@ -104,7 +104,7 @@ class df_sada{
                     last_seen[x] = i;
                 }
             }
-            cout<<"end clac splits"<<endl;
+            cout<<"end calc splits"<<endl;
             rank_support_v<> D_split_rank(&D_split);
             cout << "D_split.size()="<<D_split.size()<<endl;
             cout << "D_split_rank(D_split.size())="<<D_split_rank(D_split.size())<<endl;
@@ -296,45 +296,6 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
     if ( !cache_file_exists<df_sada_type>(surf::KEY_SADADF, cc) ) {
         df_sada_type tmp_sadadf(cc);
         store_to_cache(tmp_sadadf, surf::KEY_SADADF,cc, true);
-    }
-
-    if ( !cache_file_exists(surf::KEY_U, cc) ) {
-        cout << "Generate UNIQUE array" << endl;
-        {
-            cst_type temp_cst;
-            load_from_file(temp_cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
-            int_vector_buffer<> D_array(d_file);
-            string u_file = cache_file_name(surf::KEY_U, cc);
-            int_vector_buffer<> U(u_file, std::ios::out,
-                                       1024*1024, D_array.width());
-            string umark_file = cache_file_name(surf::KEY_UMARK, cc);
-            int_vector_buffer<1> Umark(umark_file, std::ios::out);
-
-            std::vector<int64_t> last_occ(doc_cnt+1, -1);
-
-            auto root = temp_cst.root();
-            for (auto& v : temp_cst.children(root)){
-                auto lb = temp_cst.lb(v);
-                auto rb = temp_cst.rb(v);
-                std::vector<uint64_t> buf;
-                for (auto i = lb; i<=rb; ++i){
-                    auto x = D_array[i];
-                    if ( last_occ[x] < (int64_t)lb ){
-                        buf.push_back(x);
-                    }
-                    last_occ[x] = i;
-                }
-                std::sort(buf.begin(), buf.end());
-                for (size_t i=0; i<buf.size();++i){
-                    U.push_back(buf[i]);
-                    Umark.push_back(1);
-                }
-                for (size_t i=0; i < rb-lb+1-buf.size(); ++i){
-                    Umark.push_back(0);
-                }
-            }
-        }
-        cout << "DPRIME generated" << endl;
     }
 
     if (!cache_file_exists(surf::KEY_DUP, cc)){

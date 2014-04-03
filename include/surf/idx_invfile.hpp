@@ -170,7 +170,20 @@ public:
     }
 
     std::pair<typename std::vector<plist_wrapper*>::iterator,double>
-    determine_candidate(std::vector<plist_wrapper*>& postings_lists,double threshold,size_t initial_lists) {
+    determine_candidate(std::vector<plist_wrapper*>& postings_lists,double threshold,size_t initial_lists,bool ranked_and) {
+
+        if(ranked_and) {
+            auto itr = postings_lists.begin();
+            auto end = postings_lists.end();
+            double score = 0.0;
+            while(itr != end) {
+                score += (*itr)->list_max_score;
+                itr++;
+            }
+            itr = postings_lists.end()-1;
+            return {itr,score};
+        }
+
         double score = 0.0;
         double max_doc_weight = std::numeric_limits<double>::lowest();
         double total_score = 0.0;
@@ -291,28 +304,19 @@ public:
         auto threshold = 0.0f;
         size_t initial_lists = postings_lists.size();
         sort_list_by_id(postings_lists);
-        auto pivot_and_score = determine_candidate(postings_lists,threshold,initial_lists);
+        auto pivot_and_score = determine_candidate(postings_lists,threshold,initial_lists,ranked_and);
         auto pivot_list = std::get<0>(pivot_and_score);
         auto potential_score = std::get<1>(pivot_and_score);
 
         while(pivot_list != postings_lists.end()) {
             //print_lists(postings_lists,threshold);
             if (postings_lists[0]->cur.docid() == (*pivot_list)->cur.docid()) {
-                if(ranked_and) {
-                    if(postings_lists.back()->cur.docid() == (*pivot_list)->cur.docid()) {
-                        if(profile) res.postings_evaluated++;
-                        threshold = evaluate_pivot(postings_lists,score_heap,potential_score,threshold,initial_lists,k);
-                    } else {
-                        forward_lists(postings_lists,pivot_list,(*pivot_list)->cur.docid()+1);
-                    }
-                } else {
-                    if(profile) res.postings_evaluated++;
-                    threshold = evaluate_pivot(postings_lists,score_heap,potential_score,threshold,initial_lists,k);
-                }
+                if(profile) res.postings_evaluated++;
+                threshold = evaluate_pivot(postings_lists,score_heap,potential_score,threshold,initial_lists,k);
             } else {
                 forward_lists(postings_lists,pivot_list-1,(*pivot_list)->cur.docid());
             }
-            pivot_and_score = determine_candidate(postings_lists,threshold,initial_lists);
+            pivot_and_score = determine_candidate(postings_lists,threshold,initial_lists,ranked_and);
             pivot_list = std::get<0>(pivot_and_score);
             potential_score = std::get<1>(pivot_and_score);
 
