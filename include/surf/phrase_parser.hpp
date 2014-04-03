@@ -124,7 +124,9 @@ struct phrase_parser {
     		std::vector<std::string> qry_str;
     		for(const auto& id : cur_list) {
     			auto rmitr = reverse_mapping.find(id);
-    			qry_str.push_back(rmitr->second);
+                if(rmitr != reverse_mapping.end()) {
+    			    qry_str.push_back(rmitr->second);
+                }
     		}
     		std::get<1>(q).emplace_back(*itr,qry_str,num_equal);
     		itr++;

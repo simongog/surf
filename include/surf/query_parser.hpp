@@ -18,7 +18,7 @@ struct query_parser {
                      >;
 
     static mapping_t
-         load_dictionary(const std::string& collection_dir)
+         load_dictionary(const std::string& collection_dir,bool create_reverse)
     {
         std::unordered_map<std::string,uint64_t> id_mapping;
         std::unordered_map<uint64_t,std::string> reverse_id_mapping;
@@ -36,7 +36,9 @@ struct query_parser {
                 auto idstr = term_mapping.substr(sep_pos+1);
                 uint64_t id = std::stoull(idstr);
                 id_mapping[term] = id;
-                reverse_id_mapping[id] = term;
+                if(create_reverse) {
+                    reverse_id_mapping[id] = term;
+                }
             }
         }
         return {id_mapping,reverse_id_mapping};
@@ -88,9 +90,11 @@ struct query_parser {
                 std::vector<uint64_t> term;
                 term.push_back(qry_tok.first);
                 auto rmitr = reverse_mapping.find(qry_tok.first);
-                std::string qry_str = rmitr->second;
                 std::vector<std::string> term_str;
-                term_str.push_back(qry_str);
+                if(rmitr != reverse_mapping.end()) {
+                    std::string qry_str = rmitr->second;
+                    term_str.push_back(qry_str);
+                }
                 query_tokens.emplace_back(term,term_str,qry_tok.second);
             }
             query_t q(qry_id,query_tokens);
@@ -108,7 +112,7 @@ struct query_parser {
         std::vector<query_t> queries;
 
         /* load the mapping */
-        auto mapping = load_dictionary(collection_dir);
+        auto mapping = load_dictionary(collection_dir,false);
 
         /* parse queries */
         std::ifstream qfs(query_file); 

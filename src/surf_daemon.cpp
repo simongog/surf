@@ -20,15 +20,17 @@
 typedef struct cmdargs {
     std::string collection_dir;
     std::string port;
+    bool load_reverse_mapping;
 } cmdargs_t;
 
 void
 print_usage(char* program)
 {
-    fprintf(stdout,"%s -c <collection directory> -p <port>\n",program);
+    fprintf(stdout,"%s -c <collection directory> -p <port> -r\n",program);
     fprintf(stdout,"where\n");
     fprintf(stdout,"  -c <collection directory>  : the directory the collection is stored.\n");
     fprintf(stdout,"  -p <port>  : the port the daemon is running on.\n");
+    fprintf(stdout,"  -r : do not load the reverse mapping of the dictionary.\n");
 };
 
 cmdargs_t
@@ -38,13 +40,17 @@ parse_args(int argc,char* const argv[])
     int op;
     args.collection_dir = "";
     args.port = std::to_string(12345);
-    while ((op=getopt(argc,argv,"c:p:")) != -1) {
+    args.load_reverse_mapping = true;
+    while ((op=getopt(argc,argv,"c:p:r")) != -1) {
         switch (op) {
             case 'c':
                 args.collection_dir = optarg;
                 break;
             case 'p':
                 args.port = optarg;
+                break;
+            case 'r':
+                args.load_reverse_mapping = false;
                 break;
             case '?':
             default:
@@ -92,7 +98,7 @@ int main(int argc,char* const argv[])
 
     /* parse queries */
     std::cout << "Loading dictionary and creating term map." << std::endl;
-    auto term_map = surf::query_parser::load_dictionary(args.collection_dir);
+    auto term_map = surf::query_parser::load_dictionary(args.collection_dir,args.load_reverse_mapping);
 
     /* define types */
     using surf_index_t = INDEX_TYPE;
@@ -196,16 +202,31 @@ int main(int argc,char* const argv[])
                       << " AND=" << ranked_and
                       << " PHRASE=" << surf_req->phrases;
             std::cout << " [";
-            for(const auto& token : qry_tokens) {
-                if(token.token_ids.size() > 1) {
-                    // phrase
-                    std::cout << "(";
-                    for(const auto tstr : token.token_strs) {
-                        std::cout << tstr << " ";
+            if(args.load_reverse_mapping) {
+                for(const auto& token : qry_tokens) {
+                    if(token.token_ids.size() > 1) {
+                        // phrase
+                        std::cout << "(";
+                        for(const auto tstr : token.token_strs) {
+                            std::cout << tstr << " ";
+                        }
+                        std::cout << ") ";
+                    } else {
+                        std::cout << token.token_strs[0] << " ";
                     }
-                    std::cout << ") ";
-                } else {
-                    std::cout << token.token_strs[0] << " ";
+                }
+            } else {
+                for(const auto& token : qry_tokens) {
+                    if(token.token_ids.size() > 1) {
+                        // phrase
+                        std::cout << "(";
+                        for(const auto tid : token.token_ids) {
+                            std::cout << tid << " ";
+                        }
+                        std::cout << ") ";
+                    } else {
+                        std::cout << token.token_ids[0] << " ";
+                    }
                 }
             }
             std::cout << "]" << std::endl;
