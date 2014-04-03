@@ -9,7 +9,7 @@ COLLECTIONS="$SURF_PATH/collections/gov2 $SURF_PATH/collections/cluewebB"
 EXP_DIR="$SURF_PATH/experiments"
 PORT=12345
 
-INDEXES="IDX_D IDX_DR"
+INDEXES="IDX_D IDX_DR IDX_D1R1"
 
 for col in $COLLECTIONS
 do
