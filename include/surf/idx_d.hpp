@@ -217,12 +217,21 @@ public:
     size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const {
         structure_tree_node* child = structure_tree::add_child(v, name, util::class_name(*this));
         size_type written_bytes = 0;
-        written_bytes += m_csa.serialize(out, child, "csa");
-        written_bytes += m_wtd.serialize(out, child, "wtd");
-        written_bytes += m_df.serialize(out, child, "df");
-        written_bytes += m_docperm.serialize(out, child, "docperm");
+        written_bytes += m_csa.serialize(out, child, "CSA");
+        written_bytes += m_wtd.serialize(out, child, "WTD");
+        written_bytes += m_df.serialize(out, child, "DF");
+        written_bytes += m_docperm.serialize(out, child, "DOCPERM");
         structure_tree::add_size(child, written_bytes);
         return written_bytes;
+    }
+
+    void mem_info(){
+        std::cout << sdsl::size_in_bytes(m_csa) << ";"; // CSA
+        std::cout << sdsl::size_in_bytes(m_wtd) << ";"; // WTD^\ell 
+        std::cout << sdsl::size_in_bytes(m_df) << ";";  // DF
+        std::cout << 0 << ";"; // WTR^\ell
+        std::cout << sdsl::size_in_bytes(m_docperm) << ";";  // DOCPERM
+
     }
 
 };

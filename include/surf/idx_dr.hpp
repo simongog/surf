@@ -213,6 +213,17 @@ public:
         return written_bytes;
     }
 
+    void mem_info(){
+        std::cout << sdsl::size_in_bytes(m_csa) << ";"; // CSA
+        std::cout << sdsl::size_in_bytes(m_wtd) << ";"; // WTD^\ell 
+        std::cout << sdsl::size_in_bytes(m_df) << ";";  // DF
+        std::cout << sdsl::size_in_bytes(m_wtr) 
+                   + sdsl::size_in_bytes(m_rbv) 
+                   + sdsl::size_in_bytes(m_rrank) 
+                  << ";"; // WTR^\ell
+        std::cout << sdsl::size_in_bytes(m_docperm) << ";";  // DOCPERM
+    }
+
 };
 
 template<typename t_csa,
