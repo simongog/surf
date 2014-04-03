@@ -184,7 +184,7 @@ public:
         size_type written_bytes = 0;
         written_bytes += m_csa.serialize(out, child, "CSA");
         written_bytes += m_df.serialize(out, child, "DF");
-        written_bytes += m_wtr.serialize(out, child, "WTR");
+        written_bytes += m_wtr.serialize(out, child, "WTR1");
         written_bytes += m_wtd1.serialize(out, child, "WTD1");
         written_bytes += m_d1bv.serialize(out, child, "D1_BV");
         written_bytes += m_d1rank.serialize(out, child, "D1_RANK");

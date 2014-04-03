@@ -87,7 +87,6 @@ class df_sada{
 
             uint64_t doc_cnt = 0;
             load_from_cache(doc_cnt, KEY_DOCCNT, cc);
-
             cout << "doc_cnt = " << doc_cnt << endl;
 
             cout<<"begin calc splits"<<endl;
