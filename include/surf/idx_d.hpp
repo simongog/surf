@@ -230,7 +230,7 @@ public:
         std::cout << sdsl::size_in_bytes(m_wtd) << ";"; // WTD^\ell 
         std::cout << sdsl::size_in_bytes(m_df) << ";";  // DF
         std::cout << 0 << ";"; // WTR^\ell
-        std::cout << sdsl::size_in_bytes(m_docperm) << ";";  // DOCPERM
+        std::cout << sdsl::size_in_bytes(m_docperm) << std::endl;  // DOCPERM
 
     }
 

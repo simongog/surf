@@ -349,6 +349,15 @@ public:
         }
         return process_wand(postings_lists,k,ranked_and,profile);
     }
+
+    void mem_info(){
+        std::cout << 0 << ";"; // CSA
+        std::cout << 0 << ";"; // WTD^\ell 
+        std::cout << 0 << ";";  // DF
+        std::cout << 0 << ";"; // WTR^\ell
+        std::cout << 0 << std::endl;  // DOCPERM
+    }
+
 };
 
 template<class t_pl,class t_rank>

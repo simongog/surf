@@ -221,7 +221,7 @@ public:
                    + sdsl::size_in_bytes(m_rbv) 
                    + sdsl::size_in_bytes(m_rrank) 
                   << ";"; // WTR^\ell
-        std::cout << sdsl::size_in_bytes(m_docperm) << ";";  // DOCPERM
+        std::cout << sdsl::size_in_bytes(m_docperm) << std::endl;  // DOCPERM
     }
 
 };
