@@ -194,12 +194,12 @@ public:
                 if ( !left_empty ) {
                     push_node(pq, s.t_ptrs, std::get<0>(exp_v), std::get<0>(exp_r), pq_min, k);
                 } else{
-                    std::cout<<"left_empty"<<std::endl;
+                    //std::cout<<"left_empty"<<std::endl;
                 }
                 if ( !right_empty ) {
                     push_node(pq, s.t_ptrs, std::get<1>(exp_v), std::get<1>(exp_r), pq_min, k);
                 } else{
-                    std::cout<<"right_empty"<<std::endl;
+                    //std::cout<<"right_empty"<<std::endl;
                 }
             }
         }
