@@ -46,6 +46,7 @@ const std::string KEY_INVFILE_IDOCPERM = "invfile_inv_docperm";
 const std::string KEY_F_T = "Ft";
 const std::string KEY_H = "H";
 const std::string KEY_CSA = "csa";
+const std::string KEY_MAXTF = "maxtf";
 
 std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_DARRAY,
@@ -62,6 +63,7 @@ std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_WTDUP,
 										 KEY_WTDUP2,
                                          KEY_WTR,
+                                         KEY_MAXTF,
 										 KEY_DOCCNT,
 										 KEY_DOC_LENGTHS,
                                          KEY_COLLEN,
