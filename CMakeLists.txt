@@ -60,6 +60,9 @@ foreach(f ${index_config_files})
 
 endforeach(f)
 
+ADD_EXECUTABLE(doc_lengths src/doc_lengths.cpp)
+TARGET_LINK_LIBRARIES(doc_lengths sdsl)
+
 ADD_EXECUTABLE(surf_query src/surf_query.cpp)
 TARGET_LINK_LIBRARIES(surf_query libzmq sdsl)
 
