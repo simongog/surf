@@ -10,6 +10,8 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include "surf/comm.hpp"
+#include "surf/util.hpp"
+#include "surf/query_parser.hpp"
 
 #include "zmq.hpp"
 
@@ -24,12 +26,14 @@ typedef struct cmdargs {
     bool phrases;
     double phrase_threshold;
     bool output_results;
+    bool integer_mode;
+    std::string collection_dir;
 } cmdargs_t;
 
 void
 print_usage(char* program)
 {
-    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -r <runs> -p -P <thres> -s -a -R\n",program);
+    fprintf(stdout,"%s -h <host> -q <query file> -k <top-k> -r <runs> -p -P <thres> -s -a -R -i <collection>\n",program);
     fprintf(stdout,"where\n");
     fprintf(stdout,"  -h <host>  : host of the daemon.\n");
     fprintf(stdout,"  -q <query file>  : the queries to be performed.\n");
@@ -40,6 +44,7 @@ print_usage(char* program)
     fprintf(stdout,"  -P <thres> : run queries with phrase parsing enabled and threshold <thres>.\n");
     fprintf(stdout,"  -s : stop the daemon after queries are processed.\n");
     fprintf(stdout,"  -a : perform ranked AND instead of ranked OR.\n");
+    fprintf(stdout,"  -i : perform dict lookup at the client from <collection>.\n");
 };
 
 cmdargs_t
@@ -57,7 +62,8 @@ parse_args(int argc,char* const argv[])
     args.phrases = false;
     args.phrase_threshold = 0.0f;
     args.output_results = false;
-    while ((op=getopt(argc,argv,"r:h:q:k:psaP:R")) != -1) {
+    args.integer_mode = false;
+    while ((op=getopt(argc,argv,"r:h:q:k:psaP:Ri:")) != -1) {
         switch (op) {
             case 'r':
                 args.runs = std::strtoul(optarg,NULL,10);
@@ -86,6 +92,10 @@ parse_args(int argc,char* const argv[])
                 break;
             case 'k':
                 args.k = std::strtoul(optarg,NULL,10);
+                break;
+            case 'i':
+                args.integer_mode = true;
+                args.collection_dir = optarg;
                 break;
             case '?':
             default:
@@ -118,6 +128,30 @@ int main(int argc,char* const argv[])
         }
     }
 
+    if(args.integer_mode) {
+        surf::parse_collection(args.collection_dir); // makes sure dir is valid
+        std::cout << "Loading dictionary and creating term map." << std::endl;
+        auto term_map = surf::query_parser::load_dictionary(args.collection_dir);
+        const auto& id_mapping = term_map.first;
+        std::vector<std::string> mapped_queries;
+        for(auto& query: queries) {
+            auto qry_mapping = surf::query_parser::map_to_ids(id_mapping,query,true,false);
+            if(std::get<0>(qry_mapping)) {
+                auto qid = std::get<1>(qry_mapping);
+                auto qry_ids = std::get<2>(qry_mapping);
+                std::string new_qry_str;
+                new_qry_str += std::to_string(qid) + ";";
+                for(size_t i=0;i<qry_ids.size()-1;i++) {
+                    new_qry_str += std::to_string(qry_ids[i]) + " ";
+                }
+                // last one
+                new_qry_str += std::to_string(qry_ids.back());
+                mapped_queries.push_back(new_qry_str);
+            }
+        }
+        queries = mapped_queries; // copy!!
+    }
+
     /* zmq magic! */
     std::cerr << "Connecting to surf daemon." << std::endl;
     zmq::context_t context (1);
@@ -141,6 +175,11 @@ int main(int argc,char* const argv[])
             if(args.ranked_and) {
                 surf_req.type = REQ_TYPE_QRY_AND;
                 qry_mode = 1;
+            }
+
+            surf_req.int_qry = 0;
+            if(args.integer_mode) {
+                surf_req.int_qry = 1;
             }
 
             if(args.phrases) {

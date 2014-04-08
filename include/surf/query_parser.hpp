@@ -18,7 +18,7 @@ struct query_parser {
                      >;
 
     static mapping_t
-         load_dictionary(const std::string& collection_dir,bool create_reverse)
+         load_dictionary(const std::string& collection_dir)
     {
         std::unordered_map<std::string,uint64_t> id_mapping;
         std::unordered_map<uint64_t,std::string> reverse_id_mapping;
@@ -36,9 +36,7 @@ struct query_parser {
                 auto idstr = term_mapping.substr(sep_pos+1);
                 uint64_t id = std::stoull(idstr);
                 id_mapping[term] = id;
-                if(create_reverse) {
-                    reverse_id_mapping[id] = term;
-                }
+                reverse_id_mapping[id] = term;
             }
         }
         return {id_mapping,reverse_id_mapping};
@@ -46,7 +44,7 @@ struct query_parser {
 
     static std::tuple<bool,uint64_t,std::vector<uint64_t>> 
         map_to_ids(const std::unordered_map<std::string,uint64_t>& id_mapping,
-                   std::string query_str,bool only_complete)
+                   std::string query_str,bool only_complete,bool integers)
     {
         auto id_sep_pos = query_str.find(';');
         auto qryid_str = query_str.substr(0,id_sep_pos);
@@ -56,13 +54,18 @@ struct query_parser {
         std::vector<uint64_t> ids;
         std::istringstream qry_content_stream(qry_content);
         for(std::string qry_token; std::getline(qry_content_stream,qry_token,' ');) {
-            auto id_itr = id_mapping.find(qry_token);
-            if(id_itr != id_mapping.end()) {
-                ids.push_back(id_itr->second);
+            if(integers) {
+                uint64_t id = std::stoull(qry_token);
+                ids.push_back(id);
             } else {
-                std::cerr << "ERROR: could not find '" << qry_token << "' in the dictionary." << std::endl;
-                if(only_complete) {
-                    return std::make_tuple(false,qry_id,ids);
+                auto id_itr = id_mapping.find(qry_token);
+                if(id_itr != id_mapping.end()) {
+                    ids.push_back(id_itr->second);
+                } else {
+                    std::cerr << "ERROR: could not find '" << qry_token << "' in the dictionary." << std::endl;
+                    if(only_complete) {
+                        return std::make_tuple(false,qry_id,ids);
+                    }
                 }
             }
         }
@@ -70,12 +73,15 @@ struct query_parser {
     }
 
     static std::pair<bool,query_t> parse_query(const mapping_t& mapping,
-                const std::string& query_str,bool only_complete = false)
+                const std::string& query_str,bool only_complete = false,bool integers = false)
     {
 
         const auto& id_mapping = mapping.first;
         const auto& reverse_mapping = mapping.second;
-        auto mapped_qry = map_to_ids(id_mapping,query_str,only_complete);
+
+        std::cout << "parse_query integers = " << integers << std::endl;
+
+        auto mapped_qry = map_to_ids(id_mapping,query_str,only_complete,integers);
 
         bool parse_ok = std::get<0>(mapped_qry);
         auto qry_id = std::get<1>(mapped_qry);
@@ -112,7 +118,7 @@ struct query_parser {
         std::vector<query_t> queries;
 
         /* load the mapping */
-        auto mapping = load_dictionary(collection_dir,false);
+        auto mapping = load_dictionary(collection_dir);
 
         /* parse queries */
         std::ifstream qfs(query_file); 

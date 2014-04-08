@@ -38,6 +38,7 @@ struct surf_qry_request {
 	uint64_t id;
 	uint64_t k;
     uint8_t output_results;
+    uint8_t int_qry;
 	char qry_str[MAX_QRY_LEN] = {0};
 };
 

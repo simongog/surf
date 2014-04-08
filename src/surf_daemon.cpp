@@ -20,7 +20,7 @@
 typedef struct cmdargs {
     std::string collection_dir;
     std::string port;
-    bool load_reverse_mapping;
+    bool load_dictionary;
 } cmdargs_t;
 
 void
@@ -30,7 +30,7 @@ print_usage(char* program)
     fprintf(stdout,"where\n");
     fprintf(stdout,"  -c <collection directory>  : the directory the collection is stored.\n");
     fprintf(stdout,"  -p <port>  : the port the daemon is running on.\n");
-    fprintf(stdout,"  -r : do not load the reverse mapping of the dictionary.\n");
+    fprintf(stdout,"  -r : do not load the dictionary.\n");
 };
 
 cmdargs_t
@@ -40,7 +40,7 @@ parse_args(int argc,char* const argv[])
     int op;
     args.collection_dir = "";
     args.port = std::to_string(12345);
-    args.load_reverse_mapping = true;
+    args.load_dictionary = true;
     while ((op=getopt(argc,argv,"c:p:r")) != -1) {
         switch (op) {
             case 'c':
@@ -50,7 +50,7 @@ parse_args(int argc,char* const argv[])
                 args.port = optarg;
                 break;
             case 'r':
-                args.load_reverse_mapping = false;
+                args.load_dictionary = false;
                 break;
             case '?':
             default:
@@ -84,6 +84,16 @@ parse_request(const void* req_data,size_t n)
 	return make_tuple(req_id,k,qry_str);
 }
 
+bool
+parse_int_qry(std::string qry_str,surf::query_t& parsed_qry)
+{
+    bool parse_ok = true;
+
+    // check if it contains phrases
+
+    return parse_ok;
+}
+
 int main(int argc,char* const argv[])
 {
     using clock = std::chrono::high_resolution_clock;
@@ -97,8 +107,11 @@ int main(int argc,char* const argv[])
     std::string base_name = basename(tmp_str);
 
     /* parse queries */
-    std::cout << "Loading dictionary and creating term map." << std::endl;
-    auto term_map = surf::query_parser::load_dictionary(args.collection_dir,args.load_reverse_mapping);
+    surf::query_parser::mapping_t term_map;
+    if(args.load_dictionary) {
+        std::cout << "Loading dictionary and creating term map." << std::endl;
+        term_map = surf::query_parser::load_dictionary(args.collection_dir);
+    }
 
     /* define types */
     using surf_index_t = INDEX_TYPE;
@@ -138,12 +151,15 @@ int main(int argc,char* const argv[])
 
             surf::query_t prased_query;
             bool parse_ok = false;
-            if(surf_req->phrases) {
+
+            std::cout << "int qry = " << (int)surf_req->int_qry << std::endl;
+
+            if(surf_req->phrases) { 
 #ifdef PHRASE_SUPPORT
                 const auto& id_mapping = term_map.first;
                 const auto& reverse_mapping = term_map.second;
                 auto qry_mapping = surf::query_parser::map_to_ids(id_mapping,
-                                            std::string(surf_req->qry_str),true);
+                                            std::string(surf_req->qry_str),true,surf_req->int_qry);
                 if(std::get<0>(qry_mapping)) {
                     auto qid = std::get<1>(qry_mapping);
                     auto qry_ids = std::get<2>(qry_mapping);
@@ -154,7 +170,10 @@ int main(int argc,char* const argv[])
                 }
 #endif
             } else {
-                auto qry = surf::query_parser::parse_query(term_map,std::string(surf_req->qry_str));
+                auto qry = surf::query_parser::parse_query(term_map,
+                                            std::string(surf_req->qry_str),
+                                            true,
+                                            surf_req->int_qry);
                 if(qry.first) {
                     prased_query = qry.second;
                     parse_ok = true;
@@ -202,7 +221,7 @@ int main(int argc,char* const argv[])
                       << " AND=" << ranked_and
                       << " PHRASE=" << surf_req->phrases;
             std::cout << " [";
-            if(args.load_reverse_mapping) {
+            if(args.load_dictionary) {
                 for(const auto& token : qry_tokens) {
                     if(token.token_ids.size() > 1) {
                         // phrase

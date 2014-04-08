@@ -61,7 +61,7 @@ foreach(f ${index_config_files})
 endforeach(f)
 
 ADD_EXECUTABLE(surf_query src/surf_query.cpp)
-TARGET_LINK_LIBRARIES(surf_query libzmq)
+TARGET_LINK_LIBRARIES(surf_query libzmq sdsl)
 
 ADD_EXECUTABLE(test src/test.cpp)
 TARGET_LINK_LIBRARIES(test sdsl divsufsort divsufsort64 pthread)
