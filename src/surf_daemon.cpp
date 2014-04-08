@@ -65,35 +65,6 @@ parse_args(int argc,char* const argv[])
     return args;
 }
 
-std::tuple<uint64_t,uint64_t,std::string>
-parse_request(const void* req_data,size_t n)
-{
-	std::string req(static_cast<const char*>(req_data),n);
-	std::cout << "processing request '" << req << "'" << std::endl;
-
-    auto id_sep_pos = req.find(';');
-    auto reqid_str = req.substr(0,id_sep_pos);
-    uint64_t req_id = std::stoull(reqid_str);
-
-    auto k_sep_pos = req.find(';',id_sep_pos+1);
-    auto k_str = req.substr(id_sep_pos+1,k_sep_pos-(id_sep_pos+1));
-    uint64_t k = std::stoull(k_str);
-
-    std::string qry_str = req.substr(k_sep_pos+1);
-
-	return make_tuple(req_id,k,qry_str);
-}
-
-bool
-parse_int_qry(std::string qry_str,surf::query_t& parsed_qry)
-{
-    bool parse_ok = true;
-
-    // check if it contains phrases
-
-    return parse_ok;
-}
-
 int main(int argc,char* const argv[])
 {
     using clock = std::chrono::high_resolution_clock;
