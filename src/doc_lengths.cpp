@@ -74,6 +74,7 @@ int main(int argc,char* const argv[])
         if( doc_lengths[i] != cur) {
             std::cout << count << ";" << cur << "\n";
             cur = doc_lengths[i];
+            count = 0;
         }
         count++;
     }
