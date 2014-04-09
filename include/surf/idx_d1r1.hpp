@@ -76,11 +76,16 @@ public:
                                 qry[i].token_ids.begin(),
                                 qry[i].token_ids.end(),
                                 sp, ep) > 0 ) {
+
+//std::cout<<"[sp,ep]=["<<sp<<","<<ep<<"]"<<std::endl;
                 auto df_info = m_df(sp,ep);
                 auto f_Dt = std::get<0>(df_info); // document frequency
                 terms.emplace_back(qry[i].token_ids, qry[i].f_qt, sp, ep,  f_Dt);
                 sp = m_d1rank(sp);
-                ep = sp+f_Dt-1;
+                ep = m_d1rank(ep+1)-1;
+//for(size_t k=sp; k<=ep; ++k){ std::cout<<".."<<m_wtd1[k]<<std::endl; }
+//std::cout<<std::endl;
+                //ep = sp+f_Dt-1;
                 v_ranges.emplace_back(sp, ep);
                 w_ranges.emplace_back(m_rrank(std::get<1>(df_info)),
                                       m_rrank(std::get<2>(df_info)+1)-1);
@@ -120,6 +125,7 @@ public:
                 }
             }
             if (eval){ 
+//                std::cout << t << std::endl;
                 if (profile) res.wt_search_space++;
                 pq.emplace(t);       
             }
@@ -130,6 +136,7 @@ public:
         pq_type pq;
         size_type search_space=0;
         pq.emplace(max_score, m_wtd1.root(), term_ptrs, v_ranges, m_wtr.root(), w_ranges);
+//        std::cout <<"\n" << pq.top() << std::endl;
         if(profile) res.wt_search_space++;
 
         while ( !pq.empty() and res.list.size() < k ) {
@@ -158,18 +165,21 @@ public:
 
     void load(sdsl::cache_config& cc){
         load_from_cache(m_csa, surf::KEY_CSA, cc, true);
+        std::cout<<"m_csa.size()="<<m_csa.size()<<std::endl;
         load_from_cache(m_df, surf::KEY_SADADF, cc, true);
     	std::string WTR_KEY = surf::KEY_WTR+"-"+std::to_string(1);
         load_from_cache(m_wtr, WTR_KEY, cc, true);
         std::cerr<<"m_wtr.size()="<<m_wtr.size()<<std::endl;
         std::cerr<<"m_wtr.sigma()="<<m_wtr.sigma<<std::endl;
         load_from_cache(m_wtd1, surf::KEY_WTU, cc, true);
+//        load_from_cache(m_wtd1, surf::KEY_WTD, cc, true);
         std::cerr<<"m_wtd1.size()="<<m_wtd1.size()<<std::endl;
         std::cerr<<"m_wtd1.sigma()="<<m_wtd1.sigma<<std::endl;
         load_from_cache(m_d1bv, surf::KEY_UMARK, cc, true);
         std::cerr<<"m_d1bv.size()="<<m_d1bv.size()<<std::endl;
         load_from_cache(m_d1rank, surf::KEY_URANK, cc, true);
         m_d1rank.set_vector(&m_d1bv);
+        std::cerr<<"m_d1rank(m_d1bv.size())="<<m_d1rank(m_d1bv.size())<<std::endl;
         load_from_cache(m_rbv, surf::KEY_DUPMARK, cc, true);
         std::cerr<<"m_rbv.size()="<<m_rbv.size()<<std::endl;
         load_from_cache(m_rrank, surf::KEY_DUPRANK, cc, true);

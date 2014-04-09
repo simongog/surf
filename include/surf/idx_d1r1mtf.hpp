@@ -78,11 +78,14 @@ public:
                                 qry[i].token_ids.begin(),
                                 qry[i].token_ids.end(),
                                 sp, ep) > 0 ) {
+//std::cout<<"[sp,ep]=["<<sp<<","<<ep<<"]"<<std::endl;
                 auto df_info = m_df(sp,ep);
                 auto f_Dt = std::get<0>(df_info); // document frequency
                 terms.emplace_back(qry[i].token_ids, qry[i].f_qt, sp, ep,  f_Dt);
                 sp = m_d1rank(sp);
-                ep = sp+f_Dt-1;
+                ep = m_d1rank(ep+1)-1;
+//for(size_t k=sp; k<=ep; ++k){ std::cout<<".."<<m_wtd1[k]<<std::endl; }
+//std::cout<<std::endl;
                 v_ranges.emplace_back(sp, ep);
                 w_ranges.emplace_back(m_rrank(std::get<1>(df_info)),
                                       m_rrank(std::get<2>(df_info)+1)-1);
@@ -183,7 +186,7 @@ public:
         load_from_cache(m_mtf, surf::KEY_MAXTF, cc); 
         std::cerr<<"MAXTF loaded"<<std::endl;
         std::cerr<<"m_mtf.size()="<<m_mtf.size()<<std::endl;
-        for (size_t i=0; i<50 and i<m_mtf.size(); ++i){
+        for (size_t i=0; i<10 and i<m_mtf.size(); ++i){
             std::cerr<<"m_mtf["<<i<<"]="<<m_mtf[i]<<std::endl;
         }
         m_ranker = ranker_type(cc);
@@ -353,6 +356,8 @@ void construct(idx_d1r1mtf<t_csa,t_df,t_wtr,t_wtd1, t_ranker, t_d1bv, t_d1rank, 
         int_vector<> maxft(cst.degree(cst.root()), 0, bits::hi(cst.size())+1);
         cout<<"maxft.size()="<<maxft.size()<<endl;
 
+        ofstream out(cache_file_name("mtf.txt", cc));
+
         auto root = cst.root();
         auto v = cst.select_leaf(1);
         for (uint64_t j=0; v != root; ++j, v = cst.sibling(v)){
@@ -361,16 +366,19 @@ void construct(idx_d1r1mtf<t_csa,t_df,t_wtr,t_wtd1, t_ranker, t_d1bv, t_d1rank, 
             std::vector<uint64_t> buf(rb-lb+1,0);
             for (uint64_t i = lb; i <= rb; ++i) { buf[i-lb] = darray[i]; }
             std::sort(buf.begin(), buf.end());
-            uint64_t maxx = 1, x=1;
+            uint64_t maxx = 1, x=1, doc=buf[0];
             for (size_t i=1; i < buf.size(); ++i){
                 if ( buf[i-1] == buf[i] ){
-                    if ( ++x > maxx )
+                    if ( ++x > maxx ){
                         maxx = x;
+                        doc= buf[i];
+                    }
                 } else {
                     x = 1;
                 }
             }
             maxft[j] = x;
+            out<<"j="<<j<<" x="<<x<<" doc="<<doc<<std::endl;
         }
         util::bit_compress(maxft);
         store_to_cache(maxft, KEY_MAXTF, cc);

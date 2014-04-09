@@ -50,6 +50,19 @@ struct s_state2_t{
     }
 };
 
+
+template<typename t_wtd_node, typename t_wtr_node>
+inline std::ostream& operator<<(std::ostream& os, const s_state2_t<t_wtd_node, t_wtr_node>& state)
+{
+    os << state.v.level << "-("<<state.score<<") ";
+    for(auto x : state.r_v){ os<<"["<<x.first<<","<<x.second<<"]:"<<x.second-x.first+1<<" "; }
+    os << "|";
+    for(auto x : state.r_w){ os<<"["<<x.first<<","<<x.second<<"]:"<<x.second-x.first+1<<" "; }
+    return os;
+}
+
+
+
 /*! Class idx_dr consists of a 
  *   - CSA over the collection concatenation
  *   - document frequency structure
@@ -103,8 +116,11 @@ public:
                                 qry[i].token_ids.end(),
                                 sp, ep) > 0 ) {
                 auto df_info = m_df(sp,ep);
+//std::cout<<"[sp,ep]=["<<sp<<","<<ep<<"]"<<std::endl;
                 auto f_Dt = std::get<0>(df_info); // document frequency
                 terms.emplace_back(qry[i].token_ids, qry[i].f_qt, sp, ep,  f_Dt);
+//for(size_t k=sp; k<=ep; ++k){ std::cout<<".."<<m_wtd[k]<<std::endl; }
+//std::cout<<std::endl;
                 v_ranges.emplace_back(sp, ep);
                 w_ranges.emplace_back(m_rrank(std::get<1>(df_info)),
                                       m_rrank(std::get<2>(df_info)+1)-1);
@@ -145,6 +161,7 @@ public:
                 }
             }
             if (eval){ 
+//                std::cout << t << std::endl;
                 if (profile) res.wt_search_space++;
                 pq.emplace(t);       
             }
@@ -155,6 +172,7 @@ public:
         pq_type pq;
         size_type search_space=0;
         pq.emplace(max_score, m_wtd.root(), term_ptrs, v_ranges, m_wtr.root(), w_ranges);
+//        std::cout << "\n" << pq.top() << std::endl;
         if(profile) res.wt_search_space++;
 
         while ( !pq.empty() and res.list.size() < k ) {
