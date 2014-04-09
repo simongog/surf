@@ -22,7 +22,7 @@ void construct_u(sdsl::cache_config& cc)
             t_df df;
             construct(df, "", cc, 0); // make sure that the cst was generated
         }
-        int_vector_buffer<> D_array(cache_file_name(surf::KEY_DUP, cc));
+        int_vector_buffer<> D_array(cache_file_name(surf::KEY_DARRAY, cc));
         cout<<".........D.size()="<<D_array.size()<<endl;
         cout<<".........D.width()="<<(int)D_array.width()<<endl;
         cout<<".........load cst"<<endl;
