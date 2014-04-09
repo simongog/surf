@@ -65,10 +65,21 @@ int main(int argc,char* const argv[])
     }
     sdsl::load_from_cache(doc_lengths, surf::KEY_DOC_LENGTHS, cc);
 
-    std::cout << "doc_id;doc_len\n";
-    for(size_t i=0;i<doc_lengths.size();i++) {
-        std::cout << i+1 << ";" << doc_lengths[i] << "\n";
+    std::sort(doc_lengths.begin(),doc_lengths.end());
+
+    std::cout << "count;len\n";
+    auto cur = doc_lengths[0];
+    size_t count = 1;
+    for(size_t i=1;i<doc_lengths.size();i++) {
+        if( doc_lengths[i] != cur) {
+            std::cout << count << ";" << cur << "\n";
+            cur = doc_lengths[i];
+        }
+        count++;
     }
+    std::cout << count << ";" << cur << std::endl;
 
     return EXIT_SUCCESS;
 }
+
+
