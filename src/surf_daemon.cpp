@@ -123,8 +123,6 @@ int main(int argc,char* const argv[])
             surf::query_t prased_query;
             bool parse_ok = false;
 
-            std::cout << "int qry = " << (int)surf_req->int_qry << std::endl;
-
             if(surf_req->phrases) { 
 #ifdef PHRASE_SUPPORT
                 const auto& id_mapping = term_map.first;

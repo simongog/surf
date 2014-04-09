@@ -79,8 +79,6 @@ struct query_parser {
         const auto& id_mapping = mapping.first;
         const auto& reverse_mapping = mapping.second;
 
-        std::cout << "parse_query integers = " << integers << std::endl;
-
         auto mapped_qry = map_to_ids(id_mapping,query_str,only_complete,integers);
 
         bool parse_ok = std::get<0>(mapped_qry);

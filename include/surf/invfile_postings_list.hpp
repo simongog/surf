@@ -147,6 +147,9 @@ class postings_list
             return const_iterator(*this,m_size);
         }
         size_t num_blocks() const {
+            if(m_size <= uncompressed_threshold) {
+                return 1;
+            }
             return m_block_representatives.size();
         }
         size_t size() const {
@@ -656,6 +659,10 @@ void plist_iterator<t_codec,t_bs>::skip_to_block_with_id(uint64_t id)
 template<compression_codec t_codec,uint64_t t_bs>
 void plist_iterator<t_codec,t_bs>::skip_to_id(uint64_t id)
 {
+    if(id == m_cur_docid) {
+        return;
+    }
+
     skip_to_block_with_id(id);
     // check if we reached list end!
     if (m_cur_block_id >= m_plist_ptr->num_blocks()) {
