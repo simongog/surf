@@ -366,7 +366,6 @@ public:
                 } else {
                     for(auto& pl : postings_lists) {
                         pl->cur.skip_to_id(last_id);
-                        std::cout << pl->cur.docid() << std::endl;
                     }
                 }
             } else {
