@@ -113,8 +113,8 @@ public:
                     t.t_ptrs.push_back(s.t_ptrs[i]);
                     auto score = m_ranker.calculate_docscore(
                                  t.t_ptrs.back()->f_qt,
-                                 //std::min(size(t.r_w.back())+1, (uint64_t)(m_mtf[t.t_ptrs.back()->t[0]]) ),
-                                 size(t.r_w.back())+1,
+                                 std::min(size(t.r_w.back())+1, (uint64_t)(m_mtf[t.t_ptrs.back()->t[0]]) ),
+                                 //size(t.r_w.back())+1,
                                  t.t_ptrs.back()->f_Dt,
                                  t.t_ptrs.back()->F_Dt(),
                                  min_doc_len,
@@ -356,8 +356,6 @@ void construct(idx_d1r1mtf<t_csa,t_df,t_wtr,t_wtd1, t_ranker, t_d1bv, t_d1rank, 
         int_vector<> maxft(cst.degree(cst.root()), 0, bits::hi(cst.size())+1);
         cout<<"maxft.size()="<<maxft.size()<<endl;
 
-        ofstream out(cache_file_name("mtf.txt", cc));
-
         auto root = cst.root();
         auto v = cst.select_leaf(1);
         for (uint64_t j=0; v != root; ++j, v = cst.sibling(v)){
@@ -366,19 +364,17 @@ void construct(idx_d1r1mtf<t_csa,t_df,t_wtr,t_wtd1, t_ranker, t_d1bv, t_d1rank, 
             std::vector<uint64_t> buf(rb-lb+1,0);
             for (uint64_t i = lb; i <= rb; ++i) { buf[i-lb] = darray[i]; }
             std::sort(buf.begin(), buf.end());
-            uint64_t maxx = 1, x=1, doc=buf[0];
+            uint64_t maxx = 1, x=1;
             for (size_t i=1; i < buf.size(); ++i){
                 if ( buf[i-1] == buf[i] ){
                     if ( ++x > maxx ){
                         maxx = x;
-                        doc= buf[i];
                     }
                 } else {
                     x = 1;
                 }
             }
-            maxft[j] = x;
-            out<<"j="<<j<<" x="<<x<<" doc="<<doc<<std::endl;
+            maxft[j] = maxx;
         }
         util::bit_compress(maxft);
         store_to_cache(maxft, KEY_MAXTF, cc);
