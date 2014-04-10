@@ -32,7 +32,13 @@ struct query_token{
 	uint64_t f_qt;
 	query_token(const std::vector<uint64_t>& ids,
                 const std::vector<std::string>& strs,
-                uint64_t f) : token_ids(ids), token_strs(strs), f_qt(f) {}
+                uint64_t f) : token_ids(ids), token_strs(strs), f_qt(f) 
+    {
+    }
+    bool operator<(const query_token& qt) const {
+        return std::lexicographical_compare(token_ids.begin(), token_ids.end(),
+                                            qt.token_ids.begin(), qt.token_ids.end());
+    }
 };
 
 using query_t = std::tuple<uint64_t,std::vector<query_token>>;

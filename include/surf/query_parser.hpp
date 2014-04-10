@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
+#include <algorithm>
 
 #include "surf/config.hpp"
 #include "surf/query.hpp"
@@ -101,6 +102,7 @@ struct query_parser {
                 }
                 query_tokens.emplace_back(term,term_str,qry_tok.second);
             }
+            std::sort(query_tokens.begin(),query_tokens.end()); // sort
             query_t q(qry_id,query_tokens);
             return {true,q};
         }
