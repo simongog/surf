@@ -24,7 +24,7 @@ class idx_invfile {
 public:
     using size_type = sdsl::int_vector<>::size_type;
     using plist_type = t_pl;
-    using rank_type = t_rank;
+    using ranker_type = t_rank;
 private:
     // determine lists
     struct plist_wrapper {
@@ -50,7 +50,7 @@ private:
     std::vector<plist_type> m_postings_lists;
     sdsl::int_vector<> m_F_t;
     sdsl::int_vector<> m_id_mapping;
-    rank_type ranker;
+    ranker_type ranker;
 public:
 	idx_invfile() = default;
     idx_invfile(cache_config& config)
@@ -72,8 +72,8 @@ public:
             std::ofstream ofs(cache_file_name(KEY_F_T,config));
             m_F_t.serialize(ofs);
         }
-    	if( cache_file_exists<plist_type>(KEY_INVFILE_PLISTS,config) ) {
-    		std::ifstream ifs(cache_file_name<plist_type>(KEY_INVFILE_PLISTS,config));
+    	if( cache_file_exists<std::pair<ranker_type,plist_type>>(KEY_INVFILE_PLISTS,config) ) {
+    		std::ifstream ifs(cache_file_name<std::pair<ranker_type,plist_type>>(KEY_INVFILE_PLISTS,config));
             size_t num_lists;
             read_member(num_lists,ifs);
             m_postings_lists.resize(num_lists);
@@ -81,8 +81,8 @@ public:
                 m_postings_lists[i].load(ifs);
             }
     	} else {
-    		construct_postings_lists<plist_type,rank_type>(m_postings_lists,config);
-    		std::ofstream ofs(cache_file_name<plist_type>(KEY_INVFILE_PLISTS,config));
+    		construct_postings_lists<plist_type,ranker_type>(m_postings_lists,config);
+    		std::ofstream ofs(cache_file_name<std::pair<ranker_type,plist_type>>(KEY_INVFILE_PLISTS,config));
             size_t num_lists = m_postings_lists.size();
             sdsl::serialize(num_lists,ofs);
             for(const auto& pl : m_postings_lists) {

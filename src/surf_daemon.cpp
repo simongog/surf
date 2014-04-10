@@ -225,6 +225,7 @@ int main(int argc,char* const argv[])
                 surf_resp.status = REQ_RESPONE_OK;
                 strncpy(surf_resp.index,index_name.c_str(),sizeof(surf_resp.index));
                 strncpy(surf_resp.collection,base_name.c_str(),sizeof(surf_resp.collection));
+                strncpy(surf_resp.ranker,surf_index_t::ranker_type::name().c_str(),sizeof(surf_resp.ranker));
                 surf_resp.req_id = surf_req->id;
                 surf_resp.k = surf_req->k;
                 surf_resp.qry_id = qry_id;

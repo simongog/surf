@@ -228,6 +228,7 @@ int main(int argc,char* const argv[])
                     /* output */
                     std::cout << surf_resp->qry_id << ";" 
                               << surf_resp->collection << ";"
+                              << surf_resp->ranker << ";"
                               << surf_resp->index << ";"
                               << (int)qry_mode << ";"
                               << surf_resp->k << ";"
