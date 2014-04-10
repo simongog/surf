@@ -14,6 +14,7 @@
 #include "surf/query_parser.hpp"
 #include "surf/comm.hpp"
 #include "surf/phrase_parser.hpp"
+#include "surf/rank_functions.hpp"
 
 #include "zmq.hpp"
 
