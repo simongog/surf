@@ -131,6 +131,7 @@ struct phrase_parser {
     		std::get<1>(q).emplace_back(*itr,qry_str,num_equal);
     		itr++;
     	}
+        std::sort(std::get<1>(q).begin(),std::get<1>(q).end()); // sort
     	return q;
     }
 };

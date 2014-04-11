@@ -111,7 +111,7 @@ void construct_F_t(sdsl::int_vector<>& F_t,sdsl::cache_config& cconfig)
 
     F_t.resize(ids.size());
     for(size_t i=0;i<ids.size();i++) {
-        F_t[i] = sp[i] - ep[i] + 1;
+        F_t[i] = ep[i] - sp[i] + 1;
     }
 }
 

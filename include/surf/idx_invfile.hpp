@@ -17,12 +17,14 @@ using namespace sdsl;
 namespace surf {
 
 
-template<class t_pl = postings_list<compression_codec::optpfor,128>,class t_rank = rank_bm25<120,75>>
+template<class t_pl = postings_list<compression_codec::optpfor,128>,
+         class t_rank = rank_bm25<120,75>,
+         bool t_exhaustive = false>
 class idx_invfile {
 public:
     using size_type = sdsl::int_vector<>::size_type;
     using plist_type = t_pl;
-    using rank_type = t_rank;
+    using ranker_type = t_rank;
 private:
     // determine lists
     struct plist_wrapper {
@@ -48,7 +50,7 @@ private:
     std::vector<plist_type> m_postings_lists;
     sdsl::int_vector<> m_F_t;
     sdsl::int_vector<> m_id_mapping;
-    rank_type ranker;
+    ranker_type ranker;
 public:
 	idx_invfile() = default;
     idx_invfile(cache_config& config)
@@ -70,8 +72,8 @@ public:
             std::ofstream ofs(cache_file_name(KEY_F_T,config));
             m_F_t.serialize(ofs);
         }
-    	if( cache_file_exists<plist_type>(KEY_INVFILE_PLISTS,config) ) {
-    		std::ifstream ifs(cache_file_name<plist_type>(KEY_INVFILE_PLISTS,config));
+    	if( cache_file_exists<std::pair<ranker_type,plist_type>>(KEY_INVFILE_PLISTS,config) ) {
+    		std::ifstream ifs(cache_file_name<std::pair<ranker_type,plist_type>>(KEY_INVFILE_PLISTS,config));
             size_t num_lists;
             read_member(num_lists,ifs);
             m_postings_lists.resize(num_lists);
@@ -79,8 +81,8 @@ public:
                 m_postings_lists[i].load(ifs);
             }
     	} else {
-    		construct_postings_lists<plist_type,rank_type>(m_postings_lists,config);
-    		std::ofstream ofs(cache_file_name<plist_type>(KEY_INVFILE_PLISTS,config));
+    		construct_postings_lists<plist_type,ranker_type>(m_postings_lists,config);
+    		std::ofstream ofs(cache_file_name<std::pair<ranker_type,plist_type>>(KEY_INVFILE_PLISTS,config));
             size_t num_lists = m_postings_lists.size();
             sdsl::serialize(num_lists,ofs);
             for(const auto& pl : m_postings_lists) {
@@ -309,7 +311,6 @@ public:
         auto potential_score = std::get<1>(pivot_and_score);
 
         while(pivot_list != postings_lists.end()) {
-            //print_lists(postings_lists,threshold);
             if (postings_lists[0]->cur.docid() == (*pivot_list)->cur.docid()) {
                 if(profile) res.postings_evaluated++;
                 threshold = evaluate_pivot(postings_lists,score_heap,potential_score,threshold,initial_lists,k);
@@ -319,6 +320,61 @@ public:
             pivot_and_score = determine_candidate(postings_lists,threshold,initial_lists,ranked_and);
             pivot_list = std::get<0>(pivot_and_score);
             potential_score = std::get<1>(pivot_and_score);
+
+            if(ranked_and && postings_lists.size() != initial_lists) {
+                break;
+            }
+        }
+
+        // return the top-k results
+        res.list.resize(score_heap.size());
+        for(size_t i=0;i<res.list.size();i++) {
+            auto min = score_heap.top(); score_heap.pop();
+            min.doc_id = m_id_mapping[min.doc_id];
+            res.list[res.list.size()-1-i] = min;
+        }
+
+        return res;
+    }
+
+
+    result process_exhaustive(std::vector<plist_wrapper*>& postings_lists,
+                              size_t k,
+                              bool ranked_and,
+                              bool profile) {
+        result res;
+        // heap containing the top-k docs
+        std::priority_queue<doc_score,std::vector<doc_score>,std::greater<doc_score>> score_heap;
+
+        if(profile) {
+            for(const auto& pl : postings_lists) {
+                res.postings_total += pl->cur.size();
+            }
+        }
+
+        // process everything!
+        auto threshold = 0.0f;
+        size_t initial_lists = postings_lists.size();
+        sort_list_by_id(postings_lists);
+        while(! postings_lists.empty() ) {
+            if(ranked_and) {
+                auto last_id = postings_lists.back()->cur.docid();
+                if( postings_lists[0]->cur.docid() == last_id ) {
+                    threshold = evaluate_pivot(postings_lists,score_heap,std::numeric_limits<double>::max(),
+                                               threshold,initial_lists,k);
+                    if(profile) res.postings_evaluated++;
+                } else {
+                    for(auto& pl : postings_lists) {
+                        pl->cur.skip_to_id(last_id);
+                    }
+                }
+            } else {
+                threshold = evaluate_pivot(postings_lists,score_heap,std::numeric_limits<double>::max(),
+                                           threshold,initial_lists,k);
+                if(profile) res.postings_evaluated++;
+            }
+
+            sort_list_by_id(postings_lists);
 
             if(ranked_and && postings_lists.size() != initial_lists) {
                 break;
@@ -347,7 +403,11 @@ public:
                 postings_lists.emplace_back(&(pl_data[j-1]));
             }
         }
-        return process_wand(postings_lists,k,ranked_and,profile);
+        if(t_exhaustive) {
+            return process_exhaustive(postings_lists,k,ranked_and,profile);
+        } else {
+            return process_wand(postings_lists,k,ranked_and,profile);
+        }
     }
 
     void mem_info(){
@@ -360,8 +420,8 @@ public:
 
 };
 
-template<class t_pl,class t_rank>
-void construct(idx_invfile<t_pl,t_rank> &idx, const std::string& file,
+template<class t_pl,class t_rank,bool t_exh>
+void construct(idx_invfile<t_pl,t_rank,t_exh> &idx, const std::string& file,
                sdsl::cache_config& cconfig, uint8_t num_bytes)
 {
     using namespace sdsl;
@@ -370,7 +430,7 @@ void construct(idx_invfile<t_pl,t_rank> &idx, const std::string& file,
 
     surf::construct_col_len<sdsl::int_alphabet_tag::WIDTH>(cconfig);
 
-    idx = idx_invfile<t_pl,t_rank>(cconfig);
+    idx = idx_invfile<t_pl,t_rank,t_exh>(cconfig);
 }
 
 }

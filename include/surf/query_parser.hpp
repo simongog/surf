@@ -5,6 +5,7 @@
 #include <fstream>
 #include <sstream>
 #include <unordered_map>
+#include <algorithm>
 
 #include "surf/config.hpp"
 #include "surf/query.hpp"
@@ -79,8 +80,6 @@ struct query_parser {
         const auto& id_mapping = mapping.first;
         const auto& reverse_mapping = mapping.second;
 
-        std::cout << "parse_query integers = " << integers << std::endl;
-
         auto mapped_qry = map_to_ids(id_mapping,query_str,only_complete,integers);
 
         bool parse_ok = std::get<0>(mapped_qry);
@@ -103,6 +102,7 @@ struct query_parser {
                 }
                 query_tokens.emplace_back(term,term_str,qry_tok.second);
             }
+            std::sort(query_tokens.begin(),query_tokens.end()); // sort
             query_t q(qry_id,query_tokens);
             return {true,q};
         }

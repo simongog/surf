@@ -119,8 +119,9 @@ public:
         for (size_type i=0; i<terms.size(); ++i){
             term_ptrs[i] = &terms[i];
         }
+        double initial_term_num = terms.size();
 
-        auto push_node = [this, &res,&profile,&ranked_and]
+        auto push_node = [this,&initial_term_num, &res,&profile,&ranked_and]
                          (pq_type& pq, const std::vector<term_info*>& t_ptrs,node_type& v,
                           std::vector<range_type>& r,
                           pq_min_type& pq_min, const size_t& k){
@@ -128,7 +129,9 @@ public:
             auto min_doc_len = m_ranker.doc_length(m_docperm.len2id[min_idx]);
             state_type t; // new state
             t.v = v;
-            t.score = 0;
+
+            t.score = initial_term_num * m_ranker.calc_doc_weight(min_doc_len);
+
             bool eval = false;
             bool is_leaf = m_wtd.is_leaf(v);
             for (size_t i = 0; i < r.size(); ++i){

@@ -28,6 +28,7 @@ struct surf_time_resp {
     uint64_t postings_total;
     char index[256];
     char collection[256];
+    char ranker[256];
 };
 
 struct surf_qry_request {

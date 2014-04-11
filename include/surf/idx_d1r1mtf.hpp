@@ -95,15 +95,16 @@ public:
         for (size_type i=0; i<terms.size(); ++i){
             term_ptrs[i] = &terms[i];
         }
+        double initial_term_num = terms.size();
 
-        auto push_node = [this,&res,&profile,&ranked_and](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r_v,
+        auto push_node = [this,&initial_term_num,&res,&profile,&ranked_and](pq_type& pq, state_type& s,node_type& v,std::vector<range_type>& r_v,
                                 node2_type& w, std::vector<range_type>& r_w){
             auto min_idx = m_wtd1.sym(v) << (m_wtd1.max_level - v.level);  
             auto min_doc_len = m_ranker.doc_length(m_docperm.len2id[min_idx]);
             state_type t; // new state
             t.v = v;
             t.w = w;
-            t.score = 0;
+            t.score = initial_term_num * m_ranker.calc_doc_weight(min_doc_len);
             bool eval = false;
             for (size_t i = 0; i < r_v.size(); ++i){
                 if ( !empty(r_v[i]) ){
