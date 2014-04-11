@@ -92,7 +92,7 @@ public:
     using state_type = s_state_t<typename t_wtd::node_type>;
 public:
 
-    result search(const std::vector<query_token>& qry,size_t k,bool ranked_and = false,bool profile = false) {
+    result search(const std::vector<query_token>& qry,size_t k,bool ranked_and = false,bool profile = false) const {
         typedef std::priority_queue<state_type> pq_type;
         typedef std::priority_queue<double, std::vector<double>, std::greater<double>> pq_min_type;
         std::vector<term_info> terms;
@@ -130,6 +130,7 @@ public:
             t.v = v;
             t.score = 0;
             bool eval = false;
+            bool is_leaf = m_wtd.is_leaf(v);
             for (size_t i = 0; i < r.size(); ++i){
                 if ( !empty(r[i]) ){
                     eval = true;
@@ -142,7 +143,7 @@ public:
                                  t.t_ptrs.back()->f_Dt,
                                  t.t_ptrs.back()->F_Dt(),
                                  min_doc_len,
-                                 m_wtd.is_leaf(v)
+                                 is_leaf
                                );
                     t.score += score;
                 } else if ( ranked_and ){
