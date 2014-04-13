@@ -196,9 +196,6 @@ public:
 	double calculate_docscore(const double f_qt,const double f_dt,const double f_t,
 							  const double F_t,double W_d,bool use_W_d = true) const 
 	{
-		if(!use_W_d) {
-			W_d = min_doc_len;
-		}
 		double doc_norm = 1.0/W_d;
 		double w_dq = 1.0 + log(f_dt);
 		double w_Qq = log(1.0 + ((double)num_docs/f_t));
