@@ -34,7 +34,11 @@ struct rank_bm25 {
 		uint64_t num_terms;
         load_from_cache(num_terms, surf::KEY_COLLEN, cconfig);
         if (!cache_file_exists(surf::KEY_DOC_LENGTHS, cconfig)){
-            surf::construct_doc_lengths<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+            if ( cache_file_exists(surf::TEXT_FILENAME, cconfig) ){
+                surf::construct_doc_lengths<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+            } else {
+                surf::construct_doc_lengths<sdsl::byte_alphabet_tag::WIDTH>(cconfig);
+            }
         }
         load_from_cache(doc_lengths, surf::KEY_DOC_LENGTHS, cconfig);
 		num_docs = doc_lengths.size();
@@ -82,8 +86,13 @@ struct rank_bm25_simple_est {
 		uint64_t num_terms;
         load_from_cache(num_terms, surf::KEY_COLLEN, cconfig);
         if (!cache_file_exists(surf::KEY_DOC_LENGTHS, cconfig)){
-            surf::construct_doc_lengths<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+            if ( cache_file_exists(surf::TEXT_FILENAME, cconfig) ){
+                surf::construct_doc_lengths<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+            } else {
+                surf::construct_doc_lengths<sdsl::byte_alphabet_tag::WIDTH>(cconfig);
+            }
         }
+
         load_from_cache(doc_lengths, surf::KEY_DOC_LENGTHS, cconfig);
 		num_docs = doc_lengths.size();
         std::cerr<<"num_docs = "<<num_docs<<std::endl;
@@ -133,7 +142,11 @@ public:
 	rank_lmds(cache_config& cconfig) {
         load_from_cache(num_terms, surf::KEY_COLLEN, cconfig);
         if (!cache_file_exists(surf::KEY_DOC_LENGTHS, cconfig)){
-            surf::construct_doc_lengths<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+            if ( cache_file_exists(surf::TEXT_FILENAME, cconfig) ){
+                surf::construct_doc_lengths<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+            } else {
+                surf::construct_doc_lengths<sdsl::byte_alphabet_tag::WIDTH>(cconfig);
+            }
         }
         load_from_cache(doc_lengths, surf::KEY_DOC_LENGTHS, cconfig);
 		num_docs = doc_lengths.size();
@@ -180,7 +193,11 @@ public:
 	rank_tfidf(cache_config& cconfig) {
         load_from_cache(num_terms, surf::KEY_COLLEN, cconfig);
         if (!cache_file_exists(surf::KEY_DOC_LENGTHS, cconfig)){
-            surf::construct_doc_lengths<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+            if ( cache_file_exists(surf::TEXT_FILENAME, cconfig) ){
+                surf::construct_doc_lengths<sdsl::int_alphabet_tag::WIDTH>(cconfig);
+            } else {
+                surf::construct_doc_lengths<sdsl::byte_alphabet_tag::WIDTH>(cconfig);
+            }
         }
         load_from_cache(doc_lengths, surf::KEY_DOC_LENGTHS, cconfig);
 		num_docs = doc_lengths.size();

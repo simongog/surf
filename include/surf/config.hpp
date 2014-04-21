@@ -8,6 +8,7 @@
 namespace surf{
 
 const std::string TEXT_FILENAME = "text_int_SURF.sdsl";
+const std::string TEXT_FILENAME_BYTE = "text_SURF.sdsl";
 const std::string DICT_FILENAME = "dict.txt";
 const std::string URL2ID_FILENAME = "url2id.txt";
 const std::string DOCNAMES_FILENAME = "doc_names.txt";

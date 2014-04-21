@@ -6,6 +6,7 @@
 typedef struct cmdargs {
     std::string collection_dir;
     bool print_memusage;
+    bool byte_alphabet;
 } cmdargs_t;
 
 void
@@ -24,13 +25,17 @@ parse_args(int argc,char* const argv[])
     int op;
     args.collection_dir = "";
     args.print_memusage = false;
-    while ((op=getopt(argc,argv,"c:m")) != -1) {
+    args.byte_alphabet  = false;
+    while ((op=getopt(argc,argv,"c:m:b")) != -1) {
         switch (op) {
             case 'c':
                 args.collection_dir = optarg;
                 break;
             case 'm':
                 args.print_memusage = true;
+                break;
+            case 'b':
+                args.byte_alphabet = true;
                 break;
             case '?':
             default:
@@ -48,24 +53,24 @@ parse_args(int argc,char* const argv[])
 int main(int argc,char* const argv[])
 {
     using clock = std::chrono::high_resolution_clock;
+    using surf_index_t = INDEX_TYPE;
     /* parse command line */
     cmdargs_t args = parse_args(argc,argv);
 
     /* parse repo */
-    sdsl::cache_config cc = surf::parse_collection(args.collection_dir);
+    sdsl::cache_config cc = surf::parse_collection<typename surf_index_t::csa_type::alphabet_type>(args.collection_dir);
     std::cout<<"parse collections"<<std::endl;
     for(auto x : cc.file_map){
         std::cout<<x.first<<" "<<x.second<<std::endl;
     }
 
     /* define types */
-    using surf_index_t = INDEX_TYPE;
     std::string index_name = IDXNAME;
 
     /* build the index */
     surf_index_t index;
     auto build_start = clock::now();
-    construct(index, "", cc, 0);
+    construct(index, "", cc, args.byte_alphabet?1:0);
     auto build_stop = clock::now();
     auto build_time_sec = std::chrono::duration_cast<std::chrono::seconds>(build_stop-build_start);
     std::cout << "Index built in " << build_time_sec.count() << " seconds." << std::endl;

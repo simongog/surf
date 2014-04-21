@@ -41,13 +41,16 @@ void construct_dup2(sdsl::cache_config& cc)
         auto root = cst.root();
         auto left_most_leaf = cst.select_leaf(1);
         uint64_t next_idx = 0;
+        cout<<"root = ["<<cst.lb(root)<<","<<cst.rb(root)<<"]"<<endl;
         for (auto& v : cst.children(root)){
             if ( v == left_most_leaf )
                 continue;
             auto lb = cst.lb(v);
             auto rb = cst.rb(v);
             auto df_info = df(lb, rb);
+
             std::vector<uint64_t> buf;
+            std::cout<<"[lb',rb']=["<<std::get<1>(df_info)<<","<<std::get<2>(df_info)<<"]"<<std::endl;
             for (uint64_t i = std::get<1>(df_info); i <= std::get<2>(df_info); ++i) {
                 buf.push_back(dup[i]); 
             }

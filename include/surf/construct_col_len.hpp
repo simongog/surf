@@ -18,12 +18,14 @@ void construct_col_len(sdsl::cache_config& cc)
         std::string text_file = cache_file_name(KEY_TEXT, cc);
         if (!cache_file_exists(KEY_TEXT, cc)) {
             std::cerr << "ERROR: construct_col_len: " << text_file
-                      << " does not exist. Abort." << std::endl;
+                      << " does not exist. Abort. t_width=" << (int)t_width << std::endl;
             return;
         }
         uint64_t n = 0;
+        std::cerr<<"t_width="<<(int)t_width<<std::endl;
         int_vector_buffer<t_width> text(text_file);
         n = text.size();
+        std::cerr<<"construct_col_len = "<<n<<std::endl;
         store_to_cache(n, KEY_COLLEN, cc);
     }
 }
