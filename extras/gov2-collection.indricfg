@@ -1,0 +1,10 @@
+<parameters>
+    <memory>100G</memory>
+    <storeDocs>true</storeDocs>
+    <index>gov2</index>
+    <corpus>
+        <path>/collections/TREC/datasets/gov2/gov2-corpus</path>
+        <class>trecweb</class>
+    </corpus>
+    <stemmer><name>krovetz</name></stemmer>
+</parameters>

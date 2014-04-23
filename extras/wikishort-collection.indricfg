@@ -1,0 +1,10 @@
+<parameters>
+    <memory>100G</memory>
+    <storeDocs>true</storeDocs>
+    <index>wikishort</index>
+    <corpus>
+        <path>/devhome6/mpetri/collections/wikishort/</path>
+        <class>txt</class>
+    </corpus>
+    <stemmer><name>krovetz</name></stemmer>
+</parameters>

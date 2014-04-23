@@ -1,7 +1,7 @@
 surf
 ====
 
-# installation
+## installation
 
 ```
 cd surf/build
@@ -9,33 +9,34 @@ cmake ..
 make
 ```
 
-# building an index
+## building an index
 
 ```
 cd surf/build
 ./surf_index -c ../collections/wikishort/
 ```
 
-# querying an index
+## querying an index
 
 ```
 cd surf/build
 ./surf_search -c ../collections/wikishort/ -q <qryfile> -k 10
 ```
 
-# creating an indri index and converting it into surf format
+## creating an indri index and converting it into surf format
 
-create the indri index
+### create the indri index
 
 ```
 cd ./indri-5.6/
 ./configure
 make
 cd buildindex
-./IndriBuildIndex ./surf/extras/gov2.indriconfig
+# change indri config to correct storage locations
+./IndriBuildIndex ./surf/extras/gov2.indricfg
 ```
 
-convert the index into surf format
+### convert the index into surf format
 
 ```
 cd surf/tools

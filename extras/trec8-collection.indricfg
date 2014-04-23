@@ -1,0 +1,10 @@
+<parameters>
+    <memory>100G</memory>
+    <storeDocs>true</storeDocs>
+    <index>trec8</index>
+    <corpus>
+        <path>/devhome6/mpetri/collections/trec8/</path>
+        <class>trectext</class>
+    </corpus>
+    <stemmer><name>krovetz</name></stemmer>
+</parameters>
