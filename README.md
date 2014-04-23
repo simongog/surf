@@ -1,29 +1,49 @@
 surf
 ====
 
-SUccinct Retrieval Framework
+# installation
 
-## Directory structure
+```
+cd surf/build
+cmake ..
+make
+```
 
-    * build: 
-    * collections: contains collection data;
-        each collection in its own subdirectory.
-    * external: Contains external libraries
-    * include/surf: Contains headers.
-    * src: Contains surf sources.
-      - surf_index.cpp
-      - surf_search.cpp
-      - surf_profile.cpp
-    * tools: Contains source of tools. E.g.
-      - qry2intqry
-      - indri2surf converter
+# building an index
 
-## Installation
+```
+cd surf/build
+./surf_index -c ../collections/wikishort/
+```
 
-    * git clone git@github.com:simongog/surf.git
-    * cd surf
-    * git submodule init
-    * git submodule update --recursive
-    * cd build
-    * cmake ..
+# querying an index
+
+```
+cd surf/build
+./surf_search -c ../collections/wikishort/ -q <qryfile> -k 10
+```
+
+# creating an indri index and converting it into surf format
+
+create the indri index
+
+```
+cd ./indri-5.6/
+./configure
+make
+cd buildindex
+./IndriBuildIndex ./surf/extras/gov2.indriconfig
+```
+
+convert the index into surf format
+
+```
+cd surf/tools
+# change path of indri source code in Makefile
+make
+# ./indri_to_surf <path_to_indri_repo> <path_to_surf_repo>
+./indri_to_surf ../collections/gov2indi ../collections/gov2/ 
+```
+
+
 
