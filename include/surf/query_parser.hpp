@@ -137,6 +137,30 @@ struct query_parser {
 
         return queries;
     }
+
+    static std::vector<std::pair<uint64_t,std::vector<uint64_t>>> 
+    parse_to_ids(const std::string& collection_dir,const std::string& query_file,const mapping_t& mapping,bool only_complete = false) 
+    {
+        std::vector<std::pair<uint64_t,std::vector<uint64_t>>> qry_ids;
+        /* parse queries */
+        std::ifstream qfs(query_file); 
+        if(!qfs.is_open()) {
+            std::cerr << "cannot load query file.";
+            exit(EXIT_FAILURE);
+        }
+        std::string query_str;
+        while( std::getline(qfs,query_str) ) {
+            auto parsed_qry = parse_query(mapping,query_str,only_complete);
+            if(parsed_qry.first) {
+                std::vector<uint64_t> qids;
+                for(const auto& token : std::get<1>(parsed_qry.second)) {
+                    qids.push_back(token.token_ids[0]);
+                }
+                qry_ids.push_back({std::get<0>(parsed_qry.second),qids});
+            }
+        }
+        return qry_ids;
+    }
 };
 
 }// end namespace
