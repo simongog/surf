@@ -107,16 +107,20 @@ struct phrase_detector {
     	}
 
     	// compute adjacent pair probabilities
-    	std::priority_queue<std::tuple<double,uint64_t,uint64_t>> P_pair;
+    	std::priority_queue<std::tuple<double,uint64_t,uint64_t>> assoc_pairs;
     	for(size_t i=0;i<qry.size()-1;i++) {
     		auto cnt = sdsl::count(csa,qry.begin()+i,qry.begin()+i+2);
     		double prob = (double)cnt / (double)csa.size();
-    		P_pair.push(std::make_tuple(i,i+1,prob));
+			// single
+			double single = P_single[i] * P_single[i+1];
+			// calc ratio
+			double assoc_ratio = log(prob)-log(single);
+    		assoc_pairs.push(std::make_tuple(i,i+1,assoc_ratio));
     	}
 
     	std::unordered_set<uint64_t> used;
-    	while(!P_pair.empty()) {
-    		auto cur = P_pair.top(); P_pair.pop();
+    	while(!assoc_pairs.empty()) {
+    		auto cur = assoc_pairs.top(); assoc_pairs.pop();
     		if( std::get<0>(cur) > threshold ) {
     			// check if we use one of the terms already
     			if( used.count( std::get<1>(cur)) == 0 && 
