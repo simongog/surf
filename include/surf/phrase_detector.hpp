@@ -115,12 +115,14 @@ struct phrase_detector {
 			double single = P_single[i] * P_single[i+1];
 			// calc ratio
 			double assoc_ratio = log(prob)-log(single);
-    		assoc_pairs.push(std::make_tuple(i,i+1,assoc_ratio));
+            //std::cout << "AR(" << i << "," << i+1 << ") = " << assoc_ratio << std::endl;
+    		assoc_pairs.push(std::make_tuple(assoc_ratio,i,i+1));
     	}
 
     	std::unordered_set<uint64_t> used;
     	while(!assoc_pairs.empty()) {
     		auto cur = assoc_pairs.top(); assoc_pairs.pop();
+            //std::cout << "dequeue " << std::get<0>(cur) << std::endl;
     		if( std::get<0>(cur) > threshold ) {
     			// check if we use one of the terms already
     			if( used.count( std::get<1>(cur)) == 0 && 
