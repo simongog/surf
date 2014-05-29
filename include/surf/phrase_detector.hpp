@@ -119,12 +119,38 @@ struct phrase_detector {
     	return phrases;
     }
 
+    typedef std:;vector<bool> tVB;
+    typedef std::vector<tVB> tVVB;
 
     template<class t_csa>
     static parsed_qry parse_dp(t_csa& csa,
     								  const std::vector<uint64_t>& qry,
     								  double threshold)
     {
+    	//compute single term probabilities
+    	std::vector<double> P_single;
+    	for(size_t i=0;i<qry.size();i++) {
+    		auto cnt = sdsl::count(csa,qry.begin()+i,qry.begin()+i+1);
+    		double single = (double)cnt / (double)csa.size();
+    		P_single.push_back(single);
+    	}
+
+    	//compute single term probabilities
+        tVVB above(qry.size(), tVB(qry.size(), false));
+        for (auto start = qry.begin(); start < qry.end(); ){
+            double single = prob(P_single[start-qry.begin()]);
+            auto end = start;
+            double assoc_ratio = 0;
+            while ( ++end != qry.end() ) {
+                single += prob(P_single[end-qry.begin()]);
+    			auto cnt = sdsl::count(csa, start, end+1);
+                double joint = prob((double)cnt/csa.size());
+                assoc_ratio = joint-single;
+                above[start-qry.begin()][end-qry.begin()] = assoc_ratio >= threshold;
+            };
+            start = end;
+        }
+
     	parsed_qry phrases;
 
     	return phrases;
