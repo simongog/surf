@@ -18,7 +18,7 @@ using parsed_qry = std::vector<std::vector<uint64_t>>;
 namespace surf{
 
 double prob(double x){
-    return x==0 ? 0 : log(x);
+    return x==0 ? -99999999 : log(x);
 }
 
 struct phrase_detector {
@@ -119,8 +119,49 @@ struct phrase_detector {
     	return phrases;
     }
 
-    typedef std:;vector<bool> tVB;
+    typedef std::vector<bool> tVB;
     typedef std::vector<tVB> tVVB;
+
+    typedef std::vector<size_t> tVI;
+    typedef std::vector<tVI> tVVI;
+    typedef std::pair<size_t,size_t> tPII;
+    typedef std::vector<tPII> tVPII;
+
+    static size_t max_phrase(size_t l, size_t r, const tVVB& is_phrase, tVVI& mem){
+        if ( l > r )
+            return 0;
+        if ( mem[l][r] !=  (size_t)-1 ) {
+            return mem[l][r];
+        }
+        mem[l][r] = 0;
+        if (is_phrase[l][r]){
+            mem[l][r] = 1;
+        }
+        for (size_t i=l+1; i<=r; ++i){
+            size_t res = max_phrase(l, i, is_phrase, mem) + max_phrase(i+1, r, is_phrase, mem);
+            if (res > mem[l][r]){
+                mem[l][r] = res;
+            }
+        }
+        return mem[l][r];
+    }
+
+    static size_t get_res(size_t l, size_t r, tVPII &res, const tVVB& is_phrase, tVVI& mem){
+        size_t maxi = max_phrase(l, r, is_phrase, mem);
+//        std::cout<<"get_res("<<l<<","<<r<<","<<maxi<<std::endl;
+        if ( maxi > 0 ){
+             for (size_t i=l+1; i<r; ++i){
+                size_t m = max_phrase(l, i,is_phrase, mem) + max_phrase(i+1, r, is_phrase,mem);
+                if (maxi == m) {
+                    get_res(l,i,res, is_phrase,mem);
+                    get_res(i+1, r, res, is_phrase, mem);
+                    return maxi;
+                }
+            }       
+            res.emplace_back(l,r);
+        } 
+        return maxi;
+    }
 
     template<class t_csa>
     static parsed_qry parse_dp(t_csa& csa,
@@ -130,29 +171,58 @@ struct phrase_detector {
     	//compute single term probabilities
     	std::vector<double> P_single;
     	for(size_t i=0;i<qry.size();i++) {
-    		auto cnt = sdsl::count(csa,qry.begin()+i,qry.begin()+i+1);
+    		auto cnt = csa.count(qry.begin()+i,qry.begin()+i+1);
     		double single = (double)cnt / (double)csa.size();
     		P_single.push_back(single);
     	}
 
     	//compute single term probabilities
-        tVVB above(qry.size(), tVB(qry.size(), false));
+        tVVB is_phrase(qry.size(), tVB(qry.size(), false));
         for (auto start = qry.begin(); start < qry.end(); ){
             double single = prob(P_single[start-qry.begin()]);
             auto end = start;
             double assoc_ratio = 0;
             while ( ++end != qry.end() ) {
                 single += prob(P_single[end-qry.begin()]);
-    			auto cnt = sdsl::count(csa, start, end+1);
+    			auto cnt = csa.count(start, end+1);
                 double joint = prob((double)cnt/csa.size());
                 assoc_ratio = joint-single;
-                above[start-qry.begin()][end-qry.begin()] = assoc_ratio >= threshold;
+                is_phrase[start-qry.begin()][end-qry.begin()] = assoc_ratio >= threshold;
             };
             start = end;
         }
-
+        for (size_t i=0; i<qry.size(); ++i){
+            for(size_t j=0; j<qry.size(); ++j)
+                std::cout << is_phrase[i][j] << " ";
+            std::cout<<std::endl;
+        }
     	parsed_qry phrases;
+        tVVI mem(qry.size(),tVI(qry.size(),(size_t)-1));
 
+        max_phrase(0, qry.size()-1, is_phrase, mem);
+//        std::cout << "max_p="<<max_p<<std::endl;
+        tVPII res;
+        get_res(0, qry.size()-1, res, is_phrase, mem);
+//        std::cout<<"res.size()="<<res.size()<<std::endl;
+        std::sort(res.begin(), res.end());
+        for(size_t i=0; i<res.size(); ++i){
+//            std::cout<<"...["<<i<<"]="<<res[i].first<<","<<res[i].second<<std::endl;
+//            std::cout<<"___"<< is_phrase[res[i].first][res[i].second]<<std::endl;
+        }
+
+        for(size_t i=0,j=0; i<qry.size(); ){
+            if (j >= res.size() or res[j].first > i ){
+//                std::cout<<"qry["<<i<<"]="<<qry[i]<<std::endl;
+                phrases.emplace_back(std::vector<uint64_t>(1, qry[i]));
+                ++i;
+            } else {
+//                std::cout<<"res["<<j<<"]="<<res[j].first<<","<<res[j].second<<std::endl;
+                phrases.emplace_back(std::vector<uint64_t>(qry.begin()+res[j].first, qry.begin()+res[j].second+1));
+                i = res[j].second+1;
+                ++j;
+            }
+        }
+        
     	return phrases;
     }
 
