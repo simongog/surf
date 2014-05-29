@@ -43,7 +43,6 @@ struct phrase_detector {
             double single = prob(P_single[start-qry.begin()]);
             auto end = start;
             double assoc_ratio = 0;
-//            std::cout<<"start="<<start-qry.begin()<<std::endl;
             do {
                 ++end;
                 if ( end == qry.end() )
@@ -52,69 +51,10 @@ struct phrase_detector {
     			auto cnt = sdsl::count(csa, start, end+1);
                 double joint = prob((double)cnt/csa.size());
                 assoc_ratio = joint-single;
-//                std::cout<<"..."<<assoc_ratio<<std::endl;
             } while ( assoc_ratio >= threshold );
             phrases.push_back( std::vector<uint64_t>(start, end) );
             start = end;
         }
-
-
-    	//compute all probabilities
-/*        
-    	parsed_qry phrases;
-    	size_t start = 0;
-    	size_t stop = qry.size();
-    	while(start < stop) {
-    		bool phrase_found = false;
-    		bool phrase_added = false;
-    		for(size_t i=start+1;i<stop;i++) {
-    			auto cnt = sdsl::count(csa,qry.begin()+start,qry.begin()+i+1);
-    			double prob = (double)cnt / (double)csa.size();
-
-    			// single
-    			double single = P_single[i];
-    			for(size_t l=start;l<=i;l++) single *= P_single[l];
-
-    			// calc ratio
-    			double assoc_ratio = log(prob)-log(single);
-
-    			if(assoc_ratio < threshold) {
-    				// not a phrase. if the prev one was a phrase we use it
-    				if(phrase_found) {
-    					std::vector<uint64_t> phrase;
-    					for(size_t j=start;j<i;j++) {
-    						phrase.push_back(qry[j]);
-    					}
-    					phrases.push_back(phrase);
-    				    phrase_added = true;
-    				    start = i;
-    				    break;
-    				}
-    			} else {
-    				// still a phrase. continue!
-    				phrase_found = true;
-    			}
-    		}
-    		if(!phrase_added) {
-    			if(phrase_found) {
-    				// we found a phrase that goes to the end of the id list
-    				std::vector<uint64_t> phrase;
-    				for(size_t i=start;i<stop;i++) {
-    					phrase.push_back(qry[i]);
-    				}
-    				phrases.push_back(phrase);
-    				start = stop;
-    			} else {
-    				// for this term we have not found any phrase 
-    				// with it. add it as a single
-    				std::vector<uint64_t> single;
-    				single.push_back(qry[start]);
-    				phrases.push_back(single);
-    				start++;
-    			}
-    		}
-    	}
-*/        
     	return phrases;
     }
 
@@ -143,7 +83,6 @@ struct phrase_detector {
 			double single = P_single[i]+P_single[i+1];
 			// calc ratio
 			double assoc_ratio = prob(joint)-single;
-            //std::cout << "AR(" << i << "," << i+1 << ") = " << assoc_ratio << std::endl;
     		assoc_pairs.push(std::make_tuple(assoc_ratio,i,i+1));
     	}
 
@@ -153,8 +92,6 @@ struct phrase_detector {
         size_t id=m;
     	while(!assoc_pairs.empty()) {
     		auto cur = assoc_pairs.top(); assoc_pairs.pop();
-//            std::cout<<"("<<std::get<0>(cur)<<","<<std::get<1>(cur)<<","<<std::get<2>(cur)<<")"<<std::endl;
-            //std::cout << "dequeue " << std::get<0>(cur) << std::endl;
     		if( std::get<0>(cur) > threshold ) {
     			// check if we use one of the terms already
     			if( used[std::get<1>(cur)] < m and
