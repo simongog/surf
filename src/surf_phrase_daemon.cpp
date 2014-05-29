@@ -130,6 +130,7 @@ int main(int argc,char* const argv[])
             	auto cnt = sdsl::count(csa,std::begin(surf_req->qids),
             							   std::begin(surf_req->qids)+surf_req->nids);
             	surf_resp.count = cnt;
+            	surf_resp.size = csa.size();
             }
 
     		zmq::message_t reply (sizeof(surf_phrase_resp));

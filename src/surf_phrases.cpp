@@ -6,10 +6,12 @@
 #include "surf/query_parser.hpp"
 #include "surf/phrase_detector.hpp"
 #include "surf/util.hpp"
+#include "surf/comm.hpp"
+
+#include "zmq.hpp"
 
 typedef struct cmdargs {
     std::string host;
-    std::string collection_dir;
     std::string query_file;
     double threshold;
 } cmdargs_t;
@@ -48,7 +50,7 @@ parse_args(int argc,char* const argv[])
                 print_usage(argv[0]);
         }
     }
-    if (args.collection_dir==""||args.query_file=="") {
+    if (args.host==""||args.query_file=="") {
         std::cerr << "Missing command line parameters.\n";
         print_usage(argv[0]);
         exit(EXIT_FAILURE);
@@ -81,16 +83,58 @@ output_qry(uint64_t qid,
             zmq::message_t reply;
             socket.recv (&reply);
             surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
-            std::cout << surf_resp->term_str;
         	if(!first) {
         		std::cout << " ";
         	}
+            std::cout << surf_resp->term_str;
             first = false;
 		}
 		std::cout << "]";
 	}
 	std::cout << std::endl;
 }
+
+
+    struct zmq_csa {
+        size_t m_remote_size = 0;
+        zmq::socket_t& socket;
+        zmq_csa(zmq::socket_t& s) : socket(s) {}
+        template<class t_itr>
+        size_t count(t_itr begin,t_itr end) {
+            // send count req
+            surf_phrase_request surf_req;
+            surf_req.type = REQ_TYPE_COUNT;
+            surf_req.nids = end-begin;
+            std::copy(begin,end,std::begin(surf_req.qids));
+            zmq::message_t request(sizeof(surf_phrase_request));
+            memcpy ((void *) request.data (), &surf_req, sizeof(surf_phrase_request));
+            socket.send (request);
+            // get answer
+            zmq::message_t reply;
+            socket.recv (&reply);
+            surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
+            m_remote_size = surf_resp->size;
+            return surf_resp->count;
+        }
+        size_t size() {
+            if(m_remote_size==0) {
+                surf_phrase_request surf_req;
+                surf_req.type = REQ_TYPE_COUNT;
+                surf_req.nids = 1;
+                surf_req.qids[0] = 1;
+                zmq::message_t request(sizeof(surf_phrase_request));
+                memcpy ((void *) request.data (), 
+                        &surf_req, sizeof(surf_phrase_request));
+                socket.send (request);
+                // get answer
+                zmq::message_t reply;
+                socket.recv (&reply);
+                surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
+                m_remote_size = surf_resp->size;
+            }
+            return m_remote_size;
+        }
+    };
 
 int main(int argc,char* const argv[])
 {
@@ -118,26 +162,6 @@ int main(int argc,char* const argv[])
         std::cerr << "Error connecting to daemon." << std::endl;
     }
 
-    struct zmq_csa {
-        zmq::socket_t& socket;
-        zmq_csa(zmq::socket_t& s) : socket(s) {}
-        template<class t_itr>
-        size_t count(t_itr begin,t_itr end) {
-            // send count req
-            surf_phrase_request surf_req;
-            surf_req.type = REQ_TYPE_COUNT;
-            surf_req.nids = end-begin;
-            std::copy(begin,end,begin(surf_req.qids));
-            zmq::message_t request(sizeof(surf_phrase_request));
-            memcpy ((void *) request.data (), &surf_req, sizeof(surf_phrase_request));
-            socket.send (request);
-            // get answer
-            zmq::message_t reply;
-            socket.recv (&reply);
-            surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
-            return surf_resp->count;
-        }
-    };
 
     /* process the queries */
     std::cerr << "Processing queries..." << std::endl;

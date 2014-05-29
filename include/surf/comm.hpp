@@ -50,6 +50,7 @@ struct surf_phrase_resp {
     uint64_t ids[256] = {0};
     uint64_t nids;
     uint64_t qid;
+    uint64_t size;
 };
 
 struct surf_qry_request {

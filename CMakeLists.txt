@@ -69,7 +69,7 @@ ADD_EXECUTABLE(surf_phrase_daemon src/surf_phrase_daemon.cpp)
 TARGET_LINK_LIBRARIES(surf_phrase_daemon libzmq sdsl fastpfor_lib)
 
 ADD_EXECUTABLE(surf_phrases src/surf_phrases.cpp)
-TARGET_LINK_LIBRARIES(surf_phrases sdsl)
+TARGET_LINK_LIBRARIES(surf_phrases libzmq sdsl)
 
 ADD_EXECUTABLE(test src/test.cpp)
 TARGET_LINK_LIBRARIES(test sdsl divsufsort divsufsort64 pthread)

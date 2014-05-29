@@ -32,7 +32,7 @@ struct phrase_detector {
     	//compute single term probabilities
     	std::vector<double> P_single;
     	for(size_t i=0;i<qry.size();i++) {
-    		auto cnt = sdsl::count(csa,qry.begin()+i,qry.begin()+i+1);
+    		auto cnt = csa.count(qry.begin()+i,qry.begin()+i+1);
     		double single = (double)cnt / (double)csa.size();
     		P_single.push_back(single);
     	}
@@ -48,7 +48,7 @@ struct phrase_detector {
                 if ( end == qry.end() )
                     break;
                 single += prob(P_single[end-qry.begin()]);
-    			auto cnt = sdsl::count(csa, start, end+1);
+    			auto cnt = csa.count(start, end+1);
                 double joint = prob((double)cnt/csa.size());
                 assoc_ratio = joint-single;
             } while ( assoc_ratio >= threshold );
@@ -69,7 +69,7 @@ struct phrase_detector {
     	//compute single term probabilities
     	std::vector<double> P_single;
     	for(size_t i=0;i<qry.size();i++) {
-    		auto cnt = sdsl::count(csa,qry.begin()+i,qry.begin()+i+1);
+    		auto cnt = csa.count(qry.begin()+i,qry.begin()+i+1);
     		double single = (double)cnt / (double)csa.size();
     		P_single.push_back(prob(single));
     	}
@@ -77,7 +77,7 @@ struct phrase_detector {
     	// compute adjacent pair probabilities
     	std::priority_queue<std::tuple<double,uint64_t,uint64_t>> assoc_pairs;
     	for(size_t i=0;i<qry.size()-1;i++) {
-    		auto cnt = sdsl::count(csa,qry.begin()+i,qry.begin()+i+2);
+    		auto cnt = csa.count(qry.begin()+i,qry.begin()+i+2);
     		double joint = (double)cnt / (double)csa.size();
 			// single
 			double single = P_single[i]+P_single[i+1];
