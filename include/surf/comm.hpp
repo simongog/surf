@@ -13,6 +13,11 @@
 
 #define MAX_QRY_LEN		 1024
 
+#define REQ_TYPE_TERM2ID     0
+#define REQ_TYPE_ID2TERM     1
+#define REQ_TYPE_COUNT       2
+
+#pragma pack(push, 1)
 struct surf_time_resp {
 	uint8_t status;
     uint64_t req_id;
@@ -31,6 +36,22 @@ struct surf_time_resp {
     char ranker[256];
 };
 
+struct surf_phrase_request {
+    uint8_t type;
+    uint64_t term_id;
+    uint64_t nids;
+    char qry_str[1024] = {0};
+    uint64_t qids[256] = {0};
+};
+
+struct surf_phrase_resp {
+    uint64_t count;
+    uint8_t term_str[1024] = {0};
+    uint64_t ids[256] = {0};
+    uint64_t nids;
+    uint64_t qid;
+};
+
 struct surf_qry_request {
 	uint8_t type;
 	uint8_t mode;
@@ -47,6 +68,6 @@ struct surf_results {
     uint64_t size;
     double data[0];
 };
-
+#pragma pack(pop)
 
 #endif
