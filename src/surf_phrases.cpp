@@ -193,6 +193,9 @@ int main(int argc,char* const argv[])
 
         auto parsed_query_dp = surf::phrase_detector::parse_dp(csa,qry_ids,args.threshold);
         output_qry(surf_resp->qid,"DP",parsed_query_dp,socket,args.threshold);
+
+        auto parsed_query_x2 = surf::phrase_detector::parse_greedy_paul_x2(csa,qry_ids,args.threshold);
+        output_qry(surf_resp->qid,"X2",parsed_query_x2,socket,args.threshold);
     }
 
 
