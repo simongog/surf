@@ -60,6 +60,75 @@ struct phrase_detector {
 
 
     template<class t_csa>
+    static parsed_qry parse_greedy_paul_x2(t_csa& csa,
+                                        const std::vector<uint64_t>& qry,
+                                        double threshold)
+    {
+        parsed_qry phrases;
+        
+        std::vector<double> freq_single;
+        for(size_t i=0;i<qry.size();i++) {
+            double freq = csa.count(qry.begin()+i,qry.begin()+i+1);
+            freq_single.push_back(freq);
+        }
+        // compute adjacent pair probabilities
+        auto square = [](double a){ return a*a; };
+        double N = csa.size();
+        std::priority_queue<std::tuple<double,uint64_t,uint64_t>> xsquares;
+        for(size_t i=0;i<qry.size()-1;i++) {
+            // expected freq of q_i,q_i+1
+            double freq_qiqi1 = csa.count(qry.begin()+i,qry.begin()+i+2);
+            double freq_qinotqi1 = freq_single[i] - freq_qiqi1;
+            double freq_notqiqi1 = freq_single[i+1] - freq_qiqi1;
+            double freq_notqinotqi1 = N - freq_qinotqi1;
+
+            double exp_freq_qiqi1 = (freq_single[i]*freq_single[i+1])/N;
+            double exp_freq_qinotqi1 = (freq_single[i]*(freq_notqiqi1+freq_notqinotqi1))/N;
+            double exp_freq_notqiqi1 = (freq_single[i+1]*(freq_notqiqi1+freq_notqinotqi1))/N;
+            double exp_freq_notqinotqi1 = ((freq_qinotqi1+freq_notqinotqi1)*
+                                           (freq_notqiqi1+freq_notqinotqi1))/N;
+
+            double x2 = square(freq_qiqi1-exp_freq_qiqi1)/exp_freq_qiqi1 +
+                        square(freq_qinotqi1-exp_freq_qinotqi1)/exp_freq_qinotqi1 +
+                        square(freq_notqiqi1-exp_freq_notqiqi1)/exp_freq_notqiqi1 +
+                        square(freq_notqinotqi1-exp_freq_notqinotqi1)/exp_freq_notqinotqi1;
+            xsquares.push(std::make_tuple(x2,i,i+1));
+        }
+
+        size_t m = qry.size();
+        std::vector<size_t> used(m);
+        std::iota(used.begin(), used.end(), 0);
+        size_t id=m;
+        while(!xsquares.empty()) {
+            auto cur = xsquares.top(); xsquares.pop();
+            if( std::get<0>(cur) > threshold ) {
+                // check if we use one of the terms already
+                if( used[std::get<1>(cur)] < m and
+                    used[std::get<2>(cur)] < m ) 
+                {
+                    used[std::get<1>(cur)]=id;
+                    used[std::get<2>(cur)]=id;
+                    ++id;
+                }
+            } else {
+                // no more phrases above threshold
+                break;
+            }
+        }
+
+        // add all singletons we have not used
+        for (size_t i=0;i<qry.size();) {
+            std::vector<uint64_t> new_phrase;
+            for (size_t j=i; i<qry.size() and used[i]==used[j];++i){
+                new_phrase.push_back(qry[i]);    
+            }
+            phrases.push_back(new_phrase);
+        }
+        return phrases;
+    }
+
+
+    template<class t_csa>
     static parsed_qry parse_greedy_paul(t_csa& csa,
     								    const std::vector<uint64_t>& qry,
     								    double threshold)
