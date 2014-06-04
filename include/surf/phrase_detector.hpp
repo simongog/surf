@@ -315,7 +315,18 @@ struct phrase_detector {
                                 double threshold)
     {
         parsed_qry phrases;
-        double max_score = index.max_sim_score(qry.begin(),qry.end());
+        double max_score = 0;
+        std::vector<bool> b(qry.size(),0);
+        for (auto begin = qry.begin(); begin != qry.end(); ++begin){
+            b[begin-qry.begin()] = index.max_sim_score(begin, begin+1) < 1;
+        }
+        for (auto begin = qry.begin(); begin != qry.end(); ++begin){
+            for (auto end = begin+1; end != qry.end(); ++end){
+                if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
+                    std::cout<< index.max_sim_score(begin, end+1) <<" ["<<begin-qry.begin()<<","<<end-qry.begin()<<"]"<<std::endl;
+                }
+            }
+        }
         std::cout << "max_score = " << max_score << std::endl;
         return phrases;
     }
