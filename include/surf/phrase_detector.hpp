@@ -318,12 +318,15 @@ struct phrase_detector {
         double max_score = 0;
         std::vector<bool> b(qry.size(),0);
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
-            b[begin-qry.begin()] = index.max_sim_score(begin, begin+1) < 1;
+            b[begin-qry.begin()] = index.max_sim_scores(begin, begin+1)[0] < 1;
         }
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             for (auto end = begin+1; end != qry.end(); ++end){
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
-                    std::cout<< index.max_sim_score(begin, end+1) <<" ["<<begin-qry.begin()<<","<<end-qry.begin()<<"]"<<std::endl;
+                    auto scores = index.max_sim_scores(begin, end+1);
+                    std::cout << " ["<<begin-qry.begin()<<","<<end-qry.begin()<<"] : ";
+                    for(const auto& score : scores) std::cout << score << " -> ";
+                    std::cout << std::endl;
                 }
             }
         }

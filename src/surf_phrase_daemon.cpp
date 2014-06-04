@@ -97,6 +97,7 @@ int main(int argc,char* const argv[])
     	zmq::socket_t server(context, ZMQ_REP);
     	server.bind(std::string("tcp://*:"+args.port).c_str());
 
+        std::map<surf::query_token,surf::result> result_cache;
     	while(true) {
     		zmq::message_t request;
     		/* wait for msg */
@@ -137,11 +138,33 @@ int main(int argc,char* const argv[])
                 q.token_ids.resize(surf_req->nids);
                 std::copy(std::begin(surf_req->qids),std::begin(surf_req->qids)+surf_req->nids,
                           q.token_ids.begin());
-                qry_tokens.push_back(q);
-                auto results = index.search(qry_tokens,1,false,false);
-                surf_resp.max_score = 0.0f;
-                if(results.list.size() != 0)
-                    surf_resp.max_score = results.list[0].score;
+
+                bool found = false;
+                if(surf_req->nids == 1) {
+                    auto itr = result_cache.find(q);
+                    if(itr != result_cache.end()) {
+                        std::cout << rand() << " CACHE HIT!" << std::endl;
+                        size_t n = std::min((size_t)100,itr->second.list.size());
+                        surf_resp.nscores = n;
+                        for(size_t i=0;i<n;i++) surf_resp.max_score[i] = itr->second.list[i].score;
+                        found = true;
+                    }
+                }
+
+                if(!found) {
+                    qry_tokens.push_back(q);
+                    auto results = index.search(qry_tokens,100,false,false);
+                    surf_resp.max_score[0] = 0.0f;
+                    surf_resp.nscores = 0;
+                    if(results.list.size() != 0) {
+                        size_t n = std::min((size_t)100,results.list.size());
+                        surf_resp.nscores = n;
+                        for(size_t i=0;i<n;i++) surf_resp.max_score[i] = results.list[i].score;
+                        if( surf_req->nids == 1 ) {
+                            result_cache[q] = results;
+                        }
+                    }
+                }
             }
 
             if(surf_req->type == REQ_TYPE_PHRASEPROB) {

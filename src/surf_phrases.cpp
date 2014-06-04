@@ -152,7 +152,7 @@ output_qry(uint64_t qid,
             return surf_resp->phrase_prob;
         }
         template<class t_itr>
-        double max_sim_score(t_itr begin,t_itr end) {
+        std::vector<double> max_sim_scores(t_itr begin,t_itr end) {
             // send count req
             surf_phrase_request surf_req;
             surf_req.type = REQ_TYPE_MAXSCORE;
@@ -166,7 +166,10 @@ output_qry(uint64_t qid,
             socket.recv (&reply);
             surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
             m_remote_size = surf_resp->size;
-            return surf_resp->max_score;
+            size_t num_scores = surf_resp->nscores;
+            std::vector<double> scores(num_scores);
+            std::copy(std::begin(surf_resp->max_score),std::begin(surf_resp->max_score)+num_scores,scores.begin());
+            return scores;
         }
     };
 

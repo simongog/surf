@@ -53,7 +53,8 @@ struct surf_phrase_resp {
     uint64_t nids;
     uint64_t qid;
     uint64_t size;
-    double max_score;
+    double nscores;
+    double max_score[100];
     double phrase_prob;
 };
 
