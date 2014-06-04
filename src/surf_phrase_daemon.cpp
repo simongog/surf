@@ -78,18 +78,16 @@ int main(int argc,char* const argv[])
     const auto& id_mapping = term_map.first;
     const auto& reverse_mapping = term_map.second;
 
-    /* load or construct the csa */
-    using csa_type = sdsl::csa_wt<sdsl::wt_int<sdsl::rrr_vector<63>>,1000000,1000000>;
-    csa_type csa;
-    if ( !sdsl::cache_file_exists<csa_type>(surf::KEY_CSA, cc) ) {
-    	std::cerr << "Constructing CSA " << std::endl;	
-        sdsl::construct(csa, "", cc, 0);
-        std::cerr << "Storing CSA " << std::endl;	
-        sdsl::store_to_cache(csa, surf::KEY_CSA, cc, true);
-    } else {
-	    std::cerr << "Loading CSA " << std::endl;	
-    	sdsl::load_from_cache(csa, surf::KEY_CSA, cc, true);
-    }
+    /* define types */
+    using surf_index_t = INDEX_TYPE;
+    std::string index_name = IDXNAME;
+
+    /* load the index */
+    std::cout << "Loading index." << std::endl;
+    surf_index_t index;
+    construct(index, "", cc, 0);
+    index.load(cc);
+    std::cout << "Index loaded." << std::endl;
 
     /* daemon mode */
     {
@@ -127,12 +125,33 @@ int main(int argc,char* const argv[])
 	            }
 	        }
             if(surf_req->type == REQ_TYPE_COUNT) {
-            	auto cnt = sdsl::count(csa,std::begin(surf_req->qids),
+            	auto cnt = sdsl::count(index.m_csa,std::begin(surf_req->qids),
             							   std::begin(surf_req->qids)+surf_req->nids);
             	surf_resp.count = cnt;
-            	surf_resp.size = csa.size();
             }
 
+            if(surf_req->type == REQ_TYPE_MAXSCORE) {
+                std::vector<surf::query_token> qry_tokens;
+                surf::query_token q;
+                q.token_ids.resize(surf_req->nids);
+                std::copy(std::begin(surf_req->qids),std::begin(surf_req->qids)+surf_req->nids,
+                          q.token_ids.begin());
+                qry_tokens.push_back(q);
+                auto results = index.search(qry_tokens,1,false,false);
+                surf_resp.max_score = 0.0f;
+                if(results.list.size() != 0)
+                    surf_resp.max_score = results.list[0].score;
+            }
+
+            if(surf_req->type == REQ_TYPE_PHRASEPROB) {
+                std::vector<uint64_t> ids;
+                ids.resize(surf_req->nids);
+                std::copy(std::begin(surf_req->qids),std::begin(surf_req->qids)+surf_req->nids,
+                          ids.begin());
+                surf_resp.phrase_prob = index.phrase_prob(ids);
+            }
+
+            surf_resp.size = index.m_csa.size();
     		zmq::message_t reply (sizeof(surf_phrase_resp));
     		memcpy(reply.data(),&surf_resp,sizeof(surf_phrase_resp));
     		server.send (reply);

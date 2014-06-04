@@ -16,6 +16,8 @@
 #define REQ_TYPE_TERM2ID     0
 #define REQ_TYPE_ID2TERM     1
 #define REQ_TYPE_COUNT       2
+#define REQ_TYPE_MAXSCORE    3
+#define REQ_TYPE_PHRASEPROB  4
 
 #pragma pack(push, 1)
 struct surf_time_resp {
@@ -51,6 +53,8 @@ struct surf_phrase_resp {
     uint64_t nids;
     uint64_t qid;
     uint64_t size;
+    double max_score;
+    double phrase_prob;
 };
 
 struct surf_qry_request {

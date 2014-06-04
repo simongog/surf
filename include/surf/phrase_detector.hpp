@@ -24,16 +24,16 @@ double prob(double x){
 struct phrase_detector {
     phrase_detector() = delete;
 
-    template<class t_csa>
-    static parsed_qry parse_greedy_lr(t_csa& csa,
+    template<class t_index>
+    static parsed_qry parse_greedy_lr(t_index& index,
     								  const std::vector<uint64_t>& qry,
     								  double threshold)
     {
     	//compute single term probabilities
     	std::vector<double> P_single;
     	for(size_t i=0;i<qry.size();i++) {
-    		auto cnt = csa.count(qry.begin()+i,qry.begin()+i+1);
-    		double single = (double)cnt / (double)csa.size();
+    		auto cnt = index.csa_count(qry.begin()+i,qry.begin()+i+1);
+    		double single = (double)cnt / (double)index.csa_size();
     		P_single.push_back(single);
     	}
 
@@ -48,8 +48,8 @@ struct phrase_detector {
                 if ( end == qry.end() )
                     break;
                 single += prob(P_single[end-qry.begin()]);
-    			auto cnt = csa.count(start, end+1);
-                double joint = prob((double)cnt/csa.size());
+    			auto cnt = index.csa_count(start, end+1);
+                double joint = prob((double)cnt/index.csa_size());
                 assoc_ratio = joint-single;
             } while ( assoc_ratio >= threshold );
             phrases.push_back( std::vector<uint64_t>(start, end) );
@@ -59,8 +59,8 @@ struct phrase_detector {
     }
 
 
-    template<class t_csa>
-    static parsed_qry parse_greedy_paul_x2(t_csa& csa,
+    template<class t_index>
+    static parsed_qry parse_greedy_paul_x2(t_index& index,
                                         const std::vector<uint64_t>& qry,
                                         double threshold)
     {
@@ -68,16 +68,16 @@ struct phrase_detector {
         
         std::vector<double> freq_single;
         for(size_t i=0;i<qry.size();i++) {
-            double freq = csa.count(qry.begin()+i,qry.begin()+i+1);
+            double freq = index.csa_count(qry.begin()+i,qry.begin()+i+1);
             freq_single.push_back(freq);
         }
         // compute adjacent pair probabilities
         auto square = [](double a){ return a*a; };
-        double N = csa.size();
+        double N = index.csa_size();
         std::priority_queue<std::tuple<double,uint64_t,uint64_t>> xsquares;
         for(size_t i=0;i<qry.size()-1;i++) {
             // expected freq of q_i,q_i+1
-            double freq_qiqi1 = csa.count(qry.begin()+i,qry.begin()+i+2);
+            double freq_qiqi1 = index.csa_count(qry.begin()+i,qry.begin()+i+2);
             double freq_qinotqi1 = freq_single[i] - freq_qiqi1;
             double freq_notqiqi1 = freq_single[i+1] - freq_qiqi1;
             double freq_notqinotqi1 = N - freq_qinotqi1;
@@ -128,8 +128,8 @@ struct phrase_detector {
     }
 
 
-    template<class t_csa>
-    static parsed_qry parse_greedy_paul(t_csa& csa,
+    template<class t_index>
+    static parsed_qry parse_greedy_paul(t_index& index,
     								    const std::vector<uint64_t>& qry,
     								    double threshold)
     {
@@ -138,16 +138,16 @@ struct phrase_detector {
     	//compute single term probabilities
     	std::vector<double> P_single;
     	for(size_t i=0;i<qry.size();i++) {
-    		auto cnt = csa.count(qry.begin()+i,qry.begin()+i+1);
-    		double single = (double)cnt / (double)csa.size();
+    		auto cnt = index.csa_count(qry.begin()+i,qry.begin()+i+1);
+    		double single = (double)cnt / (double)index.csa_size();
     		P_single.push_back(prob(single));
     	}
 
     	// compute adjacent pair probabilities
     	std::priority_queue<std::tuple<double,uint64_t,uint64_t>> assoc_pairs;
     	for(size_t i=0;i<qry.size()-1;i++) {
-    		auto cnt = csa.count(qry.begin()+i,qry.begin()+i+2);
-    		double joint = (double)cnt / (double)csa.size();
+    		auto cnt = index.csa_count(qry.begin()+i,qry.begin()+i+2);
+    		double joint = (double)cnt / (double)index.csa_size();
 			// single
 			double single = P_single[i]+P_single[i+1];
 			// calc ratio
@@ -232,16 +232,16 @@ struct phrase_detector {
         return maxi;
     }
 
-    template<class t_csa>
-    static parsed_qry parse_dp(t_csa& csa,
+    template<class t_index>
+    static parsed_qry parse_dp(t_index& index,
     								  const std::vector<uint64_t>& qry,
     								  double threshold)
     {
     	//compute single term probabilities
     	std::vector<double> P_single;
     	for(size_t i=0;i<qry.size();i++) {
-    		auto cnt = csa.count(qry.begin()+i,qry.begin()+i+1);
-    		double single = (double)cnt / (double)csa.size();
+    		auto cnt = index.csa_count(qry.begin()+i,qry.begin()+i+1);
+    		double single = (double)cnt / (double)index.csa_size();
     		P_single.push_back(single);
     	}
 
@@ -253,8 +253,8 @@ struct phrase_detector {
             double assoc_ratio = 0;
             while ( ++end != qry.end() ) {
                 single += prob(P_single[end-qry.begin()]);
-    			auto cnt = csa.count(start, end+1);
-                double joint = prob((double)cnt/csa.size());
+    			auto cnt = index.csa_count(start, end+1);
+                double joint = prob((double)cnt/index.csa_size());
                 assoc_ratio = joint-single;
                 is_phrase[start-qry.begin()][end-qry.begin()] = assoc_ratio >= threshold;
             };
@@ -295,8 +295,8 @@ struct phrase_detector {
     	return phrases;
     }
 
-    template<class t_csa>
-    static parsed_qry parse_none(t_csa& csa,
+    template<class t_index>
+    static parsed_qry parse_none(t_index& index,
     								  const std::vector<uint64_t>& qry,
     								  double threshold)
     {
@@ -307,6 +307,16 @@ struct phrase_detector {
     		phrases.push_back(single);
     	}
     	return phrases;
+    }
+
+    template<class t_index>
+    static parsed_qry parse_bm25(t_index& index,
+                                const std::vector<uint64_t>& qry,
+                                double threshold)
+    {
+        parsed_qry phrases;
+        double max_score = index.max_sim_score(qry.begin(),qry.end());
+        return phrases;
     }
 };
 }// end namespace

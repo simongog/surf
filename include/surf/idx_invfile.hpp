@@ -410,6 +410,10 @@ public:
         }
     }
 
+    double phrase_prob(const std::vector<uint64_t>& ids) const {
+        return 0.0f;
+    }
+    
     void mem_info(){
         std::cout << 0 << ";"; // CSA
         std::cout << 0 << ";"; // WTD^\ell 
