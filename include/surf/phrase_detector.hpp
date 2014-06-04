@@ -316,6 +316,7 @@ struct phrase_detector {
     {
         parsed_qry phrases;
         double max_score = index.max_sim_score(qry.begin(),qry.end());
+        std::cout << "max_score = " << max_score << std::endl;
         return phrases;
     }
 };

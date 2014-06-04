@@ -62,6 +62,7 @@ parse_args(int argc,char* const argv[])
 
 int main(int argc,char* const argv[])
 {
+#ifdef PHRASE_SUPPORT
     /* parse command line */
     cmdargs_t args = parse_args(argc,argv);
 
@@ -157,6 +158,7 @@ int main(int argc,char* const argv[])
     		server.send (reply);
         }
     }
+#endif
 
     return EXIT_SUCCESS;
 }
