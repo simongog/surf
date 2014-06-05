@@ -14,6 +14,7 @@
 #include "surf/query.hpp"
 
 using parsed_qry = std::vector<std::vector<uint64_t>>;
+using heap_t = std::priority_queue<std::pair<double,std::vector<uint64_t>>>;
 
 namespace surf{
 
@@ -25,9 +26,10 @@ struct phrase_detector {
     phrase_detector() = delete;
 
     template<class t_index>
-    static parsed_qry parse_greedy_lr(t_index& index,
+    static void parse_greedy_lr(t_index& index,
     								  const std::vector<uint64_t>& qry,
-    								  double threshold)
+    								  double threshold,
+                                      heap_t& heap)
     {
     	//compute single term probabilities
     	std::vector<double> P_single;
@@ -52,19 +54,17 @@ struct phrase_detector {
                 double joint = prob((double)cnt/index.csa_size());
                 assoc_ratio = joint-single;
             } while ( assoc_ratio >= threshold );
-            phrases.push_back( std::vector<uint64_t>(start, end) );
+            heap.emplace(assoc_ratio,std::vector<uint64_t>(start, end));
             start = end;
         }
-    	return phrases;
     }
 
-
     template<class t_index>
-    static parsed_qry parse_greedy_paul_x2(t_index& index,
+    static void parse_x2(t_index& index,
                                         const std::vector<uint64_t>& qry,
-                                        double threshold)
+                                        double threshold,
+                                        heap_t& heap)
     {
-        parsed_qry phrases;
         
         std::vector<double> freq_single;
         for(size_t i=0;i<qry.size();i++) {
@@ -74,7 +74,6 @@ struct phrase_detector {
         // compute adjacent pair probabilities
         auto square = [](double a){ return a*a; };
         double N = index.csa_size();
-        std::priority_queue<std::tuple<double,uint64_t,uint64_t>> xsquares;
         for(size_t i=0;i<qry.size()-1;i++) {
             // expected freq of q_i,q_i+1
             double freq_qiqi1 = index.csa_count(qry.begin()+i,qry.begin()+i+2);
@@ -92,49 +91,17 @@ struct phrase_detector {
                         square(freq_qinotqi1-exp_freq_qinotqi1)/exp_freq_qinotqi1 +
                         square(freq_notqiqi1-exp_freq_notqiqi1)/exp_freq_notqiqi1 +
                         square(freq_notqinotqi1-exp_freq_notqinotqi1)/exp_freq_notqinotqi1;
-            xsquares.push(std::make_tuple(x2,i,i+1));
+            heap.emplace(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+1));
         }
-
-        size_t m = qry.size();
-        std::vector<size_t> used(m);
-        std::iota(used.begin(), used.end(), 0);
-        size_t id=m;
-        while(!xsquares.empty()) {
-            auto cur = xsquares.top(); xsquares.pop();
-            if( std::get<0>(cur) > threshold ) {
-                // check if we use one of the terms already
-                if( used[std::get<1>(cur)] < m and
-                    used[std::get<2>(cur)] < m ) 
-                {
-                    used[std::get<1>(cur)]=id;
-                    used[std::get<2>(cur)]=id;
-                    ++id;
-                }
-            } else {
-                // no more phrases above threshold
-                break;
-            }
-        }
-
-        // add all singletons we have not used
-        for (size_t i=0;i<qry.size();) {
-            std::vector<uint64_t> new_phrase;
-            for (size_t j=i; i<qry.size() and used[i]==used[j];++i){
-                new_phrase.push_back(qry[i]);    
-            }
-            phrases.push_back(new_phrase);
-        }
-        return phrases;
     }
 
 
     template<class t_index>
-    static parsed_qry parse_greedy_paul(t_index& index,
+    static void parse_greedy_paul(t_index& index,
     								    const std::vector<uint64_t>& qry,
-    								    double threshold)
+    								    double threshold,
+                                        heap_t& heap)
     {
-    	parsed_qry phrases;
-
     	//compute single term probabilities
     	std::vector<double> P_single;
     	for(size_t i=0;i<qry.size();i++) {
@@ -143,8 +110,6 @@ struct phrase_detector {
     		P_single.push_back(prob(single));
     	}
 
-    	// compute adjacent pair probabilities
-    	std::priority_queue<std::tuple<double,uint64_t,uint64_t>> assoc_pairs;
     	for(size_t i=0;i<qry.size()-1;i++) {
     		auto cnt = index.csa_count(qry.begin()+i,qry.begin()+i+2);
     		double joint = (double)cnt / (double)index.csa_size();
@@ -152,40 +117,9 @@ struct phrase_detector {
 			double single = P_single[i]+P_single[i+1];
 			// calc ratio
 			double assoc_ratio = prob(joint)-single;
-    		assoc_pairs.push(std::make_tuple(assoc_ratio,i,i+1));
+            heap.emplace(assoc_ratio,
+                std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+1));
     	}
-
-        size_t m = qry.size();
-        std::vector<size_t> used(m);
-        std::iota(used.begin(), used.end(), 0);
-        size_t id=m;
-    	while(!assoc_pairs.empty()) {
-    		auto cur = assoc_pairs.top(); assoc_pairs.pop();
-    		if( std::get<0>(cur) > threshold ) {
-    			// check if we use one of the terms already
-    			if( used[std::get<1>(cur)] < m and
-    				used[std::get<2>(cur)] < m ) 
-  				{
-  					used[std::get<1>(cur)]=id;
-  					used[std::get<2>(cur)]=id;
-                    ++id;
-    			}
-    		} else {
-    			// no more phrases above threshold
-    			break;
-    		}
-    	}
-
-    	// add all singletons we have not used
-    	for (size_t i=0;i<qry.size();) {
-            std::vector<uint64_t> new_phrase;
-            for (size_t j=i; i<qry.size() and used[i]==used[j];++i){
-                new_phrase.push_back(qry[i]);    
-            }
-            phrases.push_back(new_phrase);
-    	}
-
-    	return phrases;
     }
 
     typedef std::vector<bool> tVB;
@@ -233,9 +167,10 @@ struct phrase_detector {
     }
 
     template<class t_index>
-    static parsed_qry parse_dp(t_index& index,
+    static void parse_dp(t_index& index,
     								  const std::vector<uint64_t>& qry,
-    								  double threshold)
+    								  double threshold,
+                                      heap_t& heap)
     {
     	//compute single term probabilities
     	std::vector<double> P_single;
@@ -291,31 +226,14 @@ struct phrase_detector {
                 ++j;
             }
         }
-        
-    	return phrases;
     }
 
     template<class t_index>
-    static parsed_qry parse_none(t_index& index,
-    								  const std::vector<uint64_t>& qry,
-    								  double threshold)
-    {
-    	parsed_qry phrases;
-    	for(const auto& id : qry) {
-    		std::vector<uint64_t> single;
-    		single.push_back(id);
-    		phrases.push_back(single);
-    	}
-    	return phrases;
-    }
-
-    template<class t_index>
-    static parsed_qry parse_bm25(t_index& index,
+    static void parse_bm25(t_index& index,
                                 const std::vector<uint64_t>& qry,
-                                double threshold)
+                                double threshold,
+                                heap_t& heap)
     {
-        parsed_qry phrases;
-        double max_score = 0;
         std::vector<bool> b(qry.size(),0);
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             b[begin-qry.begin()] = index.max_sim_scores(begin, begin+1)[0] < 1;
@@ -324,14 +242,24 @@ struct phrase_detector {
             for (auto end = begin+1; end != qry.end(); ++end){
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
                     auto scores = index.max_sim_scores(begin, end+1);
-                    std::cout << " ["<<begin-qry.begin()<<","<<end-qry.begin()<<"] : ";
-                    for(const auto& score : scores) std::cout << score << " -> ";
-                    std::cout << std::endl;
+                    heap.emplace(scores[0],std::vector<uint64_t>(begin,end+1));
                 }
             }
         }
-        std::cout << "max_score = " << max_score << std::endl;
-        return phrases;
+    }
+
+    template<class t_index>
+    static void parse_exist_prob(t_index& index,
+                                const std::vector<uint64_t>& qry,
+                                double threshold,
+                                heap_t& heap)
+    {
+        for (auto begin = qry.begin(); begin != qry.end(); ++begin) {
+            for (auto end = begin+1; end != qry.end(); ++end){
+                auto prob = index.phrase_prob(begin,end+1);
+                heap.emplace(prob,std::vector<uint64_t>(begin,end+1));
+            }
+        }
     }
 };
 }// end namespace

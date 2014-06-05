@@ -59,19 +59,18 @@ parse_args(int argc,char* const argv[])
 }
 
 void
-output_qry(uint64_t qid,
-		   const std::string& method,
-		   const std::vector<std::vector<uint64_t>> parsed_qry,
-		   zmq::socket_t& socket,
-		   double threshold)
+output_topk(const std::string& method,zmq::socket_t& socket,
+            std::priority_queue<std::pair<double,std::vector<uint64_t>>> heap,size_t k) 
 {
-	std::cout << qid << ";";
-	std::cout << method << ";";
-	std::cout << threshold << ";";
-	for(const auto& token : parsed_qry) {
-		std::cout << "[";
-		bool first = true;
-		for(const auto& id : token) {
+    auto max_score = heap.top().first;
+    for(size_t i=0;i<k;i++) {
+        if(heap.empty()) break;
+        auto top = heap.top(); heap.pop();
+        const auto& tokens = top.second;
+        auto score = top.first;
+        std::cout << std::setw(6) << i+1 << "[";
+        bool first = true;
+        for(const auto& id : tokens) {
             // lookup str
             surf_phrase_request surf_req;
             surf_req.type = REQ_TYPE_ID2TERM;
@@ -83,95 +82,93 @@ output_qry(uint64_t qid,
             zmq::message_t reply;
             socket.recv (&reply);
             surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
-        	if(!first) {
-        		std::cout << " ";
-        	}
+            if(!first) {
+                std::cout << " ";
+            }
             std::cout << surf_resp->term_str;
             first = false;
-		}
-		std::cout << "]";
-	}
-	std::cout << std::endl;
+        }
+        std::cout << "]   -   " << score/max_score << std::endl;
+    }
 }
 
-
-    struct zmq_index {
-        size_t m_remote_size = 0;
-        zmq::socket_t& socket;
-        zmq_index(zmq::socket_t& s) : socket(s) {}
-        template<class t_itr>
-        size_t csa_count(t_itr begin,t_itr end) {
-            // send count req
+struct zmq_index {
+    size_t m_remote_size = 0;
+    zmq::socket_t& socket;
+    zmq_index(zmq::socket_t& s) : socket(s) {}
+    template<class t_itr>
+    size_t csa_count(t_itr begin,t_itr end) {
+        // send count req
+        surf_phrase_request surf_req;
+        surf_req.type = REQ_TYPE_COUNT;
+        surf_req.nids = end-begin;
+        std::copy(begin,end,std::begin(surf_req.qids));
+        zmq::message_t request(sizeof(surf_phrase_request));
+        memcpy ((void *) request.data (), &surf_req, sizeof(surf_phrase_request));
+        socket.send (request);
+        // get answer
+        zmq::message_t reply;
+        socket.recv (&reply);
+        surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
+        m_remote_size = surf_resp->size;
+        return surf_resp->count;
+    }
+    size_t csa_size() {
+        if(m_remote_size==0) {
             surf_phrase_request surf_req;
             surf_req.type = REQ_TYPE_COUNT;
-            surf_req.nids = end-begin;
-            std::copy(begin,end,std::begin(surf_req.qids));
+            surf_req.nids = 1;
+            surf_req.qids[0] = 1;
             zmq::message_t request(sizeof(surf_phrase_request));
-            memcpy ((void *) request.data (), &surf_req, sizeof(surf_phrase_request));
+            memcpy ((void *) request.data (), 
+                    &surf_req, sizeof(surf_phrase_request));
             socket.send (request);
             // get answer
             zmq::message_t reply;
             socket.recv (&reply);
             surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
             m_remote_size = surf_resp->size;
-            return surf_resp->count;
         }
-        size_t csa_size() {
-            if(m_remote_size==0) {
-                surf_phrase_request surf_req;
-                surf_req.type = REQ_TYPE_COUNT;
-                surf_req.nids = 1;
-                surf_req.qids[0] = 1;
-                zmq::message_t request(sizeof(surf_phrase_request));
-                memcpy ((void *) request.data (), 
-                        &surf_req, sizeof(surf_phrase_request));
-                socket.send (request);
-                // get answer
-                zmq::message_t reply;
-                socket.recv (&reply);
-                surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
-                m_remote_size = surf_resp->size;
-            }
-            return m_remote_size;
-        }
-        template<class t_itr>
-        double phrase_prob(t_itr begin,t_itr end) {
-            // send count req
-            surf_phrase_request surf_req;
-            surf_req.type = REQ_TYPE_PHRASEPROB;
-            surf_req.nids = end-begin;
-            std::copy(begin,end,std::begin(surf_req.qids));
-            zmq::message_t request(sizeof(surf_phrase_request));
-            memcpy ((void *) request.data (), &surf_req, sizeof(surf_phrase_request));
-            socket.send (request);
-            // get answer
-            zmq::message_t reply;
-            socket.recv (&reply);
-            surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
-            m_remote_size = surf_resp->size;
-            return surf_resp->phrase_prob;
-        }
-        template<class t_itr>
-        std::vector<double> max_sim_scores(t_itr begin,t_itr end) {
-            // send count req
-            surf_phrase_request surf_req;
-            surf_req.type = REQ_TYPE_MAXSCORE;
-            surf_req.nids = end-begin;
-            std::copy(begin,end,std::begin(surf_req.qids));
-            zmq::message_t request(sizeof(surf_phrase_request));
-            memcpy ((void *) request.data (), &surf_req, sizeof(surf_phrase_request));
-            socket.send (request);
-            // get answer
-            zmq::message_t reply;
-            socket.recv (&reply);
-            surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
-            m_remote_size = surf_resp->size;
-            size_t num_scores = surf_resp->nscores;
-            std::vector<double> scores(num_scores);
-            std::copy(std::begin(surf_resp->max_score),std::begin(surf_resp->max_score)+num_scores,scores.begin());
-            return scores;
-        }
-    };
+        return m_remote_size;
+    }
+    template<class t_itr>
+    double phrase_prob(t_itr begin,t_itr end) {
+        // send count req
+        surf_phrase_request surf_req;
+        surf_req.type = REQ_TYPE_PHRASEPROB;
+        surf_req.nids = end-begin;
+        std::copy(begin,end,std::begin(surf_req.qids));
+        zmq::message_t request(sizeof(surf_phrase_request));
+        memcpy ((void *) request.data (), &surf_req, sizeof(surf_phrase_request));
+        socket.send (request);
+        // get answer
+        zmq::message_t reply;
+        socket.recv (&reply);
+        surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
+        m_remote_size = surf_resp->size;
+        return surf_resp->phrase_prob;
+    }
+    template<class t_itr>
+    std::vector<double> max_sim_scores(t_itr begin,t_itr end) {
+        // send count req
+        surf_phrase_request surf_req;
+        surf_req.type = REQ_TYPE_MAXSCORE;
+        surf_req.nids = end-begin;
+        std::copy(begin,end,std::begin(surf_req.qids));
+        zmq::message_t request(sizeof(surf_phrase_request));
+        memcpy ((void *) request.data (), &surf_req, sizeof(surf_phrase_request));
+        socket.send (request);
+        // get answer
+        zmq::message_t reply;
+        socket.recv (&reply);
+        surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
+        m_remote_size = surf_resp->size;
+        size_t num_scores = surf_resp->nscores;
+        std::vector<double> scores(num_scores);
+        std::copy(std::begin(surf_resp->max_score),std::begin(surf_resp->max_score)+num_scores,scores.begin());
+        return scores;
+    }
+};
 
 int main(int argc,char* const argv[])
 {
@@ -201,6 +198,13 @@ int main(int argc,char* const argv[])
 
 
     /* process the queries */
+    std::priority_queue<std::pair<double,std::vector<uint64_t>>>  heap_greedy_lr;
+    std::priority_queue<std::pair<double,std::vector<uint64_t>>>  heap_greedy_paul;
+    std::priority_queue<std::pair<double,std::vector<uint64_t>>>  heap_x2;
+    std::priority_queue<std::pair<double,std::vector<uint64_t>>>  heap_greedy_x2;
+    std::priority_queue<std::pair<double,std::vector<uint64_t>>>  heap_bm25;
+    std::priority_queue<std::pair<double,std::vector<uint64_t>>>  heap_exist_prob;
+
     std::cerr << "Processing queries..." << std::endl;
     zmq_index index(socket);
     for(const auto& query: queries) {
@@ -219,25 +223,20 @@ int main(int argc,char* const argv[])
                   qry_ids.begin());
 
         // perform phrase stuff
-        auto parsed_query_none = surf::phrase_detector::parse_none(index,qry_ids,args.threshold);
-        output_qry(surf_resp->qid,"NO-PARSE",parsed_query_none,socket,args.threshold);
-
-        auto parsed_query_greedy = surf::phrase_detector::parse_greedy_lr(index,qry_ids,args.threshold);
-        output_qry(surf_resp->qid,"GREEDY",parsed_query_greedy,socket,args.threshold);
-
-        auto parsed_query_gpaul = surf::phrase_detector::parse_greedy_paul(index,qry_ids,args.threshold);
-        output_qry(surf_resp->qid,"GREEDY-PAUL",parsed_query_gpaul,socket,args.threshold);
-
-        auto parsed_query_dp = surf::phrase_detector::parse_dp(index,qry_ids,args.threshold);
-        output_qry(surf_resp->qid,"DP",parsed_query_dp,socket,args.threshold);
-
-        auto parsed_query_x2 = surf::phrase_detector::parse_greedy_paul_x2(index,qry_ids,args.threshold);
-        output_qry(surf_resp->qid,"X2",parsed_query_x2,socket,args.threshold);
-
-        auto parsed_query_bm25 = surf::phrase_detector::parse_bm25(index,qry_ids,args.threshold);
-        output_qry(surf_resp->qid,"BM25",parsed_query_x2,socket,args.threshold);
+        surf::phrase_detector::parse_greedy_lr(index,qry_ids,args.threshold,heap_greedy_lr);
+        surf::phrase_detector::parse_greedy_paul(index,qry_ids,args.threshold,heap_greedy_paul);
+        surf::phrase_detector::parse_x2(index,qry_ids,args.threshold,heap_x2);
+        //surf::phrase_detector::parse_greedy_x2(index,qry_ids,args.threshold,heap_greedy_x2);
+        surf::phrase_detector::parse_bm25(index,qry_ids,args.threshold,heap_bm25);
+        surf::phrase_detector::parse_exist_prob(index,qry_ids,args.threshold,heap_exist_prob);
     }
 
+    output_topk("GREEDY-LR",socket,heap_greedy_lr,100);
+    output_topk("GREEDY-PAUL",socket,heap_greedy_paul,100);
+    output_topk("X2",socket,heap_x2,100);
+    output_topk("GREEDY-X2",socket,heap_greedy_x2,100);
+    output_topk("BM25",socket,heap_bm25,100);
+    output_topk("EXIST-PROB",socket,heap_exist_prob,100);
 
     return EXIT_SUCCESS;
 }
