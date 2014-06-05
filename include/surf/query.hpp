@@ -40,11 +40,36 @@ struct query_token{
         return std::lexicographical_compare(token_ids.begin(), token_ids.end(),
                                             qt.token_ids.begin(), qt.token_ids.end());
     }
+    bool operator==(const query_token& qt) const {
+        return std::equal(token_ids.begin(), token_ids.end(),qt.token_ids.begin());
+    }
 };
+
+
 
 using query_t = std::tuple<uint64_t,std::vector<query_token>>;
 
 
+}
+
+namespace std
+{
+    template<>
+    struct hash<surf::query_token>
+    {
+        typedef surf::query_token argument_type;
+        typedef std::size_t value_type;
+ 
+        value_type operator()(argument_type const& s) const
+        {
+            std::hash<uint64_t> hash_fn;
+            value_type hash = 4711;
+            for(const auto& id : s.token_ids) {
+                hash ^= hash_fn(id);
+            }
+            return hash;
+        }
+    };
 }
 
 #endif

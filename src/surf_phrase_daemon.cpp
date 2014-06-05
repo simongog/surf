@@ -3,6 +3,8 @@
 #include <iostream>
 #include <iomanip>
 #include <ctime>
+#include <thread>
+#include <mutex>
 
 #include <string>
 #include <sys/types.h>
@@ -32,6 +34,67 @@ print_usage(char* program)
     fprintf(stdout,"  -p <port>  : the port the daemon is running on.\n");
 };
 
+std::unordered_map<surf::query_token,surf::result> score_cache;
+std::mutex score_mutex;
+
+void add_to_score_cache(const surf::query_token& q,const surf::result& r) {
+    std::lock_guard<std::mutex> lock(score_mutex);
+    if( score_cache.count(q) == 0 ) {
+        score_cache[q] = r;
+    }
+}
+
+bool is_score_cached(const surf::query_token& q) {
+    std::lock_guard<std::mutex> lock(score_mutex);
+    return score_cache.count(q) != 0;
+}
+
+surf::result get_cached_score(const surf::query_token& q) {
+    std::lock_guard<std::mutex> lock(score_mutex);
+    return score_cache.find(q)->second;
+}
+
+namespace std
+{
+    template<>
+    struct hash<std::vector<uint64_t>>
+    {
+        typedef std::vector<uint64_t> argument_type;
+        typedef std::size_t value_type;
+ 
+        value_type operator()(argument_type const& s) const
+        {
+            std::hash<uint64_t> hash_fn;
+            value_type hash = 4711;
+            for(const auto& id : s) {
+                hash ^= hash_fn(id);
+            }
+            return hash;
+        }
+    };
+}
+
+std::unordered_map<std::vector<uint64_t>,double> prob_cache;
+std::mutex prob_mutex;
+
+void add_to_prob_cache(const std::vector<uint64_t>& q,double r) {
+    std::lock_guard<std::mutex> lock(prob_mutex);
+    if( prob_cache.count(q) == 0 ) {
+        prob_cache[q] = r;
+    }
+}
+
+bool is_prob_cached(const std::vector<uint64_t>& q) {
+    std::lock_guard<std::mutex> lock(prob_mutex);
+    return prob_cache.count(q) != 0;
+}
+
+double get_cached_prob(const std::vector<uint64_t>& q) {
+    std::lock_guard<std::mutex> lock(prob_mutex);
+    return prob_cache.find(q)->second;
+}
+
+
 cmdargs_t
 parse_args(int argc,char* const argv[])
 {
@@ -60,6 +123,101 @@ parse_args(int argc,char* const argv[])
     return args;
 }
 
+template<class t_index>
+void worker(const t_index& index,const surf::query_parser::mapping_t& tm,zmq::context_t* context)
+{
+    const auto& id_mapping = tm.first;
+    const auto& reverse_mapping = tm.second;
+    zmq::socket_t socket(*context, ZMQ_REP);
+    socket.connect("inproc://workers");
+    while(true) {
+        zmq::message_t request;
+        socket.recv(&request);
+
+        surf_phrase_request* surf_req = (surf_phrase_request*) request.data();
+
+        surf_phrase_resp surf_resp;
+        if(surf_req->type == REQ_TYPE_TERM2ID) {
+            auto qry_mapping = surf::query_parser::map_to_ids(id_mapping,
+                    std::string(surf_req->qry_str),true,false);
+            if(std::get<0>(qry_mapping)) {
+                auto qid = std::get<1>(qry_mapping);
+                auto qry_ids = std::get<2>(qry_mapping);
+                surf_resp.qid = qid;
+                surf_resp.nids = qry_ids.size();
+                for(size_t i=0;i<surf_resp.nids;i++) 
+                    surf_resp.ids[i] = qry_ids[i];
+            }
+
+        }
+        if(surf_req->type == REQ_TYPE_ID2TERM) {
+            auto id = surf_req->qids[0];
+            auto revitr = reverse_mapping.find(id);
+            if(revitr != reverse_mapping.end()) {
+                std::copy(std::begin(revitr->second),std::end(revitr->second),
+                          std::begin(surf_resp.term_str));
+            }
+        }
+        if(surf_req->type == REQ_TYPE_COUNT) {
+            auto cnt = sdsl::count(index.m_csa,std::begin(surf_req->qids),
+                                       std::begin(surf_req->qids)+surf_req->nids);
+            surf_resp.count = cnt;
+        }
+
+        if(surf_req->type == REQ_TYPE_MAXSCORE) {
+            std::vector<surf::query_token> qry_tokens;
+            surf::query_token q;
+            q.token_ids.resize(surf_req->nids);
+            std::copy(std::begin(surf_req->qids),std::begin(surf_req->qids)+surf_req->nids,
+                      q.token_ids.begin());
+
+            bool found = false;
+            if(surf_req->nids == 1) {
+                if(is_score_cached(q)) {
+                    auto res = get_cached_score(q);
+                    size_t n = std::min((size_t)100,res.list.size());
+                    surf_resp.nscores = n;
+                    for(size_t i=0;i<n;i++) surf_resp.max_score[i] = res.list[i].score;
+                    found = true;
+                }
+            }
+
+            if(!found) {
+                qry_tokens.push_back(q);
+                auto results = index.search(qry_tokens,100,false,false);
+                surf_resp.max_score[0] = 0.0f;
+                surf_resp.nscores = 0;
+                if(results.list.size() != 0) {
+                    size_t n = std::min((size_t)100,results.list.size());
+                    surf_resp.nscores = n;
+                    for(size_t i=0;i<n;i++) surf_resp.max_score[i] = results.list[i].score;
+                    if( surf_req->nids == 1 ) {
+                        add_to_score_cache(q,results);
+                    }
+                }
+            }
+        }
+
+        if(surf_req->type == REQ_TYPE_PHRASEPROB) {
+            std::vector<uint64_t> ids;
+            ids.resize(surf_req->nids);
+            std::copy(std::begin(surf_req->qids),std::begin(surf_req->qids)+surf_req->nids,
+                      ids.begin());
+            if(is_prob_cached(ids)) {
+                surf_resp.phrase_prob = get_cached_prob(ids);
+            } else {
+                surf_resp.phrase_prob = index.phrase_prob(ids);
+                add_to_prob_cache(ids,surf_resp.phrase_prob);
+            }
+        }
+
+        surf_resp.size = index.m_csa.size();
+        zmq::message_t reply (sizeof(surf_phrase_resp));
+        memcpy(reply.data(),&surf_resp,sizeof(surf_phrase_resp));
+        socket.send (reply);
+    }
+}
+
 int main(int argc,char* const argv[])
 {
 #ifdef PHRASE_SUPPORT
@@ -76,8 +234,6 @@ int main(int argc,char* const argv[])
     surf::query_parser::mapping_t term_map;
     std::cout << "Loading dictionary and creating term map." << std::endl;
     term_map = surf::query_parser::load_dictionary(args.collection_dir);
-    const auto& id_mapping = term_map.first;
-    const auto& reverse_mapping = term_map.second;
 
     /* define types */
     using surf_index_t = INDEX_TYPE;
@@ -94,92 +250,16 @@ int main(int argc,char* const argv[])
     {
     	std::cout << "Starting daemon mode on port " << args.port << std::endl;
     	zmq::context_t context(1);
-    	zmq::socket_t server(context, ZMQ_REP);
-    	server.bind(std::string("tcp://*:"+args.port).c_str());
-
-        std::map<surf::query_token,surf::result> result_cache;
-    	while(true) {
-    		zmq::message_t request;
-    		/* wait for msg */
-    		server.recv(&request);
-            surf_phrase_request* surf_req = (surf_phrase_request*) request.data();
-
-            surf_phrase_resp surf_resp;
-            if(surf_req->type == REQ_TYPE_TERM2ID) {
-                auto qry_mapping = surf::query_parser::map_to_ids(id_mapping,
-                        std::string(surf_req->qry_str),true,false);
-                if(std::get<0>(qry_mapping)) {
-                    auto qid = std::get<1>(qry_mapping);
-                    auto qry_ids = std::get<2>(qry_mapping);
-	                surf_resp.qid = qid;
-	                surf_resp.nids = qry_ids.size();
-	                for(size_t i=0;i<surf_resp.nids;i++) 
-	                	surf_resp.ids[i] = qry_ids[i];
-                }
-
-            }
-            if(surf_req->type == REQ_TYPE_ID2TERM) {
-            	auto id = surf_req->qids[0];
-            	auto revitr = reverse_mapping.find(id);
-	            if(revitr != reverse_mapping.end()) {
-	            	std::copy(std::begin(revitr->second),std::end(revitr->second),
-	            			  std::begin(surf_resp.term_str));
-	            }
-	        }
-            if(surf_req->type == REQ_TYPE_COUNT) {
-            	auto cnt = sdsl::count(index.m_csa,std::begin(surf_req->qids),
-            							   std::begin(surf_req->qids)+surf_req->nids);
-            	surf_resp.count = cnt;
-            }
-
-            if(surf_req->type == REQ_TYPE_MAXSCORE) {
-                std::vector<surf::query_token> qry_tokens;
-                surf::query_token q;
-                q.token_ids.resize(surf_req->nids);
-                std::copy(std::begin(surf_req->qids),std::begin(surf_req->qids)+surf_req->nids,
-                          q.token_ids.begin());
-
-                bool found = false;
-                if(surf_req->nids == 1) {
-                    auto itr = result_cache.find(q);
-                    if(itr != result_cache.end()) {
-                        std::cout << rand() << " CACHE HIT!" << std::endl;
-                        size_t n = std::min((size_t)100,itr->second.list.size());
-                        surf_resp.nscores = n;
-                        for(size_t i=0;i<n;i++) surf_resp.max_score[i] = itr->second.list[i].score;
-                        found = true;
-                    }
-                }
-
-                if(!found) {
-                    qry_tokens.push_back(q);
-                    auto results = index.search(qry_tokens,100,false,false);
-                    surf_resp.max_score[0] = 0.0f;
-                    surf_resp.nscores = 0;
-                    if(results.list.size() != 0) {
-                        size_t n = std::min((size_t)100,results.list.size());
-                        surf_resp.nscores = n;
-                        for(size_t i=0;i<n;i++) surf_resp.max_score[i] = results.list[i].score;
-                        if( surf_req->nids == 1 ) {
-                            result_cache[q] = results;
-                        }
-                    }
-                }
-            }
-
-            if(surf_req->type == REQ_TYPE_PHRASEPROB) {
-                std::vector<uint64_t> ids;
-                ids.resize(surf_req->nids);
-                std::copy(std::begin(surf_req->qids),std::begin(surf_req->qids)+surf_req->nids,
-                          ids.begin());
-                surf_resp.phrase_prob = index.phrase_prob(ids);
-            }
-
-            surf_resp.size = index.m_csa.size();
-    		zmq::message_t reply (sizeof(surf_phrase_resp));
-    		memcpy(reply.data(),&surf_resp,sizeof(surf_phrase_resp));
-    		server.send (reply);
+        zmq::socket_t clients(context, ZMQ_ROUTER);
+        clients.bind(std::string("tcp://*:"+args.port).c_str());
+        zmq::socket_t workers(context, ZMQ_DEALER);
+        zmq_bind(workers, "inproc://workers");
+        // create workers
+        std::thread threads[10];
+        for(size_t i=0;i<10;i++) {
+            threads[i] = std::thread(worker<surf_index_t>,index,term_map,&context);
         }
+        zmq_device(ZMQ_QUEUE, (void*)clients, (void*)workers);
     }
 #endif
 
