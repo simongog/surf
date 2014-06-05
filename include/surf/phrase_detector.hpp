@@ -102,6 +102,25 @@ struct phrase_detector {
         }
     }
 
+    template<class t_index>
+    static void parse_greedy_x2(t_index& index,
+                                        const std::vector<uint64_t>& qry,
+                                        double threshold,
+                                        heap_t& heap)
+    {
+        
+        std::vector<double> freq_single;
+        for(size_t i=0;i<qry.size();i++) {
+            double freq = index.csa_count(qry.begin()+i,qry.begin()+i+1);
+            freq_single.push_back(freq);
+        }
+        // compute adjacent pair probabilities
+        std::vector<double> pair_x2;
+        for(size_t i=0;i<qry.size()-1;i++) {
+           double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
+           pair_x2.push_back(x2);
+        }
+    }
 
     template<class t_index>
     static void parse_greedy_paul(t_index& index,
@@ -264,10 +283,18 @@ struct phrase_detector {
                                 double threshold,
                                 heap_t& heap)
     {
-        for (auto begin = qry.begin(); begin != qry.end(); ++begin) {
+        std::vector<bool> b(qry.size(),0);
+        for (auto begin = qry.begin(); begin != qry.end(); ++begin){
+            auto scores = index.max_sim_scores(begin, begin+1);
+            if(!scores.empty())
+                b[begin-qry.begin()] = scores[0] < 1;
+        }
+        for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             for (auto end = begin+1; end != qry.end(); ++end){
-                auto prob = index.phrase_prob(begin,end+1);
-                heap.emplace(prob,std::vector<uint64_t>(begin,end+1));
+                if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
+                    auto prob = index.phrase_prob(begin,end+1);
+                    heap.emplace(prob,std::vector<uint64_t>(begin,end+1));
+                }
             }
         }
     }
