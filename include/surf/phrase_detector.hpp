@@ -59,6 +59,30 @@ struct phrase_detector {
         }
     }
 
+    template<class t_index,class t_itr>
+    static double compute_x2(const std::vector<double>& freq_single,t_index& index,size_t i,t_itr begin,t_itr end)
+    {
+        auto square = [](double a){ return a*a; };
+        double N = index.csa_size();
+        // expected freq of q_i,q_i+1
+        double freq_qiqi1 = index.csa_count(begin,end);
+        double freq_qinotqi1 = freq_single[i] - freq_qiqi1;
+        double freq_notqiqi1 = freq_single[i+1] - freq_qiqi1;
+        double freq_notqinotqi1 = N - freq_qinotqi1;
+
+        double exp_freq_qiqi1 = (freq_single[i]*freq_single[i+1])/N;
+        double exp_freq_qinotqi1 = (freq_single[i]*(freq_notqiqi1+freq_notqinotqi1))/N;
+        double exp_freq_notqiqi1 = (freq_single[i+1]*(freq_notqiqi1+freq_notqinotqi1))/N;
+        double exp_freq_notqinotqi1 = ((freq_qinotqi1+freq_notqinotqi1)*
+                                       (freq_notqiqi1+freq_notqinotqi1))/N;
+
+        double x2 = square(freq_qiqi1-exp_freq_qiqi1)/exp_freq_qiqi1 +
+                    square(freq_qinotqi1-exp_freq_qinotqi1)/exp_freq_qinotqi1 +
+                    square(freq_notqiqi1-exp_freq_notqiqi1)/exp_freq_notqiqi1 +
+                    square(freq_notqinotqi1-exp_freq_notqinotqi1)/exp_freq_notqinotqi1;
+        return x2; 
+    }
+
     template<class t_index>
     static void parse_x2(t_index& index,
                                         const std::vector<uint64_t>& qry,
@@ -72,26 +96,9 @@ struct phrase_detector {
             freq_single.push_back(freq);
         }
         // compute adjacent pair probabilities
-        auto square = [](double a){ return a*a; };
-        double N = index.csa_size();
         for(size_t i=0;i<qry.size()-1;i++) {
-            // expected freq of q_i,q_i+1
-            double freq_qiqi1 = index.csa_count(qry.begin()+i,qry.begin()+i+2);
-            double freq_qinotqi1 = freq_single[i] - freq_qiqi1;
-            double freq_notqiqi1 = freq_single[i+1] - freq_qiqi1;
-            double freq_notqinotqi1 = N - freq_qinotqi1;
-
-            double exp_freq_qiqi1 = (freq_single[i]*freq_single[i+1])/N;
-            double exp_freq_qinotqi1 = (freq_single[i]*(freq_notqiqi1+freq_notqinotqi1))/N;
-            double exp_freq_notqiqi1 = (freq_single[i+1]*(freq_notqiqi1+freq_notqinotqi1))/N;
-            double exp_freq_notqinotqi1 = ((freq_qinotqi1+freq_notqinotqi1)*
-                                           (freq_notqiqi1+freq_notqinotqi1))/N;
-
-            double x2 = square(freq_qiqi1-exp_freq_qiqi1)/exp_freq_qiqi1 +
-                        square(freq_qinotqi1-exp_freq_qinotqi1)/exp_freq_qinotqi1 +
-                        square(freq_notqiqi1-exp_freq_notqiqi1)/exp_freq_notqiqi1 +
-                        square(freq_notqinotqi1-exp_freq_notqinotqi1)/exp_freq_notqinotqi1;
-            heap.emplace(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+1));
+           double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
+           heap.emplace(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
         }
     }
 
@@ -118,7 +125,7 @@ struct phrase_detector {
 			// calc ratio
 			double assoc_ratio = prob(joint)-single;
             heap.emplace(assoc_ratio,
-                std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+1));
+                std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
     	}
     }
 
@@ -236,13 +243,16 @@ struct phrase_detector {
     {
         std::vector<bool> b(qry.size(),0);
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
-            b[begin-qry.begin()] = index.max_sim_scores(begin, begin+1)[0] < 1;
+            auto scores = index.max_sim_scores(begin, begin+1);
+            if(!scores.empty())
+                b[begin-qry.begin()] = scores[0] < 1;
         }
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             for (auto end = begin+1; end != qry.end(); ++end){
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
                     auto scores = index.max_sim_scores(begin, end+1);
-                    heap.emplace(scores[0],std::vector<uint64_t>(begin,end+1));
+                    if(!scores.empty())
+                        heap.emplace(scores[0],std::vector<uint64_t>(begin,end+1));
                 }
             }
         }

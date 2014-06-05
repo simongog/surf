@@ -62,13 +62,17 @@ void
 output_topk(const std::string& method,zmq::socket_t& socket,
             std::priority_queue<std::pair<double,std::vector<uint64_t>>> heap,size_t k) 
 {
+    if(heap.empty()) {
+        std::cout << method << " -> NO PHRASES\n";
+        return;
+    }
     auto max_score = heap.top().first;
     for(size_t i=0;i<k;i++) {
         if(heap.empty()) break;
         auto top = heap.top(); heap.pop();
         const auto& tokens = top.second;
         auto score = top.first;
-        std::cout << std::setw(6) << i+1 << "[";
+        std::cout << std::setw(12) << method<< " " << std::setw(6) << i+1 << "  " << std::setw(12) << score/max_score <<" [";
         bool first = true;
         for(const auto& id : tokens) {
             // lookup str
@@ -88,7 +92,7 @@ output_topk(const std::string& method,zmq::socket_t& socket,
             std::cout << surf_resp->term_str;
             first = false;
         }
-        std::cout << "]   -   " << score/max_score << std::endl;
+        std::cout << "]" << std::endl;
     }
 }
 
@@ -208,6 +212,7 @@ int main(int argc,char* const argv[])
     std::cerr << "Processing queries..." << std::endl;
     zmq_index index(socket);
     for(const auto& query: queries) {
+        std::cout << "Processing '" << query << "'\n";
         // get ids
         surf_phrase_request surf_req;
         surf_req.type = REQ_TYPE_TERM2ID;
@@ -224,7 +229,7 @@ int main(int argc,char* const argv[])
 
         // perform phrase stuff
         surf::phrase_detector::parse_greedy_lr(index,qry_ids,args.threshold,heap_greedy_lr);
-        surf::phrase_detector::parse_greedy_paul(index,qry_ids,args.threshold,heap_greedy_paul);
+//        surf::phrase_detector::parse_greedy_paul(index,qry_ids,args.threshold,heap_greedy_paul);
         surf::phrase_detector::parse_x2(index,qry_ids,args.threshold,heap_x2);
         //surf::phrase_detector::parse_greedy_x2(index,qry_ids,args.threshold,heap_greedy_x2);
         surf::phrase_detector::parse_bm25(index,qry_ids,args.threshold,heap_bm25);
