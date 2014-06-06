@@ -37,6 +37,7 @@ typedef struct cmdargs {
     std::string host;
     std::string query_file;
     double threshold;
+    uint64_t k;
 } cmdargs_t;
 
 void
@@ -57,13 +58,17 @@ parse_args(int argc,char* const argv[])
     args.host = "127.0.0.1:12345";
     args.query_file = "";
     args.threshold = 0.0;
-    while ((op=getopt(argc,argv,"h:q:t:")) != -1) {
+    args.k = 1000;
+    while ((op=getopt(argc,argv,"h:q:t:k:")) != -1) {
         switch (op) {
             case 'h':
                 args.host = optarg;
                 break;
             case 'q':
                 args.query_file = optarg;
+                break;
+            case 'k':
+                args.k = std::stoul(optarg);
                 break;
             case 't':
                 args.threshold = std::strtod(optarg,NULL);
@@ -81,43 +86,6 @@ parse_args(int argc,char* const argv[])
     return args;
 }
 
-void
-output_topk(const std::string& method,zmq::socket_t& socket,
-            std::priority_queue<std::pair<double,std::vector<uint64_t>>> heap,size_t k) 
-{
-    if(heap.empty()) {
-        std::cout << method << " -> NO PHRASES\n";
-        return;
-    }
-    auto max_score = heap.top().first;
-    for(size_t i=0;i<k;i++) {
-        if(heap.empty()) break;
-        auto top = heap.top(); heap.pop();
-        const auto& tokens = top.second;
-        auto score = top.first;
-        std::cout << std::setw(12) << method<< " " << std::setw(6) << i+1 << "  " << std::setw(12) << score/max_score <<" [";
-        bool first = true;
-        for(const auto& id : tokens) {
-            // lookup str
-            surf_phrase_request surf_req;
-            surf_req.type = REQ_TYPE_ID2TERM;
-            surf_req.qids[0] = id;
-            zmq::message_t request(sizeof(surf_phrase_request));
-            memcpy ((void *) request.data (), &surf_req, sizeof(surf_phrase_request));
-            socket.send (request);
-            // get answer
-            zmq::message_t reply;
-            socket.recv (&reply);
-            surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
-            if(!first) {
-                std::cout << " ";
-            }
-            std::cout << surf_resp->term_str;
-            first = false;
-        }
-        std::cout << "]" << std::endl;
-    }
-}
 
 struct zmq_index {
     size_t m_remote_size = 0;
@@ -210,11 +178,11 @@ struct res_heaps {
     std::unordered_set<std::vector<uint64_t>> exist_prob_set;
 };
 
-template<class t_itr>
-res_heaps
-process_queries(t_itr begin,t_itr end,std::string host,double threshold) {
-    res_heaps heaps;
-
+template<class t_method,class t_itr>
+std::vector<std::pair<double,std::vector<uint64_t>>>
+process_queries(t_itr begin,t_itr end,std::string host,double threshold) 
+{
+    std::vector<std::pair<double,std::vector<uint64_t>>> results;
     /* zmq magic! */
     std::cerr << "Connecting to surf daemon." << std::endl;
     zmq::context_t context (1);
@@ -223,17 +191,128 @@ process_queries(t_itr begin,t_itr end,std::string host,double threshold) {
     if(!socket.connected()) {
         std::cerr << "Error connecting to daemon." << std::endl;
     }
-
-    std::cerr << "Processing queries..." << std::endl;
     zmq_index index(socket);
     auto itr = begin;
     while(itr != end) {
         auto query = *itr;
-        std::cout << "Processing '" << query << "'\n";
-        // get ids
+        auto qry_res = t_method::parse(index,query,threshold);
+        results.insert(results.end(), qry_res.begin(), qry_res.end());
+        itr++;
+    }
+    return results;
+}
+
+template<class t_itr>
+void output_results(const std::string& method,t_itr itr,t_itr end,std::string host,size_t k) 
+{
+    zmq::context_t context (1);
+    zmq::socket_t socket (context, ZMQ_REQ);
+    socket.connect (std::string("tcp://"+host).c_str());
+    if(!socket.connected()) {
+        std::cerr << "Error connecting to daemon." << std::endl;
+        return;
+    }
+
+    double max_score = itr->first;
+    size_t i=0;
+    while(itr != end) {
+        if(i ==k) break;
+        double score = itr->first;
+        const auto& ids = itr->second;
+
+        std::cout << std::setw(12) << method << " " 
+                  << std::setw(6) << i+1 << "  " 
+                  << std::setw(12) << score/max_score <<" [";
+
+        bool first = true;
+        for(const auto& id : ids) {
+            // lookup str
+            surf_phrase_request surf_req;
+            surf_req.type = REQ_TYPE_ID2TERM;
+            surf_req.qids[0] = id;
+            zmq::message_t request(sizeof(surf_phrase_request));
+            memcpy ((void *) request.data (), &surf_req, sizeof(surf_phrase_request));
+            socket.send (request);
+            // get answer
+            zmq::message_t reply;
+            socket.recv (&reply);
+            surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
+            if(!first) {
+                std::cout << " ";
+            }
+            std::cout << surf_resp->term_str;
+            first = false;
+        }
+        std::cout << "]" << std::endl;
+
+        i++;
+        ++itr;
+    }
+}
+
+
+template<class t_method>
+void process_all_queries(const std::vector<std::vector<uint64_t>>& queries,std::string host,double threshold,size_t k)
+{
+
+    size_t num_threads = 10;
+    size_t n = queries.size();
+    off_t block_size = n / num_threads + 1;
+    std::vector<std::future<std::vector<std::pair<double,std::vector<uint64_t>>>>> v;
+    for (size_t i=0; i<n; i+=block_size) {
+        v.push_back(std::async(std::launch::async,[&,i] {
+            auto begin = queries.begin()+i;
+            size_t end_offset = std::min((size_t)n-1,(size_t)(i+block_size-1));
+            auto end = queries.begin()+end_offset+1;
+            return process_queries<t_method>(begin,end,host,threshold);
+        }));
+    }
+
+    // merge results
+    std::vector<std::pair<double,std::vector<uint64_t>>> scores;
+    for (auto& f : v) {
+        auto partial_scores = f.get();
+        scores.insert(scores.end(), partial_scores.begin(), partial_scores.end());
+    }
+
+    // sort
+    std::sort(scores.begin(),scores.end());
+    auto last = std::unique(scores.begin(),scores.end());
+
+    output_results(t_method::name(),scores.begin(),last,host,k);
+}
+
+int main(int argc,char* const argv[])
+{
+    /* parse command line */
+    cmdargs_t args = parse_args(argc,argv);
+
+    // lookup
+    zmq::context_t context (1);
+    zmq::socket_t socket (context, ZMQ_REQ);
+    socket.connect (std::string("tcp://"+args.host).c_str());
+    if(!socket.connected()) {
+        std::cerr << "Error connecting to daemon." << std::endl;
+        return EXIT_SUCCESS;
+    }
+
+    /* load queries from disk */
+    std::cerr << "Loading queries from disk." << std::endl;
+    std::ifstream qfs(args.query_file);
+    std::string qry_str;
+    std::vector<std::string> qrystrs;
+    while(std::getline(qfs,qry_str)) {
+        if(qry_str.size() < MAX_QRY_LEN) {
+            qrystrs.push_back(qry_str);
+        }
+    }
+
+    std::cerr << "Translate queries to ids" << std::endl;
+    std::vector<std::vector<uint64_t>> queries;
+    for(const auto& qstr : qrystrs) {
         surf_phrase_request surf_req;
         surf_req.type = REQ_TYPE_TERM2ID;
-        memcpy(surf_req.qry_str,query.data(),query.size());
+        memcpy(surf_req.qry_str,qstr.data(),qstr.size());
         zmq::message_t request(sizeof(surf_phrase_request));
         memcpy ((void *) request.data (), &surf_req, sizeof(surf_phrase_request));
         socket.send (request);
@@ -244,97 +323,14 @@ process_queries(t_itr begin,t_itr end,std::string host,double threshold) {
             std::vector<uint64_t> qry_ids(surf_resp->nids);
             std::copy(std::begin(surf_resp->ids),std::begin(surf_resp->ids)+surf_resp->nids,
                   qry_ids.begin());
-
-            // perform phrase stuff
-            surf::phrase_detector::parse_greedy_lr(index,qry_ids,threshold,heaps.greedy_lr);
-            surf::phrase_detector::parse_x2(index,qry_ids,threshold,heaps.x2);
-            //surf::phrase_detector::parse_greedy_x2(index,qry_ids,args.threshold,heap_greedy_x2);
-            surf::phrase_detector::parse_bm25(index,qry_ids,threshold,heaps.bm25);
-            surf::phrase_detector::parse_exist_prob(index,qry_ids,threshold,heaps.exist_prob);
-        }
-        itr++;
-    }
-
-    return heaps;
-}
-
-int main(int argc,char* const argv[])
-{
-    /* parse command line */
-    cmdargs_t args = parse_args(argc,argv);
-
-    /* load queries from disk */
-    std::cerr << "Loading queries from disk." << std::endl;
-    std::ifstream qfs(args.query_file);
-    std::string qry_str;
-    std::vector<std::string> queries;
-    while(std::getline(qfs,qry_str)) {
-        if(qry_str.size() < MAX_QRY_LEN) {
-            queries.push_back(qry_str);
+            queries.push_back(qry_ids);
         }
     }
 
-    size_t num_threads = 10;
-    size_t n = queries.size();
-    off_t block_size = n / num_threads + 1;
-    std::vector<std::future<res_heaps>> v;
-    for (size_t i=0; i<n; i+=block_size) {
-        v.push_back(std::async(std::launch::async,[&,i] {
-            auto begin = queries.begin()+i;
-            size_t end_offset = std::min((size_t)n-1,(size_t)(i+block_size-1));
-            auto end = queries.begin()+end_offset+1;
-            return process_queries(begin,end,args.host,args.threshold);
-        }));
-    }
-
-    // merge results
-    res_heaps heaps;
-    for (auto& f : v) {
-        auto partial_heaps = f.get();
-        while(!partial_heaps.greedy_lr.empty()) {
-            auto top = partial_heaps.greedy_lr.top(); partial_heaps.greedy_lr.pop();
-            if(heaps.greedy_lr_set.count(top.second) == 0) {
-                heaps.greedy_lr.push(top);
-                heaps.greedy_lr_set.emplace(top.second);
-            }
-        }
-        while(!partial_heaps.bm25.empty()) {
-            auto top = partial_heaps.bm25.top(); partial_heaps.bm25.pop();
-            if(heaps.bm25_set.count(top.second) == 0) {
-                heaps.bm25.push(top);
-                heaps.bm25_set.emplace(top.second);
-            }
-        }
-        while(!partial_heaps.x2.empty()) {
-            auto top = partial_heaps.x2.top(); partial_heaps.x2.pop();
-            if(heaps.x2_set.count(top.second) == 0) {
-                heaps.x2.push(top);
-                heaps.x2_set.emplace(top.second);
-            }
-        }
-        while(!partial_heaps.exist_prob.empty()) {
-            auto top = partial_heaps.exist_prob.top(); partial_heaps.exist_prob.pop();
-            if(heaps.exist_prob_set.count(top.second) == 0) {
-                heaps.exist_prob.push(top);
-                heaps.exist_prob_set.emplace(top.second);
-            }
-        }
-    }
-
-    // lookup
-    zmq::context_t context (1);
-    zmq::socket_t socket (context, ZMQ_REQ);
-    socket.connect (std::string("tcp://"+args.host).c_str());
-    if(!socket.connected()) {
-        std::cerr << "Error connecting to daemon." << std::endl;
-    }
-
-    output_topk("GREEDY-LR",socket,heaps.greedy_lr,100);
-    //output_topk("GREEDY-PAUL",socket,heap_greedy_paul,100);
-    output_topk("X2",socket,heaps.x2,100);
-    //output_topk("GREEDY-X2",socket,heap_greedy_x2,100);
-    output_topk("BM25",socket,heaps.bm25,100);
-    output_topk("EXIST-PROB",socket,heaps.exist_prob,100);
+    process_all_queries<surf::phrase_detector_sa_greedy>(queries,args.host,args.threshold,args.k);
+    process_all_queries<surf::phrase_detector_x2>(queries,args.host,args.threshold,args.k);
+    process_all_queries<surf::phrase_detector_bm25>(queries,args.host,args.threshold,args.k);
+    process_all_queries<surf::phrase_detector_exist_prob>(queries,args.host,args.threshold,args.k);
 
     return EXIT_SUCCESS;
 }
