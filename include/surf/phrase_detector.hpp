@@ -147,11 +147,12 @@ struct phrase_detector_x2_greedy {
            double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
            if(t_length_norm) x2 *= log2(2);
            phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
-           freq_pairs.push_back(index.csa_count(qry.begin()+i,qry.begin()+i+1));
+           freq_pairs.push_back(index.csa_count(qry.begin()+i,qry.begin()+i+2));
         }
 
         // add tuples by combining high adjacent pairs
-        for(size_t i=0;i<freq_pairs.size()-1;i++) {
+        int64_t npairs = freq_pairs.size()-1;
+        for(int64_t i=0;i<npairs;i++) {
            double x2 = compute_x2(freq_pairs,index,i,qry.begin()+i,qry.begin()+i+3);
            if(t_length_norm) x2 *= log2(3);
            phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+3));
