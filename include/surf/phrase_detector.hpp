@@ -90,6 +90,7 @@ static double compute_x2(const std::vector<double>& freq_single,t_index& index,s
     return x2; 
 }
 
+
 struct phrase_detector_x2 {
     phrase_detector_x2() = delete;
 
@@ -110,6 +111,52 @@ struct phrase_detector_x2 {
            double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
            phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
         }
+        return phrases;
+    }
+};
+
+template<bool t_length_norm = false>
+struct phrase_detector_x2_greedy {
+    phrase_detector_x2_greedy() = delete;
+
+    static std::string name() { 
+        if(t_length_norm) return "X2-GREEDY-LN";
+        return "X2-GREEDY"; 
+    }
+
+    template<class t_index>
+    static result_t parse(t_index& index,const std::vector<uint64_t>& qry,double threshold)
+    {
+        result_t phrases;
+
+        std::vector<bool> b(qry.size(),0);
+        for (auto begin = qry.begin(); begin != qry.end(); ++begin){
+            auto scores = index.max_sim_scores(begin, begin+1);
+            if(!scores.empty())
+                b[begin-qry.begin()] = scores[0] < 1;
+        }
+
+        std::vector<double> freq_single;
+        for(size_t i=0;i<qry.size();i++) {
+            double freq = index.csa_count(qry.begin()+i,qry.begin()+i+1);
+            freq_single.push_back(freq);
+        }
+        // compute adjacent pair probabilities
+        std::vector<double> freq_pairs;
+        for(size_t i=0;i<qry.size()-1;i++) {
+           double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
+           if(t_length_norm) x2 *= log2(2);
+           phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
+           freq_pairs.push_back(index.csa_count(qry.begin()+i,qry.begin()+i+1));
+        }
+
+        // add tuples by combining high adjacent pairs
+        for(size_t i=0;i<freq_pairs.size()-1;i++) {
+           double x2 = compute_x2(freq_pairs,index,i,qry.begin()+i,qry.begin()+i+3);
+           if(t_length_norm) x2 *= log2(3);
+           phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+3));
+        }
+
         return phrases;
     }
 };

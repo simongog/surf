@@ -332,7 +332,8 @@ int main(int argc,char* const argv[])
     process_all_queries<surf::phrase_detector_exist_prob<false>>(queries,args.host,args.threshold,args.k);
     process_all_queries<surf::phrase_detector_bm25<true>>(queries,args.host,args.threshold,args.k);
     process_all_queries<surf::phrase_detector_exist_prob<true>>(queries,args.host,args.threshold,args.k);
-
+    process_all_queries<surf::phrase_detector_x2_greedy<false>>(queries,args.host,args.threshold,args.k);
+    process_all_queries<surf::phrase_detector_x2_greedy<true>>(queries,args.host,args.threshold,args.k);
 
     return EXIT_SUCCESS;
 }
