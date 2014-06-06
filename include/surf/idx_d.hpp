@@ -107,9 +107,13 @@ public:
             }
         }
         // intersect singles
-        auto single_intersect = sdsl::intersect(m_wtd,ranges);
-        if(single_intersect.size() == 0) {
-            return 0.0;
+        auto single_intersect_size = 0;
+        {
+            auto single_intersect = sdsl::intersect(m_wtd,ranges);
+            if(single_intersect.size() == 0) {
+                return 0.0;
+            }
+            single_intersect_size = single_intersect.size();
         }
 
         // find the whole phrase
@@ -125,21 +129,11 @@ public:
         std::vector<uint64_t> phrase_docs(ep-sp+1);
         std::copy(m_wtd.begin()+sp,m_wtd.begin()+ep+1,phrase_docs.begin());
         std::sort(phrase_docs.begin(),phrase_docs.end());
-        std::vector<uint64_t> single_docs(single_intersect.size());
-        for(size_t i=0;i<single_intersect.size();i++) {
-            single_docs.push_back( single_intersect[i].first );
-        }
-        std::sort(single_docs.begin(),single_docs.end());
-        auto single_last = std::unique(single_docs.begin(), single_docs.end());
         auto phrase_last = std::unique(phrase_docs.begin(), phrase_docs.end());
+        auto phrase_uniq_docs = std::distance(phrase_docs.begin(),phrase_last);
 
-        std::vector<uint64_t> final_intersect;
-        std::set_intersection(phrase_docs.begin(),phrase_last,
-                              single_docs.begin(),single_last,
-                              std::back_inserter(final_intersect));
-
-        double num_unique_single_docs = std::distance(single_docs.begin(),single_last);
-        double num_unique_isect_docs = final_intersect.size();
+        double num_unique_single_docs = single_intersect_size;
+        double num_unique_isect_docs = phrase_uniq_docs;
         return num_unique_isect_docs/num_unique_single_docs;
     }
 
