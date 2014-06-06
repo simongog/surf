@@ -240,17 +240,18 @@ process_queries(t_itr begin,t_itr end,std::string host,double threshold) {
         zmq::message_t reply;
         socket.recv (&reply);
         surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
-        std::vector<uint64_t> qry_ids(surf_resp->nids);
-        std::copy(std::begin(surf_resp->ids),std::begin(surf_resp->ids)+surf_resp->nids,
+        if(surf_resp->nids != 0) {
+            std::vector<uint64_t> qry_ids(surf_resp->nids);
+            std::copy(std::begin(surf_resp->ids),std::begin(surf_resp->ids)+surf_resp->nids,
                   qry_ids.begin());
 
-        // perform phrase stuff
-        surf::phrase_detector::parse_greedy_lr(index,qry_ids,threshold,heaps.greedy_lr);
-// surf::phrase_detector::parse_greedy_paul(index,qry_ids,args.threshold,heap_greedy_paul);
-        surf::phrase_detector::parse_x2(index,qry_ids,threshold,heaps.x2);
-        //surf::phrase_detector::parse_greedy_x2(index,qry_ids,args.threshold,heap_greedy_x2);
-        surf::phrase_detector::parse_bm25(index,qry_ids,threshold,heaps.bm25);
-        surf::phrase_detector::parse_exist_prob(index,qry_ids,threshold,heaps.exist_prob);
+            // perform phrase stuff
+            surf::phrase_detector::parse_greedy_lr(index,qry_ids,threshold,heaps.greedy_lr);
+            surf::phrase_detector::parse_x2(index,qry_ids,threshold,heaps.x2);
+            //surf::phrase_detector::parse_greedy_x2(index,qry_ids,args.threshold,heap_greedy_x2);
+            surf::phrase_detector::parse_bm25(index,qry_ids,threshold,heaps.bm25);
+            surf::phrase_detector::parse_exist_prob(index,qry_ids,threshold,heaps.exist_prob);
+        }
         itr++;
     }
 
@@ -320,6 +321,7 @@ int main(int argc,char* const argv[])
         }
     }
 
+    // lookup
     zmq::context_t context (1);
     zmq::socket_t socket (context, ZMQ_REQ);
     socket.connect (std::string("tcp://"+args.host).c_str());

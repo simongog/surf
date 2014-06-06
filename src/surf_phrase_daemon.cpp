@@ -148,7 +148,6 @@ void worker(const t_index& index,const surf::query_parser::mapping_t& tm,zmq::co
                 for(size_t i=0;i<surf_resp.nids;i++) 
                     surf_resp.ids[i] = qry_ids[i];
             }
-
         }
         if(surf_req->type == REQ_TYPE_ID2TERM) {
             auto id = surf_req->qids[0];
