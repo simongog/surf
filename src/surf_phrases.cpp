@@ -276,7 +276,7 @@ void process_all_queries(const std::vector<std::vector<uint64_t>>& queries,std::
     }
 
     // sort
-    std::sort(scores.begin(),scores.end());
+    std::sort(scores.begin(),scores.end(),std::greater<std::pair<double,std::vector<uint64_t>>>());
     auto last = std::unique(scores.begin(),scores.end());
 
     output_results(t_method::name(),scores.begin(),last,host,k);
