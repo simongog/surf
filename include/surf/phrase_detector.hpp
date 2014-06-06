@@ -22,11 +22,14 @@ double prob(double x){
     return x==0 ? -99999999 : log(x);
 }
 
-
+template<bool t_length_norm = false>
 struct phrase_detector_sa_greedy {
     phrase_detector_sa_greedy() = delete;
 
-    static std::string name() { return "SA-GREEDY"; }
+    static std::string name() { 
+        if(t_length_norm) return "SA-GREEDY-LN";
+        return "SA-GREEDY-PROB"; 
+    }
 
     template<class t_index>
     static result_t parse(t_index& index,const std::vector<uint64_t>& qry,double threshold)
@@ -111,11 +114,14 @@ struct phrase_detector_x2 {
     }
 };
 
-
+template<bool t_length_norm = false>
 struct phrase_detector_bm25 {
     phrase_detector_bm25() = delete;
 
-    static std::string name() { return "BM25"; }
+    static std::string name() { 
+        if(t_length_norm) return "BM25-LN";
+        return "BM25-PROB"; 
+    }
 
     template<class t_index>
     static result_t parse(t_index& index,const std::vector<uint64_t>& qry,double threshold)
@@ -131,8 +137,12 @@ struct phrase_detector_bm25 {
             for (auto end = begin+1; end != qry.end(); ++end){
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
                     auto scores = index.max_sim_scores(begin, end+1);
-                    if(!scores.empty())
-                        phrases.emplace_back(scores[0],std::vector<uint64_t>(begin,end+1));
+                    if(!scores.empty()) {
+                        double score = scores[0];
+                        size_t len = std::distance(begin,end+1);
+                        if(t_length_norm) score *= log2(len);
+                        phrases.emplace_back(score,std::vector<uint64_t>(begin,end+1));
+                    }
                 }
             }
         }
@@ -140,10 +150,14 @@ struct phrase_detector_bm25 {
     }
 };
 
+template<bool t_length_norm = false>
 struct phrase_detector_exist_prob {
     phrase_detector_exist_prob() = delete;
 
-    static std::string name() { return "EXIST-PROB"; }
+    static std::string name() { 
+        if(t_length_norm) return "EXIST-PROB-LN";
+        return "EXIST-PROB"; 
+    }
 
     template<class t_index>
     static result_t parse(t_index& index,const std::vector<uint64_t>& qry,double threshold)
@@ -159,6 +173,8 @@ struct phrase_detector_exist_prob {
             for (auto end = begin+1; end != qry.end(); ++end){
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
                     auto prob = index.phrase_prob(begin,end+1);
+                    size_t len = std::distance(begin,end+1);
+                    if(t_length_norm) prob *= log2(len);
                     phrases.emplace_back(prob,std::vector<uint64_t>(begin,end+1));
                 }
             }

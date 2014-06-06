@@ -184,7 +184,6 @@ process_queries(t_itr begin,t_itr end,std::string host,double threshold)
 {
     std::vector<std::pair<double,std::vector<uint64_t>>> results;
     /* zmq magic! */
-    std::cerr << "Connecting to surf daemon." << std::endl;
     zmq::context_t context (1);
     zmq::socket_t socket (context, ZMQ_REQ);
     socket.connect (std::string("tcp://"+host).c_str());
@@ -327,10 +326,13 @@ int main(int argc,char* const argv[])
         }
     }
 
-    process_all_queries<surf::phrase_detector_sa_greedy>(queries,args.host,args.threshold,args.k);
+    process_all_queries<surf::phrase_detector_sa_greedy<false>>(queries,args.host,args.threshold,args.k);
     process_all_queries<surf::phrase_detector_x2>(queries,args.host,args.threshold,args.k);
-    process_all_queries<surf::phrase_detector_bm25>(queries,args.host,args.threshold,args.k);
-    process_all_queries<surf::phrase_detector_exist_prob>(queries,args.host,args.threshold,args.k);
+    process_all_queries<surf::phrase_detector_bm25<false>>(queries,args.host,args.threshold,args.k);
+    process_all_queries<surf::phrase_detector_exist_prob<false>>(queries,args.host,args.threshold,args.k);
+    process_all_queries<surf::phrase_detector_bm25<true>>(queries,args.host,args.threshold,args.k);
+    process_all_queries<surf::phrase_detector_exist_prob<true>>(queries,args.host,args.threshold,args.k);
+
 
     return EXIT_SUCCESS;
 }
