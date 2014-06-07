@@ -28,7 +28,7 @@ struct phrase_detector_sa_greedy {
 
     static std::string name() { 
         if(t_length_norm) return "SA-GREEDY-LN";
-        return "SA-GREEDY-PROB"; 
+        return "SA-GREEDY"; 
     }
 
     template<class t_index>
@@ -151,12 +151,29 @@ struct phrase_detector_x2_greedy {
         }
 
         // add tuples by combining high adjacent pairs
-        int64_t npairs = freq_pairs.size()-1;
-        for(int64_t i=0;i<npairs;i++) {
-           double x2 = compute_x2(freq_pairs,index,i,qry.begin()+i,qry.begin()+i+3);
-           if(t_length_norm) x2 *= log2(3);
-           phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+3));
+        for (auto begin = qry.begin(); begin != qry.end(); ++begin){
+            for (auto end = begin+1; end != qry.end(); ++end){
+                if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
+                    auto start = std::distance(qry.begin(),begin);
+                    auto stop = std::distance(qry.begin(),end);
+                    auto len = stop-start+1;
+                    double tuple_score = 0;
+                    for(size_t i=start;i<=stop;i++) {
+                        tuple_score += phrases[i].first;
+                    }
+                    tuple_score = tuple_score / len;
+                    if(t_length_norm) tuple_score *= log2(len);
+                    phrases.emplace_back(tuple_score,std::vector<uint64_t>(begin,end));
+                }
+            }
         }
+
+        // int64_t npairs = freq_pairs.size()-1;
+        // for(int64_t i=0;i<npairs;i++) {
+        //    double x2 = compute_x2(freq_pairs,index,i,qry.begin()+i,qry.begin()+i+3);
+        //    if(t_length_norm) x2 *= log2(3);
+        //    phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+3));
+        // }
 
         return phrases;
     }
@@ -168,7 +185,7 @@ struct phrase_detector_bm25 {
 
     static std::string name() { 
         if(t_length_norm) return "BM25-LN";
-        return "BM25-PROB"; 
+        return "BM25"; 
     }
 
     template<class t_index>

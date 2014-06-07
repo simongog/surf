@@ -217,6 +217,7 @@ void output_results(const std::string& method,t_itr itr,t_itr end,std::string ho
     while(itr != end) {
         if(i ==k) break;
         double score = itr->first;
+        if(score == 0) break;
         const auto& ids = itr->second;
 
         std::cout << std::setw(12) << method << " " 
