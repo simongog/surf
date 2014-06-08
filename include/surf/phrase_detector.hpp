@@ -101,6 +101,14 @@ struct phrase_detector_x2 {
     {
         result_t phrases;
 
+        // find stopwords
+        std::vector<bool> b(qry.size(),0);
+        for (auto begin = qry.begin(); begin != qry.end(); ++begin){
+            auto scores = index.max_sim_scores(begin, begin+1);
+            if(!scores.empty())
+                b[begin-qry.begin()] = scores[0] < 1;
+        }
+
         std::vector<double> freq_single;
         for(size_t i=0;i<qry.size();i++) {
             double freq = index.csa_count(qry.begin()+i,qry.begin()+i+1);
@@ -109,8 +117,10 @@ struct phrase_detector_x2 {
 
         // compute adjacent pair probabilities
         for(size_t i=0;i<qry.size()-1;i++) {
-           double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
-           phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
+            double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
+            if ( !b[i] and !b[i+1] ){
+                phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
+            }
         }
 
         return phrases;
@@ -166,7 +176,7 @@ struct phrase_detector_x2_greedy {
                         tuple_score = std::min(tuple_score,x2_pairs[i]);
                     }
                     if(t_length_norm) tuple_score *= log10(len);
-                    phrases.emplace_back(tuple_score,std::vector<uint64_t>(begin,end));
+                    phrases.emplace_back(tuple_score,std::vector<uint64_t>(begin,end+1));
                 }
             }
         }
