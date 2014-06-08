@@ -57,7 +57,7 @@ parse_args(int argc,char* const argv[])
     int op;
     args.host = "127.0.0.1:12345";
     args.query_file = "";
-    args.threshold = 0.0;
+    args.threshold = 5.0;
     args.k = 1000;
     while ((op=getopt(argc,argv,"h:q:t:k:")) != -1) {
         switch (op) {
