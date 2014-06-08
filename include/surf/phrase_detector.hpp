@@ -45,7 +45,6 @@ struct phrase_detector_sa_greedy {
     	}
 
         // compute all phrases
-        bool add_phrase = true;
         for (auto start = qry.begin(); start < qry.end(); ){
             double single = prob(P_single[start-qry.begin()]);
             auto end = start;
@@ -57,14 +56,13 @@ struct phrase_detector_sa_greedy {
                 single += prob(P_single[end-qry.begin()]);
     			auto cnt = index.csa_count(start, end+1);
                 if(cnt < t_min_freq) {
-                    add_phrase = false;
-                    break;
+                    assoc_ratio = 0;
+                } else {
+                    double joint = prob((double)cnt/index.csa_size());
+                    assoc_ratio = joint-single;
                 }
-                double joint = prob((double)cnt/index.csa_size());
-
-                assoc_ratio = joint-single;
             } while ( assoc_ratio >= threshold );
-            if(add_phrase) phrases.emplace_back(assoc_ratio,std::vector<uint64_t>(start, end+1));
+            phrases.emplace_back(assoc_ratio,std::vector<uint64_t>(start, end+1));
             start = end;
         }
 
