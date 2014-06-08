@@ -22,7 +22,7 @@ double prob(double x){
     return x==0 ? -99999999 : log(x);
 }
 
-template<bool t_length_norm = false>
+template<size_t t_min_freq = 0,bool t_length_norm = false>
 struct phrase_detector_sa_greedy {
     phrase_detector_sa_greedy() = delete;
 
@@ -45,6 +45,7 @@ struct phrase_detector_sa_greedy {
     	}
 
         // compute all phrases
+        bool add_phrase = true;
         for (auto start = qry.begin(); start < qry.end(); ){
             double single = prob(P_single[start-qry.begin()]);
             auto end = start;
@@ -55,10 +56,11 @@ struct phrase_detector_sa_greedy {
                     break;
                 single += prob(P_single[end-qry.begin()]);
     			auto cnt = index.csa_count(start, end+1);
+                if(cnt < t_min_freq) add_phrase = false;
                 double joint = prob((double)cnt/index.csa_size());
                 assoc_ratio = joint-single;
             } while ( assoc_ratio >= threshold );
-            phrases.emplace_back(assoc_ratio,std::vector<uint64_t>(start, end));
+            if(add_phrase) phrases.emplace_back(assoc_ratio,std::vector<uint64_t>(start, end));
             start = end;
         }
 
@@ -90,7 +92,7 @@ static double compute_x2(const std::vector<double>& freq_single,t_index& index,s
     return x2; 
 }
 
-
+template<size_t t_min_freq = 0>
 struct phrase_detector_x2 {
     phrase_detector_x2() = delete;
 
@@ -119,7 +121,10 @@ struct phrase_detector_x2 {
         for(size_t i=0;i<qry.size()-1;i++) {
             double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
             if ( !b[i] and !b[i+1] ){
-                phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
+                double freq = index.csa_count(qry.begin()+i,qry.begin()+i+2);
+                if(freq >= t_min_freq) {
+                    phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
+                }
             }
         }
 
@@ -127,7 +132,7 @@ struct phrase_detector_x2 {
     }
 };
 
-template<bool t_length_norm = false>
+template<size_t t_min_freq = 10,bool t_length_norm = false>
 struct phrase_detector_x2_greedy {
     phrase_detector_x2_greedy() = delete;
 
@@ -159,7 +164,10 @@ struct phrase_detector_x2_greedy {
             double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
             if(t_length_norm) x2 *= log10(2);
             if ( !b[i] and !b[i+1] ){
-                phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
+                double freq = index.csa_count(qry.begin()+i,qry.begin()+i+2);
+                if(freq >= t_min_freq) {
+                    phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
+                }
             }
             x2_pairs.push_back(x2);
         }
@@ -167,6 +175,11 @@ struct phrase_detector_x2_greedy {
         // add tuples by combining high adjacent pairs
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             for (auto end = begin+1; end != qry.end(); ++end){
+
+                double freq = index.csa_count(begin,end+1);
+                if(freq < t_min_freq) continue;
+
+
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
                     auto start = std::distance(qry.begin(),begin);
                     auto stop = std::distance(qry.begin(),end);
@@ -185,6 +198,7 @@ struct phrase_detector_x2_greedy {
     }
 };
 
+template<size_t t_min_freq = 0>
 struct phrase_detector_bm25 {
     phrase_detector_bm25() = delete;
 
@@ -208,6 +222,10 @@ struct phrase_detector_bm25 {
         // process
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             for (auto end = begin+1; end != qry.end(); ++end){
+
+                double freq = index.csa_count(begin,end+1);
+                if(freq < t_min_freq) continue;
+
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
                     auto scores = index.max_sim_scores(begin, end+1);
                     if(!scores.empty()) {
@@ -221,7 +239,7 @@ struct phrase_detector_bm25 {
     }
 };
 
-template<bool t_length_norm = false>
+template<size_t t_min_freq = 0,bool t_length_norm = false>
 struct phrase_detector_exist_prob {
     phrase_detector_exist_prob() = delete;
 
@@ -246,6 +264,10 @@ struct phrase_detector_exist_prob {
         // find tuples
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             for (auto end = begin+1; end != qry.end(); ++end){
+
+                double freq = index.csa_count(begin,end+1);
+                if(freq < t_min_freq) continue;
+
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
                     auto prob = index.phrase_prob(begin,end+1);
                     size_t len = std::distance(begin,end+1);
