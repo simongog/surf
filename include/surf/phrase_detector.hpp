@@ -144,11 +144,14 @@ struct phrase_detector_x2_greedy {
             freq_single.push_back(freq);
         }
         // compute adjacent pair probabilities
-        std::vector<double> freq_pairs;
+        std::vector<double> x2_pairs;
         for(size_t i=0;i<qry.size()-1;i++) {
-           double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
-           if(t_length_norm) x2 *= log10(2);
-           phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
+            double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
+            if(t_length_norm) x2 *= log10(2);
+            if ( !b[i] and !b[i+1] ){
+                phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
+            }
+            x2_pairs.push_back(x2);
         }
 
         // add tuples by combining high adjacent pairs
@@ -158,9 +161,9 @@ struct phrase_detector_x2_greedy {
                     auto start = std::distance(qry.begin(),begin);
                     auto stop = std::distance(qry.begin(),end);
                     auto len = stop-start+1;
-                    double tuple_score = phrases[start].first;
+                    double tuple_score = x2_pairs[start];
                     for(size_t i=start;i<=stop;i++) {
-                        tuple_score = std::min(tuple_score,phrases[i].first);
+                        tuple_score = std::min(tuple_score,x2_pairs[i]);
                     }
                     if(t_length_norm) tuple_score *= log10(len);
                     phrases.emplace_back(tuple_score,std::vector<uint64_t>(begin,end));
