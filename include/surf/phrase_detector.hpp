@@ -106,11 +106,13 @@ struct phrase_detector_x2 {
             double freq = index.csa_count(qry.begin()+i,qry.begin()+i+1);
             freq_single.push_back(freq);
         }
+
         // compute adjacent pair probabilities
         for(size_t i=0;i<qry.size()-1;i++) {
            double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
            phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
         }
+
         return phrases;
     }
 };
@@ -145,9 +147,8 @@ struct phrase_detector_x2_greedy {
         std::vector<double> freq_pairs;
         for(size_t i=0;i<qry.size()-1;i++) {
            double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
-           if(t_length_norm) x2 *= log2(2);
+           if(t_length_norm) x2 *= log10(2);
            phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
-           freq_pairs.push_back(index.csa_count(qry.begin()+i,qry.begin()+i+2));
         }
 
         // add tuples by combining high adjacent pairs
@@ -157,34 +158,24 @@ struct phrase_detector_x2_greedy {
                     auto start = std::distance(qry.begin(),begin);
                     auto stop = std::distance(qry.begin(),end);
                     auto len = stop-start+1;
-                    double tuple_score = 0;
+                    double tuple_score = phrases[start].first;
                     for(size_t i=start;i<=stop;i++) {
-                        tuple_score += phrases[i].first;
+                        tuple_score = std::min(tuple_score,phrases[i].first);
                     }
-                    tuple_score = tuple_score / len;
-                    if(t_length_norm) tuple_score *= log2(len);
+                    if(t_length_norm) tuple_score *= log10(len);
                     phrases.emplace_back(tuple_score,std::vector<uint64_t>(begin,end));
                 }
             }
         }
 
-        // int64_t npairs = freq_pairs.size()-1;
-        // for(int64_t i=0;i<npairs;i++) {
-        //    double x2 = compute_x2(freq_pairs,index,i,qry.begin()+i,qry.begin()+i+3);
-        //    if(t_length_norm) x2 *= log2(3);
-        //    phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+3));
-        // }
-
         return phrases;
     }
 };
 
-template<bool t_length_norm = false>
 struct phrase_detector_bm25 {
     phrase_detector_bm25() = delete;
 
     static std::string name() { 
-        if(t_length_norm) return "BM25-LN";
         return "BM25"; 
     }
 
@@ -192,20 +183,22 @@ struct phrase_detector_bm25 {
     static result_t parse(t_index& index,const std::vector<uint64_t>& qry,double threshold)
     {
         result_t phrases;
+
+        // find the stop words
         std::vector<bool> b(qry.size(),0);
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             auto scores = index.max_sim_scores(begin, begin+1);
             if(!scores.empty())
                 b[begin-qry.begin()] = scores[0] < 1;
         }
+
+        // process
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             for (auto end = begin+1; end != qry.end(); ++end){
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
                     auto scores = index.max_sim_scores(begin, end+1);
                     if(!scores.empty()) {
                         double score = scores[0];
-                        size_t len = std::distance(begin,end+1);
-                        if(t_length_norm) score *= log2(len);
                         phrases.emplace_back(score,std::vector<uint64_t>(begin,end+1));
                     }
                 }
@@ -228,22 +221,27 @@ struct phrase_detector_exist_prob {
     static result_t parse(t_index& index,const std::vector<uint64_t>& qry,double threshold)
     {
         result_t phrases;
+
+        // find stopwords
         std::vector<bool> b(qry.size(),0);
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             auto scores = index.max_sim_scores(begin, begin+1);
             if(!scores.empty())
                 b[begin-qry.begin()] = scores[0] < 1;
         }
+
+        // find tuples
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             for (auto end = begin+1; end != qry.end(); ++end){
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
                     auto prob = index.phrase_prob(begin,end+1);
                     size_t len = std::distance(begin,end+1);
-                    if(t_length_norm) prob *= log2(len);
+                    if(t_length_norm) prob *= log10(len);
                     phrases.emplace_back(prob,std::vector<uint64_t>(begin,end+1));
                 }
             }
         }
+
         return phrases;
     }
 };
