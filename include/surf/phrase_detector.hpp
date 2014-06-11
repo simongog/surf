@@ -62,7 +62,7 @@ struct phrase_detector_sa_greedy {
                     assoc_ratio = joint-single;
                 }
             } while ( assoc_ratio >= threshold );
-            phrases.emplace_back(assoc_ratio,std::vector<uint64_t>(start, end+1));
+            if(start+1 != end) phrases.emplace_back(assoc_ratio,std::vector<uint64_t>(start, end));
             start = end;
         }
 
@@ -268,7 +268,7 @@ struct phrase_detector_exist_prob {
             for (auto end = begin+1; end != qry.end(); ++end){
 
                 double freq = index.csa_count(begin,end+1);
-                if(freq < t_min_freq) continue;
+                //if(freq < t_min_freq) continue;
 
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
                     auto prob = index.phrase_prob(begin,end+1);

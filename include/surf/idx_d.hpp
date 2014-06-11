@@ -134,7 +134,7 @@ public:
 
         double num_unique_single_docs = single_intersect_size;
         double num_unique_isect_docs = phrase_uniq_docs;
-        return num_unique_isect_docs/num_unique_single_docs;
+        return num_unique_isect_docs/(num_unique_single_docs+1.0);
     }
 
     result search(const std::vector<query_token>& qry,size_t k,bool ranked_and = false,bool profile = false) const {
