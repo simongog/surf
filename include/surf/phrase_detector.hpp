@@ -55,12 +55,12 @@ struct phrase_detector_sa_greedy {
                     break;
                 single += prob(P_single[end-qry.begin()]);
     			auto cnt = index.csa_count(start, end+1);
-                if(cnt < t_min_freq) {
-                    assoc_ratio = 0;
-                } else {
+                // if(cnt < t_min_freq) {
+                //     assoc_ratio = 0;
+                // } else {
                     double joint = prob((double)cnt/index.csa_size());
                     assoc_ratio = joint-single;
-                }
+//                }
             } while ( assoc_ratio >= threshold );
             if(start+1 != end) phrases.emplace_back(assoc_ratio,std::vector<uint64_t>(start, end));
             start = end;
@@ -123,10 +123,10 @@ struct phrase_detector_x2 {
         for(size_t i=0;i<qry.size()-1;i++) {
             double x2 = compute_x2(freq_single,index,i,qry.begin()+i,qry.begin()+i+2);
             if ( !b[i] and !b[i+1] ){
-                double freq = index.csa_count(qry.begin()+i,qry.begin()+i+2);
-                if(freq >= t_min_freq) {
+                //double freq = index.csa_count(qry.begin()+i,qry.begin()+i+2);
+                //if(freq >= t_min_freq) {
                     phrases.emplace_back(x2,std::vector<uint64_t>(qry.begin()+i,qry.begin()+i+2));
-                }
+                //}
             }
         }
 
@@ -178,8 +178,8 @@ struct phrase_detector_x2_greedy {
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             for (auto end = begin+1; end != qry.end(); ++end){
 
-                double freq = index.csa_count(begin,end+1);
-                if(freq < t_min_freq) continue;
+                // double freq = index.csa_count(begin,end+1);
+                // if(freq < t_min_freq) continue;
 
 
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
@@ -225,8 +225,8 @@ struct phrase_detector_bm25 {
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             for (auto end = begin+1; end != qry.end(); ++end){
 
-                double freq = index.csa_count(begin,end+1);
-                if(freq < t_min_freq) continue;
+                // double freq = index.csa_count(begin,end+1);
+                // if(freq < t_min_freq) continue;
 
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
                     auto scores = index.max_sim_scores(begin, end+1);
@@ -244,6 +244,7 @@ struct phrase_detector_bm25 {
 template<size_t t_min_freq = 0,bool t_length_norm = false>
 struct phrase_detector_exist_prob {
     phrase_detector_exist_prob() = delete;
+    const double K = 5;
 
     static std::string name() { 
         if(t_length_norm) return "EXIST-PROB-LN";
@@ -267,11 +268,11 @@ struct phrase_detector_exist_prob {
         for (auto begin = qry.begin(); begin != qry.end(); ++begin){
             for (auto end = begin+1; end != qry.end(); ++end){
 
-                double freq = index.csa_count(begin,end+1);
+                //double freq = index.csa_count(begin,end+1);
                 //if(freq < t_min_freq) continue;
 
                 if ( !b[begin-qry.begin()] and !b[end-qry.begin()] ){
-                    auto prob = index.phrase_prob(begin,end+1);
+                    auto prob = index.phrase_prob(begin,end+1,5);
                     size_t len = std::distance(begin,end+1);
                     if(t_length_norm) prob *= log10(len);
                     phrases.emplace_back(prob,std::vector<uint64_t>(begin,end+1));

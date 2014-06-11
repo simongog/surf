@@ -74,10 +74,10 @@ namespace std
     };
 }
 
-std::unordered_map<std::vector<uint64_t>,double> prob_cache;
+std::unordered_map<std::vector<uint64_t>,std::pair<double,double>> prob_cache;
 std::mutex prob_mutex;
 
-void add_to_prob_cache(const std::vector<uint64_t>& q,double r) {
+void add_to_prob_cache(const std::vector<uint64_t>& q,std::pair<double,double> r) {
     std::lock_guard<std::mutex> lock(prob_mutex);
     if( prob_cache.count(q) == 0 ) {
         prob_cache[q] = r;
@@ -89,7 +89,7 @@ bool is_prob_cached(const std::vector<uint64_t>& q) {
     return prob_cache.count(q) != 0;
 }
 
-double get_cached_prob(const std::vector<uint64_t>& q) {
+std::pair<double,double> get_cached_prob(const std::vector<uint64_t>& q) {
     std::lock_guard<std::mutex> lock(prob_mutex);
     return prob_cache.find(q)->second;
 }
@@ -124,10 +124,10 @@ parse_args(int argc,char* const argv[])
 }
 
 template<class t_index>
-void worker(const t_index& index,const surf::query_parser::mapping_t& tm,zmq::context_t* context)
+void worker(const t_index* index,const surf::query_parser::mapping_t* tm,zmq::context_t* context)
 {
-    const auto& id_mapping = tm.first;
-    const auto& reverse_mapping = tm.second;
+    const auto& id_mapping = tm->first;
+    const auto& reverse_mapping = tm->second;
     zmq::socket_t socket(*context, ZMQ_REP);
     socket.connect("inproc://workers");
     while(true) {
@@ -158,7 +158,7 @@ void worker(const t_index& index,const surf::query_parser::mapping_t& tm,zmq::co
             }
         }
         if(surf_req->type == REQ_TYPE_COUNT) {
-            auto cnt = sdsl::count(index.m_csa,std::begin(surf_req->qids),
+            auto cnt = sdsl::count(index->m_csa,std::begin(surf_req->qids),
                                        std::begin(surf_req->qids)+surf_req->nids);
             surf_resp.count = cnt;
         }
@@ -183,11 +183,11 @@ void worker(const t_index& index,const surf::query_parser::mapping_t& tm,zmq::co
 
             if(!found) {
                 qry_tokens.push_back(q);
-                auto results = index.search(qry_tokens,100,false,false);
+                auto results = index->search(qry_tokens,1,false,false);
                 surf_resp.max_score[0] = 0.0f;
                 surf_resp.nscores = 0;
                 if(results.list.size() != 0) {
-                    size_t n = std::min((size_t)100,results.list.size());
+                    size_t n = std::min((size_t)1,results.list.size());
                     surf_resp.nscores = n;
                     for(size_t i=0;i<n;i++) surf_resp.max_score[i] = results.list[i].score;
                     if( surf_req->nids == 1 ) {
@@ -203,14 +203,18 @@ void worker(const t_index& index,const surf::query_parser::mapping_t& tm,zmq::co
             std::copy(std::begin(surf_req->qids),std::begin(surf_req->qids)+surf_req->nids,
                       ids.begin());
             if(is_prob_cached(ids)) {
-                surf_resp.phrase_prob = get_cached_prob(ids);
+                auto p = get_cached_prob(ids);
+                surf_resp.phrase_prob = std::get<0>(p);
+                surf_resp.single_prob = std::get<1>(p);
             } else {
-                surf_resp.phrase_prob = index.phrase_prob(ids);
-                add_to_prob_cache(ids,surf_resp.phrase_prob);
+                auto p = index->phrase_prob(ids);
+                surf_resp.phrase_prob = std::get<0>(p);
+                surf_resp.single_prob = std::get<1>(p);
+                add_to_prob_cache(ids,p);
             }
         }
 
-        surf_resp.size = index.m_csa.size();
+        surf_resp.size = index->m_csa.size();
         zmq::message_t reply (sizeof(surf_phrase_resp));
         memcpy(reply.data(),&surf_resp,sizeof(surf_phrase_resp));
         socket.send (reply);
@@ -256,7 +260,7 @@ int main(int argc,char* const argv[])
         // create workers
         std::thread threads[10];
         for(size_t i=0;i<10;i++) {
-            threads[i] = std::thread(worker<surf_index_t>,index,term_map,&context);
+            threads[i] = std::thread(worker<surf_index_t>,&index,&term_map,&context);
         }
         zmq_device(ZMQ_QUEUE, (void*)clients, (void*)workers);
     }

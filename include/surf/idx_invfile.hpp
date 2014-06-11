@@ -410,8 +410,8 @@ public:
         }
     }
 
-    double phrase_prob(const std::vector<uint64_t>& ids) const {
-        return 0.0f;
+    std::pair<double,double> phrase_prob(const std::vector<uint64_t>& ids) const {
+        return {0.0,0.0};
     }
     
     void mem_info(){

@@ -127,7 +127,7 @@ struct zmq_index {
         return m_remote_size;
     }
     template<class t_itr>
-    double phrase_prob(t_itr begin,t_itr end) {
+    double phrase_prob(t_itr begin,t_itr end,double K) {
         // send count req
         surf_phrase_request surf_req;
         surf_req.type = REQ_TYPE_PHRASEPROB;
@@ -141,7 +141,7 @@ struct zmq_index {
         socket.recv (&reply);
         surf_phrase_resp* surf_resp = static_cast<surf_phrase_resp*>(reply.data());
         m_remote_size = surf_resp->size;
-        return surf_resp->phrase_prob;
+        return surf_resp->phrase_prob/surf_resp->single_prob+K;
     }
     template<class t_itr>
     std::vector<double> max_sim_scores(t_itr begin,t_itr end) {

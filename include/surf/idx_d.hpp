@@ -92,7 +92,8 @@ public:
     using state_type = s_state_t<typename t_wtd::node_type>;
 public:
 
-    double phrase_prob(const std::vector<uint64_t>& ids) const {
+    std::pair<double,double> 
+    phrase_prob(const std::vector<uint64_t>& ids) const {
         // transform ids to ranges
         std::vector<range_type> ranges;
         for(size_t i=0;i<ids.size();i++) {
@@ -103,7 +104,7 @@ public:
                                 sp, ep) > 0 ) {
                 ranges.emplace_back(sp,ep);
             } else {
-                return 0.0;
+                return {0.0,0.0};
             }
         }
         // intersect singles
@@ -111,7 +112,7 @@ public:
         {
             auto single_intersect = sdsl::intersect(m_wtd,ranges);
             if(single_intersect.size() == 0) {
-                return 0.0;
+                return {0.0,0.0};
             }
             single_intersect_size = single_intersect.size();
         }
@@ -122,7 +123,7 @@ public:
                             ids.begin(),ids.end(),
                             sp, ep) == 0 ) 
         {
-            return 0.0;
+            return {0.0,0.0};
         }
 
         // perform the intersection on the two sets
@@ -134,7 +135,7 @@ public:
 
         double num_unique_single_docs = single_intersect_size;
         double num_unique_isect_docs = phrase_uniq_docs;
-        return num_unique_isect_docs/(num_unique_single_docs+1.0);
+        return {num_unique_isect_docs,num_unique_single_docs};
     }
 
     result search(const std::vector<query_token>& qry,size_t k,bool ranked_and = false,bool profile = false) const {

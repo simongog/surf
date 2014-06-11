@@ -64,8 +64,9 @@ private:
     using state_type = s_state2_t<node_type, node2_type>;
 public:
 
-    double phrase_prob(const std::vector<uint64_t>& ids) const {
-        return 0.0f;
+    std::pair<double,double>
+    phrase_prob(const std::vector<uint64_t>& ids) const {
+        return {0.0,0.0};
     }
 
     result search(const std::vector<query_token>& qry,size_t k,bool ranked_and = false,bool profile = false) {

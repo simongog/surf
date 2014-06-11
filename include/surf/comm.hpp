@@ -56,6 +56,7 @@ struct surf_phrase_resp {
     double nscores;
     double max_score[100];
     double phrase_prob;
+    double single_prob;
 };
 
 struct surf_qry_request {
