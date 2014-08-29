@@ -23,6 +23,13 @@ void construct_dup2(sdsl::cache_config& cc)
         int_vector_buffer<> dup(cache_file_name(surf::KEY_DUP, cc));
         cout<<".........dup.size()="<<dup.size()<<endl;
         cout<<".........dup.width()="<<(int)dup.width()<<endl;
+        if (dup.size()<20){
+            cout<<".....DUP=";
+            for(size_t i=0;i<dup.size(); ++i){
+                cout<<" "<<dup[i];
+            }
+            cout<<endl;
+        }
         {
             bit_vector dup_mark(dup.size(), 1);
             store_to_cache(dup_mark, surf::KEY_DUPMARK, cc);
@@ -47,11 +54,12 @@ void construct_dup2(sdsl::cache_config& cc)
                 continue;
             auto lb = cst.lb(v);
             auto rb = cst.rb(v);
+            std::cout<<"[lb,rb]=["<<lb<<","<<rb<<"]"<<std::endl;
             auto df_info = df(lb, rb);
 
             std::vector<uint64_t> buf;
             std::cout<<"[lb',rb']=["<<std::get<1>(df_info)<<","<<std::get<2>(df_info)<<"]"<<std::endl;
-            for (uint64_t i = std::get<1>(df_info); i <= std::get<2>(df_info); ++i) {
+            for (uint64_t i = std::get<1>(df_info); i+1 <= std::get<2>(df_info)+1; ++i) {
                 buf.push_back(dup[i]); 
             }
             for (uint64_t i = next_idx; i < std::get<1>(df_info); ++i){

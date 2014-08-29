@@ -10,7 +10,7 @@
 namespace surf{
 
 template<uint8_t t_width>
-void construct_darray(sdsl::cache_config& cc)
+void construct_darray(sdsl::cache_config& cc, bool permute=true)
 {
     using namespace sdsl;
     using namespace std;
@@ -24,13 +24,18 @@ void construct_darray(sdsl::cache_config& cc)
         rank_support_v<> doc_border_rank(&doc_border);
         uint64_t doc_cnt = doc_border_rank(doc_border.size());
 
-        construct_doc_perm<t_width>(cc);
-        doc_perm dp;
-        load_from_cache(dp, KEY_DOCPERM,cc);
-
         int_vector<> darray(sa.size(), 0, bits::hi(doc_cnt)+1);
-        for (uint64_t i=0; i<sa.size(); ++i){
-            darray[i] = dp.id2len[doc_border_rank(sa[i])];
+        if ( permute ){
+            construct_doc_perm<t_width>(cc);
+            doc_perm dp;
+            load_from_cache(dp, KEY_DOCPERM,cc);
+            for (uint64_t i=0; i<sa.size(); ++i){
+                darray[i] = dp.id2len[doc_border_rank(sa[i])];
+            }
+        } else {
+            for (uint64_t i=0; i<sa.size(); ++i){
+                darray[i] = doc_border_rank(sa[i]);
+            }       
         }
         store_to_cache(darray, KEY_DARRAY, cc);
     }

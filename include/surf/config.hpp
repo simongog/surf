@@ -24,6 +24,8 @@ const std::string KEY_DOCPERM = "docperm";
 const std::string KEY_SADADF = "sadadf";
 const std::string KEY_WTD = "wtd";
 const std::string KEY_C = "C";
+const std::string KEY_RMQC = "RMQC";
+const std::string KEY_RMQW = "RMQW";
 const std::string KEY_WTC = "wtc";
 const std::string KEY_TMPCST = "tempcst";
 const std::string KEY_TMPDUP = "tmpdup";
@@ -36,9 +38,16 @@ const std::string KEY_R  = "R";                // =R1 in the paper
 const std::string KEY_DUPMARK  = "DUPmark";
 const std::string KEY_DUPRANK  = "DUPrank";
 const std::string KEY_DUP2  = "dup2";          // =R in the paper
+const std::string KEY_DUP3  = "dup3";          // 
+const std::string KEY_H3  = "H3";              // 
+const std::string KEY_P   = "P";
+const std::string KEY_WTP   = "WTP";
+const std::string KEY_H3_SELECT  = "H3_select";              
 const std::string KEY_DOCCNT  = "doccnt";
 const std::string KEY_COLLEN  = "collen";
 const std::string KEY_DOCBORDER = "docborder";
+const std::string KEY_DOCBORDER_RANK = "docborder_rank";
+const std::string KEY_DOCBORDER_SELECT = "docborder_select";
 const std::string KEY_DOC_LENGTHS = "doclengths";
 const std::string KEY_INVFILE_TERM_RANGES = "invfile_term_ranges";
 const std::string KEY_INVFILE_PLISTS = "invfile_postings_lists";
@@ -48,6 +57,9 @@ const std::string KEY_F_T = "Ft";
 const std::string KEY_H = "H";
 const std::string KEY_CSA = "csa";
 const std::string KEY_MAXTF = "maxtf";
+const std::string KEY_MAXDOCLEN = "maxdoclen";
+const std::string KEY_WEIGHTS = "weights";
+const std::string KEY_W_AND_P = "W_and_P";
 
 std::vector<std::string> storage_keys = {KEY_DOCCNT,
 										 KEY_DARRAY,

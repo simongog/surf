@@ -193,6 +193,9 @@ class df_sada{
             util::clear(temp_cst);
             // convert to proper bv type
             m_bv = bit_vector_type(h);
+            if (m_bv.size()<40){
+                std::cerr<<"m_bv="<<m_bv<<std::endl;
+            }
             util::clear(wtc);
             m_sel = select_type(&m_bv);
         }
@@ -289,6 +292,15 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
             C[i] = last_occ[d];
             last_occ[d] = i;
         }
+        
+        if (D.size() < 20){
+            cout<<"D=";
+            for(size_t i=0; i<D.size(); ++i){
+                cout<<" "<<D[i];
+            }
+        }
+        cout<<endl;
+        
         util::bit_compress(C);
         store_to_file(C, cache_file_name(surf::KEY_C, cc));
     }
