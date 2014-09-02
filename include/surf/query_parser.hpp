@@ -144,8 +144,6 @@ struct query_parser {
                 std::vector<uint64_t> token_ids;
                 std::vector<std::string> token_strs;
                 std::copy(query_str.begin(), query_str.end(), std::back_inserter(token_ids));
-//                std::copy(query_str.begin(), query_str.end(), std::back_inserter(token_strs));
-                std::cout<<query_str<<std::endl;
                 queries.push_back(surf::query_t(qry_id,std::vector<query_token>(1,query_token(token_ids, token_strs, 1))));
             }
         }

@@ -75,14 +75,8 @@ int main(int argc,char* const argv[])
 
     /* parse queries */
     std::cout << "Parsing query file '" << args.query_file << "'" << std::endl;
-//    auto queries = surf::query_parser::parse_queries(args.collection_dir,args.query_file);
-    // query_t = tuple<uint64_t, std:;vector<query_token>>
     std::vector<surf::query_t> queries;
-//    if ( std::is_same<INDEX_TYPE::alphabet_category, sdsl::int_alphabet_tag>::value ){
-        queries = surf::query_parser::parse_queries<surf_index_t::alphabet_category>(args.collection_dir,args.query_file);
-//    } else {
-//        std::cout<<"character index"<<std::endl;
-//    }
+    queries = surf::query_parser::parse_queries<surf_index_t::alphabet_category>(args.collection_dir,args.query_file);
     std::cout << "Found " << queries.size() << " queries." << std::endl;
 
     /* load the index */

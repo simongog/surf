@@ -88,10 +88,27 @@ int main(int argc,char* const argv[])
     string qry;
     while ( std::cin >> qry ){
         auto res_iter = index.topk(qry.begin(), qry.end());
-        while ( res_iter ){
+        uint64_t k=0;
+        while ( res_iter and k < args.k ){
             auto docid_weight = *res_iter;
-            std::cout<<"DOC_ID="<<docid_weight.first<<" WEIGHT="<<docid_weight.second<<std::endl;
+            uint64_t doc_id = docid_weight.first;
+            std::cout<<"DOC_ID="<<doc_id<<" WEIGHT="<<docid_weight.second<<std::endl;
+            string doc = index.doc(doc_id);
+            auto found = doc.find(qry);
+            uint64_t check_weight = 0;
+            while (found!=std::string::npos) {
+                std::cout << "found '"<<qry<<"' at position" << found << '\n';
+                found = doc.find(qry, found+1);
+                ++check_weight;
+            }
+            if ( check_weight != docid_weight.second ){
+                std::cerr<<"ERROR: for query"<<qry<<" : ";
+                std::cerr<<"check_weight="<<check_weight;
+                std::cerr<<" != "<<docid_weight.second<<"=weight"<<std::endl;
+                return 1;
+            }
             ++res_iter;
+            ++k;
         }
     }
 

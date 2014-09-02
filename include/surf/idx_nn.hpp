@@ -110,24 +110,14 @@ public:
             top_k_iterator(top_k_iterator&&) = default;
             top_k_iterator& operator=(const top_k_iterator&) = default;
             top_k_iterator& operator=(top_k_iterator&&) = default;
+
             template<typename t_pat_iter>
             top_k_iterator(const idx_nn* idx, t_pat_iter begin, t_pat_iter end) : m_idx(idx) {
                 m_valid = backward_search(m_idx->m_csa, 0, m_idx->m_csa.size()-1, begin, end, m_sp, m_ep) > 0;
                 if ( m_valid ){
                     auto h3_range = m_idx->m_map_to_h3(m_sp, m_ep);
                     if ( !empty(h3_range) ) {
-                        uint64_t depth = 0;
-                        // determine depth
-                        size_type _sp=0, _ep = m_idx->m_csa.size()-1;
-                        for (auto it = begin+1; it <= end; ++it) {
-                            size_type __sp, __ep;
-                            backward_search(m_idx->m_csa, 0, m_idx->m_csa.size()-1, begin, it, __sp, __ep);
-                            if ( __ep-__sp+1 < _ep-_sp+1 ){
-                                ++depth;
-                            }
-                            _sp = __sp;
-                            _ep = __ep;
-                        } 
+                        uint64_t depth = end-begin;
                         m_k2_iter = top_k(m_idx->m_k2treap, {std::get<0>(h3_range) ,0}, {std::get<1>(h3_range), depth-1});
                     }
                     m_states.push({m_sp, m_ep});
@@ -199,15 +189,14 @@ public:
         return res;
     }
 
-/*                    
-                    size_type doc_begin=0;
-                    if ( doc_id ) {
-                        doc_begin = m_border_select(doc_id)+1;
-                    }
-                    size_type doc_end=m_border_select(doc_id+1)-1;
-                    cout<<"doc text range=["<<doc_begin<<","<<doc_end<<"]"<<endl;
-                    cout << extract(m_csa, doc_begin, doc_end) << endl;
-*/                  
+    std::string doc(uint64_t doc_id){
+        size_type doc_begin=0;
+        if ( doc_id ) {
+            doc_begin = m_border_select(doc_id)+1;
+        }
+        size_type doc_end=m_border_select(doc_id+1)-1;
+        return extract(m_csa, doc_begin, doc_end);
+    }
 
 
     void load(sdsl::cache_config& cc){
@@ -455,8 +444,11 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_wtr, t_rbv, t_rrank>& idx,
             auto r_child = get<2>(node);
             auto first = get<3>(node);
             auto depth = get<5>(node);
-            if ( depth > max_depth )
-                max_depth = depth;
+            if ( !cst.is_leaf(v) ){
+                auto real_depth = cst.depth(v);
+                if ( real_depth > max_depth )
+                    max_depth = real_depth;
+            }
             
             if (first) {  // first half
                 R_size += size(get<4>(node));
@@ -579,7 +571,8 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_wtr, t_rbv, t_rrank>& idx,
             auto v = *it; // get the node by dereferencing the iterator
             if ( !cst.is_leaf(v) ) {
                 if (it.visit() == 1) {  // node visited the first time
-                    ++depth;
+//                    ++depth;
+                    depth = cst.depth(v);
                     range_type r = map_node_to_dup3(v);
                     if ( !empty(r) ){
                         for(size_t i=r.first; i<=r.second; ++i){
@@ -601,7 +594,7 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_wtr, t_rbv, t_rrank>& idx,
                             depths[dup3[i]].pop();
                         }                       
                     }
-                    --depth;
+//                    --depth;
                 }
             }
         }
