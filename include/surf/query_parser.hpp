@@ -6,6 +6,7 @@
 #include <sstream>
 #include <unordered_map>
 #include <algorithm>
+#include <sdsl/sdsl_concepts.hpp>
 
 #include "surf/config.hpp"
 #include "surf/query.hpp"
@@ -112,13 +113,11 @@ struct query_parser {
         return {false,q};
     }
 
+    template<typename alphabet_category=sdsl::int_alphabet_tag>
     static std::vector<query_t> parse_queries(const std::string& collection_dir,
                                             const std::string& query_file,bool only_complete = false) 
     {
         std::vector<query_t> queries;
-
-        /* load the mapping */
-        auto mapping = load_dictionary(collection_dir);
 
         /* parse queries */
         std::ifstream qfs(query_file); 
@@ -128,10 +127,26 @@ struct query_parser {
         }
 
         std::string query_str;
-        while( std::getline(qfs,query_str) ) {
-            auto parsed_qry = parse_query(mapping,query_str,only_complete);
-            if(parsed_qry.first) {
-                queries.emplace_back(parsed_qry.second);
+        if ( std::is_same<alphabet_category, sdsl::int_alphabet_tag>::value ){
+            /* load the mapping */
+            auto mapping = load_dictionary(collection_dir);
+
+            while( std::getline(qfs,query_str) ) {
+                auto parsed_qry = parse_query(mapping,query_str,only_complete);
+                if(parsed_qry.first) {
+                    queries.emplace_back(parsed_qry.second);
+                }
+            }
+        } else {
+            uint64_t qry_id = 0;
+            while( std::getline(qfs,query_str) ) {
+                ++qry_id;
+                std::vector<uint64_t> token_ids;
+                std::vector<std::string> token_strs;
+                std::copy(query_str.begin(), query_str.end(), std::back_inserter(token_ids));
+//                std::copy(query_str.begin(), query_str.end(), std::back_inserter(token_strs));
+                std::cout<<query_str<<std::endl;
+                queries.push_back(surf::query_t(qry_id,std::vector<query_token>(1,query_token(token_ids, token_strs, 1))));
             }
         }
 

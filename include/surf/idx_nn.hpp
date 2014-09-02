@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <limits>
 #include <queue>
+#include <set>
 
 namespace surf{
 
@@ -57,19 +58,21 @@ template<typename t_csa,
 class idx_nn{
 public:
     using size_type = sdsl::int_vector<>::size_type;
-    typedef t_csa                         csa_type;
-    typedef t_df                          df_type;
-    typedef t_wtd                         wtd_type;
-    typedef t_wtr                         wtr_type;
-    typedef t_rbv                         rbv_type;
-    typedef t_rrank                       rrank_type;
-    typedef sd_vector<>                   border_type;
-    typedef sd_vector<>::rank_1_type      border_rank_type;
-    typedef sd_vector<>::select_1_type    border_select_type;
-    typedef rrr_vector<63>                h3_type;
-    typedef rrr_vector<63>::select_1_type h3_select_type;
-    typedef rmq_succinct_sct<>            rmqc_type;
-    typedef k2_treap<2,rrr_vector<63>>    k2treap_type;
+    typedef t_csa                                      csa_type;
+    typedef t_df                                       df_type;
+    typedef t_wtd                                      wtd_type;
+    typedef t_wtr                                      wtr_type;
+    typedef t_rbv                                      rbv_type;
+    typedef t_rrank                                    rrank_type;
+    typedef sd_vector<>                                border_type;
+    typedef sd_vector<>::rank_1_type                   border_rank_type;
+    typedef sd_vector<>::select_1_type                 border_select_type;
+    typedef rrr_vector<63>                             h3_type;
+    typedef rrr_vector<63>::select_1_type              h3_select_type;
+    typedef rmq_succinct_sct<>                         rmqc_type;
+    typedef k2_treap<2,rrr_vector<63>>                 k2treap_type;
+    typedef k2_treap_ns::top_k_iterator<k2treap_type>  k2treap_iterator;
+    typedef typename t_csa::alphabet_category          alphabet_category;
 
     typedef map_to_dup3_type<h3_select_type> map_to_h3_type;
 public:
@@ -86,49 +89,117 @@ public:
 
 public:
 
+    class top_k_iterator{
+        public:
+            typedef void(*t_mfptr)();
+            typedef std::pair<uint64_t, double> t_doc_val;
+            typedef std::stack<std::array<uint64_t,2>> t_stack_array;
+        private:
+            const idx_nn*      m_idx;
+            uint64_t           m_sp;  // start point of lex interval
+            uint64_t           m_ep;  // end point of lex interval
+            t_doc_val          m_doc_val;  // stores the current result
+            bool               m_valid = false;
+            k2treap_iterator   m_k2_iter;
+            std::set<uint64_t> m_reported;
+            std::set<uint64_t> m_singletons;
+            t_stack_array      m_states;
+        public:
+            top_k_iterator() = delete;
+            top_k_iterator(const top_k_iterator&) = default;
+            top_k_iterator(top_k_iterator&&) = default;
+            top_k_iterator& operator=(const top_k_iterator&) = default;
+            top_k_iterator& operator=(top_k_iterator&&) = default;
+            template<typename t_pat_iter>
+            top_k_iterator(const idx_nn* idx, t_pat_iter begin, t_pat_iter end) : m_idx(idx) {
+                m_valid = backward_search(m_idx->m_csa, 0, m_idx->m_csa.size()-1, begin, end, m_sp, m_ep) > 0;
+                if ( m_valid ){
+                    auto h3_range = m_idx->m_map_to_h3(m_sp, m_ep);
+                    if ( !empty(h3_range) ) {
+                        uint64_t depth = 0;
+                        // determine depth
+                        size_type _sp=0, _ep = m_idx->m_csa.size()-1;
+                        for (auto it = begin+1; it <= end; ++it) {
+                            size_type __sp, __ep;
+                            backward_search(m_idx->m_csa, 0, m_idx->m_csa.size()-1, begin, it, __sp, __ep);
+                            if ( __ep-__sp+1 < _ep-_sp+1 ){
+                                ++depth;
+                            }
+                            _sp = __sp;
+                            _ep = __ep;
+                        } 
+                        m_k2_iter = top_k(m_idx->m_k2treap, {std::get<0>(h3_range) ,0}, {std::get<1>(h3_range), depth-1});
+                    }
+                    m_states.push({m_sp, m_ep});
+                    ++(*this);
+                }
+            }
+
+            top_k_iterator& operator++(){
+                if ( m_valid ){
+                    m_valid = false;
+                    if ( m_k2_iter ) { // multiple occurrence result exists
+                        auto xy_w       = *m_k2_iter;
+                        uint64_t doc_id = m_idx->m_doc[real(xy_w.first)]; 
+                        m_doc_val = t_doc_val(doc_id, xy_w.second+1);
+                        m_reported.insert(doc_id);
+                        m_valid = true;
+                        ++m_k2_iter;
+                    } else { // search for singleton results
+                        while ( !m_states.empty() ) {
+                            auto state = m_states.top();
+                            m_states.pop();
+                            uint64_t min_idx = m_idx->m_rmqc(state[0], state[1]);
+                            uint64_t doc_id  = m_idx->m_border_rank(m_idx->m_csa[min_idx]);
+                            if ( m_singletons.find(doc_id) == m_singletons.end() ){
+                                m_singletons.insert(doc_id);
+                                if ( min_idx + 1 <= state[1] )
+                                    m_states.push({min_idx+1, state[1]});
+                                if ( state[0] + 1 <= min_idx )
+                                    m_states.push({state[0], min_idx-1});
+                                if ( m_reported.find(doc_id) == m_reported.end() ){
+                                    m_doc_val = t_doc_val(doc_id, 1);
+                                    m_reported.insert(doc_id);
+                                    m_valid = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                return *this;
+            }
+
+            t_doc_val operator*() const{
+                return m_doc_val; 
+            }
+
+            operator t_mfptr() const{
+                return (t_mfptr)(m_valid);
+            }
+    };
+
+    template<typename t_pat_iter>
+    top_k_iterator topk(t_pat_iter begin, t_pat_iter end) const{
+        return top_k_iterator(this, begin, end);
+    }
+
     result search(const std::vector<query_token>& qry,size_t k,bool ranked_and = false,bool profile = false) const {
-        range_type r; 
         result res;
+        if ( qry.size() > 0 ){
+            auto res_iter = topk(qry[0].token_ids.begin(), qry[0].token_ids.end());
+            size_t i = 0;
+            while ( i < k and res_iter ){
+                ++i;
+                auto docid_weight = *res_iter;
+                res.list.emplace_back(docid_weight.first, docid_weight.second);
+                ++res_iter;
+            }
+        }
         return res;
     }
 
-    std::vector<uint64_t> topk(const string& qry, int k){
-        std::vector<uint64_t> res;
-        size_type sp=1, ep=0;
-        std::cout<<"QRY: "<<qry<<std::endl;
-        if ( backward_search(m_csa, 0, m_csa.size()-1, qry.begin(), qry.end(), sp, ep) > 0 ){
-            std::cout<<"  interval: ["<<sp<<","<<ep<<"]"<<std::endl;
-            auto h3_range = m_map_to_h3(sp, ep);
-            uint64_t h3_sp = std::get<0>(h3_range);
-            uint64_t h3_ep = std::get<1>(h3_range);
-            std::cout<<"  h3 interval: ["<<h3_sp<<","<<h3_ep<<"]"<<std::endl;    
-            std::map<uint64_t, uint64_t> doc_to_occ;
-            if ( !empty(h3_range) ) {
-                std::cout<<"  docs with multiple occurrences exit"<<std::endl;
-                uint64_t depth = 0;
-                size_type _sp=0, _ep = m_csa.size()-1;
-                for (auto it = qry.begin()+1; it <= qry.end(); ++it) {
-                    size_type __sp, __ep;
-                    backward_search(m_csa, 0, m_csa.size()-1, qry.begin(), it, __sp, __ep);
-                    if ( __ep-__sp+1 < _ep-_sp+1 ){
-                        ++depth;
-                    }
-                    std::cout<< (it-qry.begin()) <<" range size: "<< __ep-__sp+1<<" "<<depth<<std::endl;
-                    _sp = __sp;
-                    _ep = __ep;
-                }
-                std::cout<<"tree depth="<<depth<<std::endl;
-                std::cout<<"m_k2treap.size()="<<m_k2treap.size()<<std::endl;
-                std::cout<<"m_doc.size()="<<m_doc.size()<<std::endl;
-//                std::cout<<"count = "<<count(m_k2treap, {0,0},{INT_MAX,INT_MAX})<<std::endl;
-                std::cout<<"range query {"<<h3_sp<<","<<h3_ep<<"}"<<"{"<<0<<","<<depth-1<<"}"<<std::endl;
-                auto topk_it = top_k(m_k2treap, {h3_sp ,0}, {h3_ep, depth-1});
-                while ( topk_it and k > 0 ){
-                    auto point_weight = *topk_it;
-                    auto doc_id = m_doc[real(point_weight.first)] ;
-                    cout << point_weight.first <<" weight: "<<point_weight.second
-                         << " doc: " << doc_id << endl;
-                    // TODO: add select on docborder to display documents 
+/*                    
                     size_type doc_begin=0;
                     if ( doc_id ) {
                         doc_begin = m_border_select(doc_id)+1;
@@ -136,16 +207,8 @@ public:
                     size_type doc_end=m_border_select(doc_id+1)-1;
                     cout<<"doc text range=["<<doc_begin<<","<<doc_end<<"]"<<endl;
                     cout << extract(m_csa, doc_begin, doc_end) << endl;
-                    --k;
-                    ++topk_it;
-                }
-            }
-            
-        } else {
-            std::cout<<"  not found in corpus"<<std::endl;
-        }
-        return res;
-    }
+*/                  
+
 
     void load(sdsl::cache_config& cc){
         load_from_cache(m_csa, surf::KEY_CSA, cc, true);
@@ -265,7 +328,6 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_wtr, t_rbv, t_rrank>& idx,
     using namespace sdsl;
     using namespace std;
     using cst_type = typename t_df::cst_type;
-//    using weight_type = typename idx_nn<t_csa,t_df,t_wtd,t_wtr,t_rbv,t_rrank>::weight_type;
     using k2treap_type = typename idx_nn<t_csa,t_df,t_wtd,t_wtr,t_rbv,t_rrank>::k2treap_type;
 
     construct_col_len<t_df::alphabet_category::WIDTH>(cc);

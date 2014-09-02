@@ -66,22 +66,29 @@ int main(int argc,char* const argv[])
     /* parse command line */
     cmdargs_t args = parse_args(argc,argv);
 
-    /* parse repo */
-    auto cc = surf::parse_collection(args.collection_dir);
-
-    /* parse queries */
-    std::cout << "Parsing query file '" << args.query_file << "'" << std::endl;
-    auto queries = surf::query_parser::parse_queries(args.collection_dir,args.query_file);
-    std::cout << "Found " << queries.size() << " queries." << std::endl;
-
     /* define types */
     using surf_index_t = INDEX_TYPE;
     std::string index_name = IDXNAME;
 
+    /* parse repo */
+    auto cc = surf::parse_collection<surf_index_t::alphabet_category>(args.collection_dir);
+
+    /* parse queries */
+    std::cout << "Parsing query file '" << args.query_file << "'" << std::endl;
+//    auto queries = surf::query_parser::parse_queries(args.collection_dir,args.query_file);
+    // query_t = tuple<uint64_t, std:;vector<query_token>>
+    std::vector<surf::query_t> queries;
+//    if ( std::is_same<INDEX_TYPE::alphabet_category, sdsl::int_alphabet_tag>::value ){
+        queries = surf::query_parser::parse_queries<surf_index_t::alphabet_category>(args.collection_dir,args.query_file);
+//    } else {
+//        std::cout<<"character index"<<std::endl;
+//    }
+    std::cout << "Found " << queries.size() << " queries." << std::endl;
+
     /* load the index */
     surf_index_t index;
     auto load_start = clock::now();
-    construct(index, "", cc, 0);
+//    construct(index, "", cc, 0);
     index.load(cc);
     auto load_stop = clock::now();
     auto load_time_sec = std::chrono::duration_cast<std::chrono::seconds>(load_stop-load_start);

@@ -87,7 +87,12 @@ int main(int argc,char* const argv[])
 //    std::map<uint64_t,uint64_t> query_lengths;
     string qry;
     while ( std::cin >> qry ){
-        index.topk(qry, args.k);
+        auto res_iter = index.topk(qry.begin(), qry.end());
+        while ( res_iter ){
+            auto docid_weight = *res_iter;
+            std::cout<<"DOC_ID="<<docid_weight.first<<" WEIGHT="<<docid_weight.second<<std::endl;
+            ++res_iter;
+        }
     }
 
     return EXIT_SUCCESS;
