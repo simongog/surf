@@ -4,9 +4,6 @@
 
 #include "idx_invfile.hpp"
 #include "idx_d.hpp"
-#include "idx_dr.hpp"
 #include "idx_nn.hpp"
-#include "idx_d1r1.hpp"
-#include "idx_d1r1mtf.hpp"
 
 #endif

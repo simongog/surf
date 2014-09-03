@@ -124,9 +124,11 @@ class df_sada{
             bit_vector h(2 * D.size(), 0);
             util::set_to_value(h,0);
             size_t h_idx = 0, dup_idx = 0;
-            using n_type = std::tuple<cst_sct3<>::node_type, size_t, size_t, bool>;
+            uint64_t max_depth = 0;
+            //                      cst node, l_child, r_child, first, real, 
+            using n_type = std::tuple<cst_sct3<>::node_type, size_t, size_t, bool, bool>;
             std::stack<n_type> s;
-            s.emplace(temp_cst.root(), 1, temp_cst.degree(temp_cst.root()), true);
+            s.emplace(temp_cst.root(), 1, temp_cst.degree(temp_cst.root()), true, true);
             // invariant: node has two children
             while (!s.empty()) {
                 n_type node = s.top();
@@ -135,6 +137,7 @@ class df_sada{
                 auto l_child = std::get<1>(node);
                 auto r_child = std::get<2>(node);
                 auto first = std::get<3>(node);
+                auto real  = std::get<4>(node);
                 if (first) {  // first half
                     // recurse down
                     std::get<3>(node) = false;
@@ -144,10 +147,10 @@ class df_sada{
                         s.push(node);
                         if (r_child == l_child + 1) {
                             auto w = temp_cst.select_child(v, l_child);
-                            if (!temp_cst.is_leaf(w)) s.emplace(w, 1, temp_cst.degree(w), true);
+                            if (!temp_cst.is_leaf(w)) s.emplace(w, 1, temp_cst.degree(w), true, true);
                         } else {
                             auto mid = l_child + (r_child - l_child) / 2;
-                            s.emplace(v, l_child, mid, true);
+                            s.emplace(v, l_child, mid, true, false);
                         }
                     } else {
                         for (size_t i=0; i<rb-lb; ++i) {
@@ -155,41 +158,55 @@ class df_sada{
                         }
                     }
                 } else {  // second half
-                    auto lb = temp_cst.lb(temp_cst.select_child(v, l_child));
-                    auto rb = temp_cst.rb(temp_cst.select_child(v, r_child));
-                    auto mid = l_child + (r_child - l_child) / 2;
-                    size_t dup_elements = 0;
-//                    if ( D_split_rank(lb) == D_split_rank(rb) ) {
-//                    }
-//                    else 
-                    if (lb + 1 == rb) {
-                        dup_elements = (wtc[rb] == lb);
-                        if (dup_elements) {
-                            temp_dup[dup_idx++] = lb;
-                        }
-                    } else {
-                        auto mid_rb = temp_cst.rb(temp_cst.select_child(v, mid));
-                        auto mid_lb = mid_rb + 1;
-                        auto dup_info = restricted_unique_range_values(wtc, mid_lb, rb, lb, mid_rb);
-                        dup_elements = dup_info.size();
-                        for (auto& dup : dup_info) {
-                            temp_dup[dup_idx++] = dup;
+                    if ( real and v != temp_cst.root() ){
+                        uint64_t depth = temp_cst.depth(v);
+                        max_depth = std::max(depth, max_depth);
+                        std::stack<std::array<uint64_t,2>> s_child;
+                        s_child.push({l_child, r_child});
+                        while ( !s_child.empty() ){
+                            auto child = s_child.top();
+                            s_child.pop(); 
+                            auto lb = temp_cst.lb(temp_cst.select_child(v, child[0]));
+                            auto rb = temp_cst.rb(temp_cst.select_child(v, child[1]));
+                            auto mid = child[0] + (child[1] - child[0]) / 2;
+                            size_t dup_elements = 0;
+                            if (lb + 1 == rb) {
+                                dup_elements = (wtc[rb] == lb);
+                                if (dup_elements) {
+                                    temp_dup[dup_idx++] = lb;
+                                }
+                            } else {
+                                auto mid_rb = temp_cst.rb(temp_cst.select_child(v, mid));
+                                auto mid_lb = mid_rb + 1;
+                                auto dup_info = restricted_unique_range_values(wtc, mid_lb, rb, lb, mid_rb);
+                                dup_elements = dup_info.size();
+                                for (auto& dup : dup_info) {
+                                    temp_dup[dup_idx++] = dup;
+                                }
+                            }
+                            h_idx += dup_elements;
+                            if ( mid+1 < child[1])
+                                s_child.push({mid+1,child[1]});
+                            if ( child[0] < mid )
+                                s_child.push({child[0],mid});
                         }
                     }
-                    h_idx += dup_elements;
                     h[h_idx++] = 1;
+                    auto mid = l_child + (r_child - l_child) / 2;
                     if (mid + 1 == r_child) {
                         auto w = temp_cst.select_child(v, r_child);
-                        if (!temp_cst.is_leaf(w)) s.emplace(w, 1, temp_cst.degree(w), true);
+                        if (!temp_cst.is_leaf(w)) s.emplace(w, 1, temp_cst.degree(w), true, true);
                     } else {
-                        s.emplace(v, mid + 1, r_child, true);
+                        s.emplace(v, mid + 1, r_child, true, false);
                     }
                 }
             }
+            std::cerr<<"max_depth="<<max_depth<<std::endl;
+            store_to_cache(max_depth, surf::KEY_MAXCSTDEPTH, cc);
             std::cerr<<"h_idx="<<h_idx<<std::endl;
             std::cerr<<"dup_idx="<<dup_idx<<std::endl;
             h.resize(h_idx);
-            store_to_cache(h, KEY_H, cc);
+            store_to_cache(h, KEY_TMPH, cc);
             util::clear(temp_cst);
             // convert to proper bv type
             m_bv = bit_vector_type(h);
@@ -325,40 +342,53 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
     if (!cache_file_exists(surf::KEY_DUP, cc)){
         cout<<"construct dup"<<endl;
         auto event = memory_monitor::event("construct dup");
-        int_vector<> D_array;
-        load_from_file(D_array, d_file);
         int_vector_buffer<> tmpdup(cache_file_name(surf::KEY_TMPDUP,cc));
         string dup_file = cache_file_name(surf::KEY_DUP, cc);
-        int_vector_buffer<> dup(dup_file, std::ios::out,
-                                         1024*1024, D.width());
+        string H_file = cache_file_name(surf::KEY_H, cc);
+        int_vector_buffer<1> h_buf(H_file, std::ios::out, 1024*1024);
         cout << "tmpdup.size()="<<tmpdup.size()<<endl;
         cout << "D.width()="<<(int)D.width()<<endl;
-        for (size_t i = 0; i < tmpdup.size(); ++i){
-            dup[i] = D_array[tmpdup[i]];
-        }
-//        std::map<uint64_t, uint64_t> node_list_len;
-        std::vector<uint64_t> dup_in_node(doc_cnt+1, 0);
-        int_vector_buffer<1> bv_h(cache_file_name(surf::KEY_H,cc));
-        
-        for (size_t i=0,j=0; i < bv_h.size(); ++i){
-            if (bv_h[i] == 0 ){
-                size_t sp = j;
-                while ( i < bv_h.size() and bv_h[i] == 0 ){
-                    dup_in_node[j-sp] = dup[j];
-                    ++j; ++i;
-                } 
-                size_t ep = j;
-//                ++node_list_len[ep-sp];
-                std::sort(dup_in_node.begin(), dup_in_node.begin()+(ep-sp));
-                for (size_t k = sp; k < ep; ++k){
-                    dup[k] = dup_in_node[k-sp];
-                }
+        {
+            int_vector_buffer<> dup_buf(dup_file, std::ios::out,
+                                             1024*1024, D.width());
+            int_vector<> D_array;
+            load_from_file(D_array, d_file);
+            for (size_t i = 0; i < tmpdup.size(); ++i){
+                dup_buf[i] = D_array[tmpdup[i]];
             }
         }
-        
-//        for (auto x : node_list_len){
-//            std::cerr << x.first << ", " << x.second << std::endl;
-//        }
+        int_vector_buffer<1> hv_tmph(cache_file_name(surf::KEY_TMPH,cc));
+        int_vector_buffer<>  dup_buf(dup_file, std::ios::in); 
+
+        uint64_t doc_cnt = 0;
+        load_from_cache(doc_cnt, KEY_DOCCNT, cc);
+        cout << "doc_cnt = " << doc_cnt << endl;
+        int_vector<> dup_vec(dup_buf.size(), 0, bits::hi(doc_cnt)+1);
+        size_t k=0;
+        for (size_t i=0, j=0; i < hv_tmph.size(); ++i){
+            if (hv_tmph[i] == 0 ){
+                std::map<uint64_t,uint64_t> dup_in_node;
+                while ( i < hv_tmph.size() and hv_tmph[i] == 0 ){
+                    dup_in_node[dup_buf[j++]]++;
+                    ++i;
+                }
+                for (auto x : dup_in_node){
+                    dup_vec[k++] = x.first;
+                    h_buf.push_back(0);
+                }
+                if ( i < hv_tmph.size() ) {
+                    h_buf.push_back(1);
+                }
+            } else {
+                h_buf.push_back(1);
+            }
+        }
+        dup_buf.close();
+        h_buf.close();
+        dup_vec.resize(k);
+        cout << "dup_vec.size() = " << dup_vec.size() << endl;
+        cout << "h_buf.size() = " << h_buf.size() << endl;
+        store_to_cache(dup_vec, surf::KEY_DUP, cc);
     }
     load_from_cache(idx, surf::KEY_SADADF, cc, true);
 }
