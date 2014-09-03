@@ -58,7 +58,7 @@ int main(int argc,char* const argv[])
     cmdargs_t args = parse_args(argc,argv);
 
     /* parse repo */
-    sdsl::cache_config cc = surf::parse_collection<typename surf_index_t::csa_type::alphabet_type>(args.collection_dir);
+    sdsl::cache_config cc = surf::parse_collection<surf_index_t::alphabet_category>(args.collection_dir);
     std::cout<<"parse collections"<<std::endl;
     for(auto x : cc.file_map){
         std::cout<<x.first<<" "<<x.second<<std::endl;

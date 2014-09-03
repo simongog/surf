@@ -3,6 +3,7 @@
 #include <iostream>
 #include <iomanip>
 #include <ctime>
+#include <algorithm>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -86,14 +87,15 @@ int main(int argc,char* const argv[])
 //    std::map<uint64_t,surf::result> query_results;
 //    std::map<uint64_t,uint64_t> query_lengths;
     string qry;
-    while ( std::cin >> qry ){
+    while ( std::getline(std::cin, qry) ){
+        /*
         auto res_iter = index.topk(qry.begin(), qry.end());
         uint64_t k=0;
         while ( res_iter and k < args.k ){
             auto docid_weight = *res_iter;
             uint64_t doc_id = docid_weight.first;
             std::cout<<"DOC_ID="<<doc_id<<" WEIGHT="<<docid_weight.second<<std::endl;
-            string doc = index.doc(doc_id);
+            auto doc = index.doc(doc_id);
             auto found = doc.find(qry);
             uint64_t check_weight = 0;
             while (found!=std::string::npos) {
@@ -110,6 +112,7 @@ int main(int argc,char* const argv[])
             ++res_iter;
             ++k;
         }
+        */
     }
 
     return EXIT_SUCCESS;

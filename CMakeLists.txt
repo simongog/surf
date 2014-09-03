@@ -66,8 +66,6 @@ TARGET_LINK_LIBRARIES(doc_lengths sdsl)
 ADD_EXECUTABLE(surf_query src/surf_query.cpp)
 TARGET_LINK_LIBRARIES(surf_query libzmq sdsl)
 
-
-
 ADD_EXECUTABLE(test src/test.cpp)
 TARGET_LINK_LIBRARIES(test sdsl divsufsort divsufsort64 pthread)
 

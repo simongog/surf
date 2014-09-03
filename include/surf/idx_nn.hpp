@@ -189,13 +189,14 @@ public:
         return res;
     }
 
-    std::string doc(uint64_t doc_id){
+    auto doc(uint64_t doc_id) -> decltype(extract(m_csa,0,0)) {
         size_type doc_begin=0;
         if ( doc_id ) {
             doc_begin = m_border_select(doc_id)+1;
         }
         size_type doc_end=m_border_select(doc_id+1)-1;
-        return extract(m_csa, doc_begin, doc_end);
+        auto res = extract(m_csa, doc_begin, doc_end);
+        return res;
     }
 
 

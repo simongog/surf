@@ -98,8 +98,13 @@ int main(int argc,char* const argv[])
         for(const auto& query: queries) {
             auto id = std::get<0>(query);
             auto qry_tokens = std::get<1>(query);
-            std::cout << "[" << id << "] |Q|=" << qry_tokens.size(); std::cout.flush();
-
+            std::cout << "[" << id << "] |Q|=";
+            if (qry_tokens.size()==0) {
+                std::cout << qry_tokens.size();
+            } else {
+                std::cout << qry_tokens[0].token_ids.size();
+            }
+            std::cout.flush();
             // run the query
             auto qry_start = clock::now();
             auto results = index.search(qry_tokens,args.k);

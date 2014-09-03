@@ -130,21 +130,48 @@ struct query_parser {
         if ( std::is_same<alphabet_category, sdsl::int_alphabet_tag>::value ){
             /* load the mapping */
             auto mapping = load_dictionary(collection_dir);
-
+            const auto& id_mapping = mapping.first;
+//            const auto& reverse_mapping = mapping.second;
+/*
             while( std::getline(qfs,query_str) ) {
                 auto parsed_qry = parse_query(mapping,query_str,only_complete);
                 if(parsed_qry.first) {
                     queries.emplace_back(parsed_qry.second);
                 }
             }
+*/
+
+            while ( std::getline(qfs,query_str) ) {
+                auto id_sep_pos = query_str.find(';');
+                auto qryid_str = query_str.substr(0,id_sep_pos);
+                auto qry_id = std::stoull(qryid_str);
+                auto qry_content = query_str.substr(id_sep_pos+1);
+                std::vector<uint64_t> ids;
+                std::vector<std::string> strs;
+                std::istringstream qry_content_stream(qry_content);
+                for(std::string qry_token; std::getline(qry_content_stream,qry_token,' ');) {
+                    auto id_itr = id_mapping.find(qry_token);
+                    if (id_itr != id_mapping.end()) {
+                        ids.push_back(id_itr->second);
+                        strs.push_back(qry_token);
+                    } else {
+                        std::cerr << "ERROR: could not find '" << qry_token << "' in the dictionary." << std::endl;
+                        if(only_complete) {
+                            ids.clear();
+                            strs.clear();
+                        }
+                    }
+                }
+                queries.push_back(surf::query_t(qry_id,std::vector<query_token>(1,query_token(ids, strs, 1))));
+            } 
         } else {
             uint64_t qry_id = 0;
-            while( std::getline(qfs,query_str) ) {
+            while ( std::getline(qfs,query_str) ) {
                 ++qry_id;
-                std::vector<uint64_t> token_ids;
-                std::vector<std::string> token_strs;
-                std::copy(query_str.begin(), query_str.end(), std::back_inserter(token_ids));
-                queries.push_back(surf::query_t(qry_id,std::vector<query_token>(1,query_token(token_ids, token_strs, 1))));
+                std::vector<uint64_t> ids;
+                std::vector<std::string> strs;
+                std::copy(query_str.begin(), query_str.end(), std::back_inserter(ids));
+                queries.push_back(surf::query_t(qry_id,std::vector<query_token>(1,query_token(ids, strs, 1))));
             }
         }
 
