@@ -343,9 +343,13 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_wtr, t_rbv, t_rrank>& idx,
         if ( dup.size() < 20 ){
             cout << dup << endl;
         }
-        int_vector<> P(dup.size(), 0, sdsl::bits::hi(max_depth)+1);
 
-        int_vector<> W(dup.size(), 0, bits::hi(max_len)+1);
+        std::string P_file = cache_file_name(surf::KEY_P, cc);
+        std::string W_file = cache_file_name(surf::KEY_WEIGHTS, cc);
+        
+        int_vector_buffer<> P_buf(P_file, std::ios::out, 1<<20, sdsl::bits::hi(max_depth)+1);
+        int_vector_buffer<> W_buf(W_file, std::ios::out, 1<<20, sdsl::bits::hi(max_len)+1);
+
         t_wtd wtd;
         load_from_cache(wtd, surf::KEY_WTD, cc, true);
         
@@ -373,15 +377,7 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_wtr, t_rbv, t_rrank>& idx,
                     range_type r = map_node_to_dup(v);
                     if ( !empty(r) ){
                         for(size_t i=r.first; i<=r.second; ++i){
-                            P[i] = depths[dup[i]].top();
                             depths[dup[i]].push(depth);
-                            W[i] = wtd.rank(cst.rb(v)+1, dup[i]) - 
-                                   wtd.rank(cst.lb(v),dup[i]);
-                            if ( W[i] == 0 ){
-                                cout << "ERROR: W["<<i<<"]=0"<< endl;
-                                return;
-                            }
-                            W[i] = W[i] - 1; // store weight-1
                         }
                     }
                 } else { // node visited the second time 
@@ -389,24 +385,22 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_wtr, t_rbv, t_rrank>& idx,
                     if ( !empty(r) ){
                          for(size_t i=r.first; i<=r.second; ++i){
                             depths[dup[i]].pop();
+                            P_buf[i] = depths[dup[i]].top();
+                            uint64_t w = wtd.rank(cst.rb(v)+1, dup[i]) - 
+                                         wtd.rank(cst.lb(v),dup[i]);
+                            if ( w == 0 ){
+                                cout << "ERROR: W["<<i<<"]=0"<< endl;
+                                return;
+                            }
+                            W_buf[i] = w-1;; // store weight-1
+
                         }                       
                     }
                 }
             }
         }
-        store_to_cache(P, surf::KEY_P, cc);
-        store_to_cache(W, surf::KEY_WEIGHTS, cc);
-        {
-            wt_int<rrr_vector<63>> wtP;
-            construct(wtP, cache_file_name(surf::KEY_P, cc));
-            store_to_cache(wtP, surf::KEY_WTP, cc, true);
-        }
-        {
-            wt_int<bit_vector,rank_support_v5<>,select_support_scan<>,select_support_scan<1>> wtP;
-            construct(wtP, cache_file_name(surf::KEY_P, cc));
-            store_to_cache(wtP, surf::KEY_WTP, cc, true);
-       
-        }
+        P_buf.close();
+        W_buf.close();
     }
     cout<<"...RMQ_C"<<endl;
     {
@@ -418,26 +412,30 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_wtr, t_rbv, t_rrank>& idx,
     cout<<"...W_AND_P"<<endl;
     {
         int_vector_buffer<> P_buf(cache_file_name(surf::KEY_P, cc));
+        std::string W_and_P_file = cache_file_name(surf::KEY_W_AND_P, cc);
         cout<<"P_buf.size()=" << P_buf.size() << endl;
         {
             int_vector<> id_v(P_buf.size(), 0,bits::hi(P_buf.size())+1);
             util::set_to_id(id_v);
-            store_to_file(id_v, cache_file_name(surf::KEY_W_AND_P, cc)+".x");
+            store_to_file(id_v, W_and_P_file+".x");
         }
         {
             int_vector<> P;
             load_from_cache(P, surf::KEY_P, cc);
-            store_to_file(P, cache_file_name(surf::KEY_W_AND_P,cc)+".y");
+            store_to_file(P, W_and_P_file+".y");
         }
         {
             int_vector<> W;
             load_from_cache(W, surf::KEY_WEIGHTS, cc);
-            store_to_file(W, cache_file_name(surf::KEY_W_AND_P,cc)+".w");
+            store_to_file(W, W_and_P_file+".w");
         }
         cout<<"build k2treap"<<endl;
         k2treap_type k2treap;
         construct(k2treap, cache_file_name(surf::KEY_W_AND_P,cc));
         store_to_cache(k2treap, surf::KEY_W_AND_P, cc, true);
+        sdsl::remove(W_and_P_file+".x");
+        sdsl::remove(W_and_P_file+".y");
+        sdsl::remove(W_and_P_file+".w");
     }
 }
 

@@ -324,9 +324,10 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
     }
 
     using wtc_type  = typename df_sada_type::wtc_type;
+    std::string WTC_file = cache_file_name<wtc_type>(surf::KEY_WTC, cc);
     if (!cache_file_exists<wtc_type>(surf::KEY_WTC, cc)) {
-        wtc_type wtc;
         auto event = memory_monitor::event("construct wt_c");
+        wtc_type wtc;
         construct(wtc, cache_file_name(surf::KEY_C, cc), cc, 0);
         store_to_cache(wtc, surf::KEY_WTC, cc, true);
         cout<<"wtc.size()="<<wtc.size() << endl;
@@ -338,6 +339,8 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
         df_sada_type tmp_sadadf(cc);
         store_to_cache(tmp_sadadf, surf::KEY_SADADF,cc, true);
     }
+
+    sdsl::remove(WTC_file);
 
     if (!cache_file_exists(surf::KEY_DUP, cc)){
         cout<<"construct dup"<<endl;
