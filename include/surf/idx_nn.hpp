@@ -51,25 +51,20 @@ struct map_to_dup_type{
 template<typename t_csa,
          typename t_df,
          typename t_wtd,
-         typename t_wtr,
-         typename t_rbv=sdsl::rrr_vector<63>,
-         typename t_rrank=typename t_rbv::rank_1_type>
+         typename t_k2treap>
 class idx_nn{
 public:
     using size_type = sdsl::int_vector<>::size_type;
     typedef t_csa                                      csa_type;
     typedef t_df                                       df_type;
     typedef t_wtd                                      wtd_type;
-    typedef t_wtr                                      wtr_type;
-    typedef t_rbv                                      rbv_type;
-    typedef t_rrank                                    rrank_type;
     typedef sd_vector<>                                border_type;
     typedef sd_vector<>::rank_1_type                   border_rank_type;
     typedef sd_vector<>::select_1_type                 border_select_type;
     typedef rrr_vector<63>                             h_type;
     typedef rrr_vector<63>::select_1_type              h_select_type;
     typedef rmq_succinct_sct<>                         rmqc_type;
-    typedef k2_treap<2,rrr_vector<63>>                 k2treap_type;
+    typedef t_k2treap                                  k2treap_type;
     typedef k2_treap_ns::top_k_iterator<k2treap_type>  k2treap_iterator;
     typedef typename t_csa::alphabet_category          alphabet_category;
 
@@ -198,6 +193,14 @@ public:
         return res;
     }
 
+    uint64_t doc_cnt() const{
+        return m_border_rank(m_csa.size());
+    }
+
+    uint64_t word_cnt() const {
+        return m_csa.size() - doc_cnt();
+    }
+
 
     void load(sdsl::cache_config& cc){
         load_from_cache(m_csa, surf::KEY_CSA, cc, true);
@@ -265,17 +268,15 @@ struct map_node_to_dup_type{
 template<typename t_csa,
          typename t_df,
          typename t_wtd,
-         typename t_wtr,
-         typename t_rbv,
-         typename t_rrank>
-void construct(idx_nn<t_csa,t_df,t_wtd,t_wtr, t_rbv, t_rrank>& idx,
+         typename t_k2treap
+         >
+void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap>& idx,
                const std::string&,
                sdsl::cache_config& cc, uint8_t num_bytes)
 {    
     using namespace sdsl;
     using namespace std;
     using cst_type = typename t_df::cst_type;
-    using k2treap_type = typename idx_nn<t_csa,t_df,t_wtd,t_wtr,t_rbv,t_rrank>::k2treap_type;
 
     construct_col_len<t_df::alphabet_category::WIDTH>(cc);
 
@@ -430,7 +431,7 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_wtr, t_rbv, t_rrank>& idx,
             store_to_file(W, W_and_P_file+".w");
         }
         cout<<"build k2treap"<<endl;
-        k2treap_type k2treap;
+        t_k2treap k2treap;
         construct(k2treap, cache_file_name(surf::KEY_W_AND_P,cc));
         store_to_cache(k2treap, surf::KEY_W_AND_P, cc, true);
         sdsl::remove(W_and_P_file+".x");

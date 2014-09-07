@@ -70,12 +70,12 @@ valid_collection(std::string collection_dir)
         /* make sure the necessary files are present */
         if ( std::is_same<alphabet_tag, sdsl::int_alphabet_tag>::value ){
             if( ! surf::file_exists(collection_dir+"/"+surf::TEXT_FILENAME) ||
-                ! surf::file_exists(collection_dir+"/"+surf::DICT_FILENAME) ||
-                ! surf::file_exists(collection_dir+"/"+surf::DOCNAMES_FILENAME) )
+                ! surf::file_exists(collection_dir+"/"+surf::DICT_FILENAME) 
+                )
             {
                 std::cerr << collection_dir << " does not contain a valid surf collection.\n";
                 std::cerr << "The files " << surf::TEXT_FILENAME << " , " << surf::DICT_FILENAME 
-                          << " , " << surf::DOCNAMES_FILENAME << " have to be present" << std::endl;
+                          << " have to be present" << std::endl;
                 return false;
             }
         } else {

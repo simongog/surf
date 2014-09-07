@@ -58,13 +58,19 @@ foreach(f ${index_config_files})
     TARGET_LINK_LIBRARIES(surf_qry-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib)
 	set_property(TARGET surf_qry-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 
+    ADD_EXECUTABLE(surf_query-${NAME} src/surf_query.cpp)
+    TARGET_LINK_LIBRARIES(surf_query-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib)
+	set_property(TARGET surf_query-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 endforeach(f)
 
 ADD_EXECUTABLE(doc_lengths src/doc_lengths.cpp)
 TARGET_LINK_LIBRARIES(doc_lengths sdsl)
 
-ADD_EXECUTABLE(surf_query src/surf_query.cpp)
-TARGET_LINK_LIBRARIES(surf_query libzmq sdsl)
+ADD_EXECUTABLE(gen_patterns src/gen_patterns.cpp)
+TARGET_LINK_LIBRARIES(gen_patterns sdsl divsufsort divsufsort64 pthread)
+
+ADD_EXECUTABLE(gen_patterns_int src/gen_patterns_int.cpp)
+TARGET_LINK_LIBRARIES(gen_patterns_int sdsl divsufsort divsufsort64 pthread)
 
 ADD_EXECUTABLE(test src/test.cpp)
 TARGET_LINK_LIBRARIES(test sdsl divsufsort divsufsort64 pthread)
@@ -93,3 +99,5 @@ TARGET_LINK_LIBRARIES(surf_collection_info sdsl divsufsort divsufsort64 pthread 
 ADD_EXECUTABLE(text2surf tools/text2surf.cpp)
 TARGET_LINK_LIBRARIES(text2surf sdsl)
 
+ADD_EXECUTABLE(int2surf tools/int2surf.cpp)
+TARGET_LINK_LIBRARIES(int2surf sdsl)
