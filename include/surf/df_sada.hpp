@@ -5,6 +5,7 @@
 #include "construct_doc_cnt.hpp"
 #include "construct_doc_border.hpp"
 #include "construct_darray.hpp"
+#include "surf/construct_max_doc_len.hpp"
 #include <sdsl/bit_vectors.hpp>
 #include <sdsl/suffix_trees.hpp>
 #include <tuple>
@@ -50,10 +51,6 @@ class df_sada{
         typedef t_alphabet alphabet_category;
 
         typedef typename df_sada_trait<t_alphabet>::cst_type cst_type;
-        typedef sdsl::wt_int<sdsl::bit_vector,
-                             sdsl::rank_support_v<>,
-                             sdsl::select_support_scan<1>,
-                             sdsl::select_support_scan<0>>   wtc_type;
     private:
         bit_vector_type m_bv;
         select_type     m_sel;
@@ -70,7 +67,6 @@ class df_sada{
         df_sada(sdsl::cache_config& cc){
             using namespace sdsl;
             auto event = memory_monitor::event("construct df_sada");
-
             if (cache_file_exists(KEY_H, cc)){
                 bit_vector h;
                 load_from_cache(h, KEY_H, cc);
@@ -81,16 +77,14 @@ class df_sada{
                 return;
             }
 
-            cst_type temp_cst;
-            wtc_type wtc;
 
-            load_from_file(temp_cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
-            load_from_file(wtc, cache_file_name<wtc_type>(surf::KEY_WTC, cc));
+            construct_max_doc_len<alphabet_category::WIDTH>(cc);    
+            uint64_t max_len = 0;
+            load_from_cache(max_len, surf::KEY_MAXDOCLEN, cc);
 
-            // int_vector_buffer which will contain the positions of the duplicates in the
-            // C array after this scope
-            int_vector_buffer<> temp_dup(cache_file_name(KEY_TMPDUP, cc), std::ios::out,
-                                         1024*1024, bits::hi(wtc.size())+1);
+            cst_type cst;
+
+            load_from_file(cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
 
             string d_file = cache_file_name(surf::KEY_DARRAY, cc);
             int_vector_buffer<> D(d_file);
@@ -118,102 +112,104 @@ class df_sada{
             cout << "D_split.size()="<<D_split.size()<<endl;
             cout << "D_split_rank(D_split.size())="<<D_split_rank(D_split.size())<<endl;
             cout << "avg dist="<<D_split.size()/(D_split_rank(D_split.size())+1.0)<<endl;
-            
+
+            std::string DUP_file = cache_file_name(surf::KEY_DUP, cc);
+            std::string W_file = cache_file_name(surf::KEY_WEIGHTS, cc);
+
+            int_vector_buffer<> dup_buf(DUP_file, std::ios::out, 1<<20, sdsl::bits::hi(doc_cnt)+1);
+            int_vector_buffer<> weight_buf(W_file, std::ios::out, 1<<20, sdsl::bits::hi(max_len)+1);
+
+
+            typedef WTD_TYPE t_wtd;
+            t_wtd wtd;
+            load_from_cache(wtd, surf::KEY_WTD, cc, true);
 
             // construct the bv
             bit_vector h(2 * D.size(), 0);
             util::set_to_value(h,0);
             size_t h_idx = 0, dup_idx = 0;
+            size_t last_io_id = 0;
             uint64_t max_depth = 0;
-            //                      cst node, l_child, r_child, first, real, 
-            using n_type = std::tuple<cst_sct3<>::node_type, size_t, size_t, bool, bool>;
+
+            using node_type = typename cst_type::node_type;
+            using n_type = std::tuple<node_type, bool>;
             std::stack<n_type> s;
-            s.emplace(temp_cst.root(), 1, temp_cst.degree(temp_cst.root()), true, true);
+            std::vector<node_type> child_vec;
+            std::vector<range_type> range_vec;
+//            s.emplace(cst.root(), true);
+
+            auto s_push = [&s,&cst,&D_split_rank](node_type v){
+                if (D_split_rank(cst.rb(v)) > D_split_rank(cst.lb(v))){
+                    s.emplace(v, true);
+                }
+            };
+            s_push(cst.root());
             // invariant: node has two children
             while (!s.empty()) {
                 n_type node = s.top();
                 s.pop();
                 auto v = std::get<0>(node);
-                auto l_child = std::get<1>(node);
-                auto r_child = std::get<2>(node);
-                auto first = std::get<3>(node);
-                auto real  = std::get<4>(node);
-                if (first) {  // first half
+                auto first = std::get<1>(node);
+//                std::cout<<"["<<cst.lb(v)<<","<<cst.rb(v)<<"] - "<<first<<std::endl;
+                if ( first ) {  // first half
                     // recurse down
-                    std::get<3>(node) = false;
-                    auto lb = temp_cst.lb(temp_cst.select_child(v, l_child));
-                    auto rb = temp_cst.rb(temp_cst.select_child(v, r_child));
-                    if ( D_split_rank(rb) > D_split_rank(lb) ) {
-                        s.push(node);
-                        if (r_child == l_child + 1) {
-                            auto w = temp_cst.select_child(v, l_child);
-                            if (!temp_cst.is_leaf(w)) s.emplace(w, 1, temp_cst.degree(w), true, true);
-                        } else {
-                            auto mid = l_child + (r_child - l_child) / 2;
-                            s.emplace(v, l_child, mid, true, false);
-                        }
-                    } else {
-                        for (size_t i=0; i<rb-lb; ++i) {
-                            h[h_idx++] = 1;
-                        }
-                    }
+                    std::get<1>(node) = false;
+                    uint64_t depth = cst.depth(v);
+                    max_depth = std::max(depth, max_depth);
+                    s.push(node);
+                    s_push(cst.select_child(v, 1));
+//                        s.emplace(cst.select_child(v, 1), true);
                 } else {  // second half
-                    if ( real and v != temp_cst.root() ){
-                        uint64_t depth = temp_cst.depth(v);
-                        max_depth = std::max(depth, max_depth);
-                        std::stack<std::array<uint64_t,2>> s_child;
-                        s_child.push({l_child, r_child});
-                        while ( !s_child.empty() ){
-                            auto child = s_child.top();
-                            s_child.pop(); 
-                            auto lb = temp_cst.lb(temp_cst.select_child(v, child[0]));
-                            auto rb = temp_cst.rb(temp_cst.select_child(v, child[1]));
-                            auto mid = child[0] + (child[1] - child[0]) / 2;
-                            size_t dup_elements = 0;
-                            if (lb + 1 == rb) {
-                                dup_elements = (wtc[rb] == lb);
-                                if (dup_elements) {
-                                    temp_dup[dup_idx++] = lb;
-                                }
-                            } else {
-                                auto mid_rb = temp_cst.rb(temp_cst.select_child(v, mid));
-                                auto mid_lb = mid_rb + 1;
-                                auto dup_info = restricted_unique_range_values(wtc, mid_lb, rb, lb, mid_rb);
-                                dup_elements = dup_info.size();
-                                for (auto& dup : dup_info) {
-                                    temp_dup[dup_idx++] = dup;
-                                }
-                            }
-                            h_idx += dup_elements;
-                            if ( mid+1 < child[1])
-                                s_child.push({mid+1,child[1]});
-                            if ( child[0] < mid )
-                                s_child.push({child[0],mid});
+                    for (auto& child : cst.children(v)){
+                        child_vec.push_back(child);
+                    }
+                    uint64_t node_io_id = cst.rb(cst.select_child(v, 1));
+                    while (last_io_id+1 < node_io_id){
+                        ++last_io_id;
+                        h[h_idx++] = 1;
+                    }
+                    if ( v != cst.root() ){
+                        for(auto& child : child_vec){
+                            range_vec.emplace_back(cst.lb(child), cst.rb(child));
+                        }
+                        auto dups = intersect(wtd, range_vec, 2);
+                        range_vec.clear();
+//                        std::cout<<"dups:"<<std::endl;
+                        for (auto &duplicate : dups) {
+//                            std::cout<<"("<<duplicate.first<<","<<duplicate.second<<")"<<std::endl;
+                            dup_buf[dup_idx] = duplicate.first;
+                            weight_buf[dup_idx] = duplicate.second-1; 
+                            ++dup_idx;
+                            ++h_idx;
                         }
                     }
                     h[h_idx++] = 1;
-                    auto mid = l_child + (r_child - l_child) / 2;
-                    if (mid + 1 == r_child) {
-                        auto w = temp_cst.select_child(v, r_child);
-                        if (!temp_cst.is_leaf(w)) s.emplace(w, 1, temp_cst.degree(w), true, true);
-                    } else {
-                        s.emplace(v, mid + 1, r_child, true, false);
+                    last_io_id = node_io_id;
+                    while ( child_vec.size() > 1 ){
+//                        s.emplace(child_vec.back(), true);
+                        s_push(child_vec.back());
+                        child_vec.pop_back();
                     }
+                    child_vec.pop_back();
                 }
+            }
+            std::cerr<<"done last_io_id="<<last_io_id<<std::endl;
+            while (last_io_id < wtd.size()){
+                ++last_io_id;
+                h[h_idx++] = 1;
             }
             std::cerr<<"max_depth="<<max_depth<<std::endl;
             store_to_cache(max_depth, surf::KEY_MAXCSTDEPTH, cc);
             std::cerr<<"h_idx="<<h_idx<<std::endl;
             std::cerr<<"dup_idx="<<dup_idx<<std::endl;
             h.resize(h_idx);
-            store_to_cache(h, KEY_TMPH, cc);
-            util::clear(temp_cst);
+            store_to_cache(h, KEY_H, cc);
+            util::clear(cst);
             // convert to proper bv type
             m_bv = bit_vector_type(h);
             if (m_bv.size()<40){
                 std::cerr<<"m_bv="<<m_bv<<std::endl;
             }
-            util::clear(wtc);
             m_sel = select_type(&m_bv);
         }
 
@@ -283,10 +279,9 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
     register_cache_file(conf::KEY_LCP, cc);
     using cst_type = typename df_sada<t_bv,t_sel,t_alphabet>::cst_type;
     if (!cache_file_exists<cst_type>(KEY_TMPCST, cc)) {
-        auto event = memory_monitor::event("construct temp_cst");
-//        cst_type temp_cst = cst_type(cc, true);
-        cst_type temp_cst = cst_type(cc);
-        store_to_file(temp_cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
+        auto event = memory_monitor::event("construct cst");
+        cst_type cst = cst_type(cc);
+        store_to_file(cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
     } 
 
     construct_doc_cnt<t_alphabet::WIDTH>(cc);
@@ -322,76 +317,20 @@ void construct(df_sada<t_bv,t_sel,t_alphabet> &idx, const string& file,
         util::bit_compress(C);
         store_to_file(C, cache_file_name(surf::KEY_C, cc));
     }
-
-    using wtc_type  = typename df_sada_type::wtc_type;
-    std::string WTC_file = cache_file_name<wtc_type>(surf::KEY_WTC, cc);
-    if (!cache_file_exists<wtc_type>(surf::KEY_WTC, cc)) {
-        auto event = memory_monitor::event("construct wt_c");
-        wtc_type wtc;
-        construct(wtc, cache_file_name(surf::KEY_C, cc), cc, 0);
-        store_to_cache(wtc, surf::KEY_WTC, cc, true);
-        cout<<"wtc.size()="<<wtc.size() << endl;
-        cout<<"wtc.sigma()="<<wtc.sigma << endl;
+    typedef WTD_TYPE t_wtd;
+    if (!cache_file_exists<t_wtd>(surf::KEY_WTD, cc) ){
+        construct_darray<t_alphabet::WIDTH>(cc, false);
+        t_wtd wtd;
+        construct(wtd, cache_file_name(surf::KEY_DARRAY, cc), cc);
+        cout << "wtd.size() = " << wtd.size() << endl;
+        cout << "wtd.sigma = " << wtd.sigma << endl;
+        store_to_cache(wtd, surf::KEY_WTD, cc, true);
     }
-    cout << "call df_sada_type construct" << endl;
 
+    cout << "call df_sada_type construct" << endl;
     if ( !cache_file_exists<df_sada_type>(surf::KEY_SADADF, cc) ) {
         df_sada_type tmp_sadadf(cc);
         store_to_cache(tmp_sadadf, surf::KEY_SADADF,cc, true);
-    }
-
-    sdsl::remove(WTC_file);
-
-    if (!cache_file_exists(surf::KEY_DUP, cc)){
-        cout<<"construct dup"<<endl;
-        auto event = memory_monitor::event("construct dup");
-        int_vector_buffer<> tmpdup(cache_file_name(surf::KEY_TMPDUP,cc));
-        string dup_file = cache_file_name(surf::KEY_DUP, cc);
-        string H_file = cache_file_name(surf::KEY_H, cc);
-        int_vector_buffer<1> h_buf(H_file, std::ios::out, 1024*1024);
-        cout << "tmpdup.size()="<<tmpdup.size()<<endl;
-        cout << "D.width()="<<(int)D.width()<<endl;
-        {
-            int_vector_buffer<> dup_buf(dup_file, std::ios::out,
-                                             1024*1024, D.width());
-            int_vector<> D_array;
-            load_from_file(D_array, d_file);
-            for (size_t i = 0; i < tmpdup.size(); ++i){
-                dup_buf[i] = D_array[tmpdup[i]];
-            }
-        }
-        int_vector_buffer<1> hv_tmph(cache_file_name(surf::KEY_TMPH,cc));
-        int_vector_buffer<>  dup_buf(dup_file, std::ios::in); 
-
-        uint64_t doc_cnt = 0;
-        load_from_cache(doc_cnt, KEY_DOCCNT, cc);
-        cout << "doc_cnt = " << doc_cnt << endl;
-        int_vector<> dup_vec(dup_buf.size(), 0, bits::hi(doc_cnt)+1);
-        size_t k=0;
-        for (size_t i=0, j=0; i < hv_tmph.size(); ++i){
-            if (hv_tmph[i] == 0 ){
-                std::map<uint64_t,uint64_t> dup_in_node;
-                while ( i < hv_tmph.size() and hv_tmph[i] == 0 ){
-                    dup_in_node[dup_buf[j++]]++;
-                    ++i;
-                }
-                for (auto x : dup_in_node){
-                    dup_vec[k++] = x.first;
-                    h_buf.push_back(0);
-                }
-                if ( i < hv_tmph.size() ) {
-                    h_buf.push_back(1);
-                }
-            } else {
-                h_buf.push_back(1);
-            }
-        }
-        dup_buf.close();
-        h_buf.close();
-        dup_vec.resize(k);
-        cout << "dup_vec.size() = " << dup_vec.size() << endl;
-        cout << "h_buf.size() = " << h_buf.size() << endl;
-        store_to_cache(dup_vec, surf::KEY_DUP, cc);
     }
     load_from_cache(idx, surf::KEY_SADADF, cc, true);
 }

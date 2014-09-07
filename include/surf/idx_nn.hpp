@@ -7,7 +7,6 @@
 #include "surf/rank_functions.hpp"
 #include "surf/idx_d.hpp"
 #include "surf/construct_col_len.hpp"
-#include "surf/construct_max_doc_len.hpp"
 #include <algorithm>
 #include <limits>
 #include <queue>
@@ -29,6 +28,9 @@ struct map_to_dup_type{
     range_type
     operator()(size_t sp, size_t ep)const{
         uint64_t y = (*m_sel)(ep);
+        if ( y == 0 )
+            return range_type(0, -1);
+//        std::cout<<"y="<<y<<" ep="<<ep<<std::endl;
         uint64_t ep_ = (y + 1) - ep - 1; // # of 0 left to y - 1
         uint64_t sp_ = 0;          // # of 0 left to x
         if (0 == sp) {
@@ -36,6 +38,7 @@ struct map_to_dup_type{
             uint64_t x = (*m_sel)(sp);
             sp_ = (x+1) - sp;
         }
+//        std::cout<<": "<<sp_<<" .. "<<ep_<<std::endl;
         return std::make_pair(sp_, ep_);       
     }
 };
@@ -252,13 +255,14 @@ struct map_node_to_dup_type{
 
     range_type
     operator()(const t_node& v)const{
-        auto left    = 1 + (m_cst->degree(v) - 1) / 2;
+        auto left    = 1;
         auto left_rb = m_cst->rb(m_cst->select_child(v, left));
+//        std::cout<<"m_map("<<left_rb<<","<<left_rb+1<<")"<<std::endl;
         return m_map(left_rb, left_rb+1);
     }
     // id \in [1..n-1]
     uint64_t id(const t_node& v)const{
-        auto left    = 1 + (m_cst->degree(v) - 1) / 2;
+        auto left    = 1;
         return m_cst->rb(m_cst->select_child(v, left))+1;
     }
 };
@@ -330,12 +334,9 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap>& idx,
         store_to_cache(wtd, surf::KEY_WTD, cc, true);
     }
 // P corresponds to up-pointers
-// W to the weight of the element
-    cout<<"...P and W"<<endl;
+    cout<<"...P"<<endl;
     {
-        construct_max_doc_len<t_csa::alphabet_type::int_width>(cc);    
-        uint64_t max_len = 0, max_depth = 0;
-        load_from_cache(max_len, surf::KEY_MAXDOCLEN, cc);
+        uint64_t max_depth = 0;
         load_from_cache(max_depth, surf::KEY_MAXCSTDEPTH, cc);
 
         int_vector<> dup;
@@ -346,10 +347,8 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap>& idx,
         }
 
         std::string P_file = cache_file_name(surf::KEY_P, cc);
-        std::string W_file = cache_file_name(surf::KEY_WEIGHTS, cc);
         
         int_vector_buffer<> P_buf(P_file, std::ios::out, 1<<20, sdsl::bits::hi(max_depth)+1);
-        int_vector_buffer<> W_buf(W_file, std::ios::out, 1<<20, sdsl::bits::hi(max_len)+1);
 
         t_wtd wtd;
         load_from_cache(wtd, surf::KEY_WTD, cc, true);
@@ -377,6 +376,7 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap>& idx,
                     depth = cst.depth(v);
                     range_type r = map_node_to_dup(v);
                     if ( !empty(r) ){
+//                        std::cout<<"v=["<<cst.lb(v)<<","<<cst.rb(v)<<"] range=["<<r.first<<","<<r.second<<"] _"<<std::endl;
                         for(size_t i=r.first; i<=r.second; ++i){
                             depths[dup[i]].push(depth);
                         }
@@ -384,24 +384,16 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap>& idx,
                 } else { // node visited the second time 
                     range_type r = map_node_to_dup(v);
                     if ( !empty(r) ){
+//                      std::cout<<"v=["<<cst.lb(v)<<","<<cst.rb(v)<<"] range=["<<r.first<<","<<r.second<<"] __"<<std::endl;
                          for(size_t i=r.first; i<=r.second; ++i){
                             depths[dup[i]].pop();
                             P_buf[i] = depths[dup[i]].top();
-                            uint64_t w = wtd.rank(cst.rb(v)+1, dup[i]) - 
-                                         wtd.rank(cst.lb(v),dup[i]);
-                            if ( w == 0 ){
-                                cout << "ERROR: W["<<i<<"]=0"<< endl;
-                                return;
-                            }
-                            W_buf[i] = w-1;; // store weight-1
-
                         }                       
                     }
                 }
             }
         }
         P_buf.close();
-        W_buf.close();
     }
     cout<<"...RMQ_C"<<endl;
     {

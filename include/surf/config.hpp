@@ -45,7 +45,6 @@ const std::string KEY_INVFILE_IDOCPERM = "invfile_inv_docperm";
 const std::string KEY_F_T = "Ft";
 const std::string KEY_H = "H";
 const std::string KEY_H_SELECT  = "H_select";              
-const std::string KEY_TMPH = "tmpH";
 const std::string KEY_CSA = "csa";
 const std::string KEY_MAXTF = "maxtf";
 const std::string KEY_MAXDOCLEN = "maxdoclen";
