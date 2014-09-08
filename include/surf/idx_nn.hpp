@@ -49,12 +49,12 @@ struct map_to_dup_type{
  *   - CSA over the collection concatenation
  *   - H 
  */
-// TODO:
-//  - sort node-ranges in DOC
 template<typename t_csa,
          typename t_df,
          typename t_wtd,
-         typename t_k2treap>
+         typename t_k2treap,
+         typename t_rmq = sdsl::rmq_succinct_sct<>
+         >
 class idx_nn{
 public:
     using size_type = sdsl::int_vector<>::size_type;
@@ -66,7 +66,7 @@ public:
     typedef sd_vector<>::select_1_type                 border_select_type;
     typedef rrr_vector<63>                             h_type;
     typedef rrr_vector<63>::select_1_type              h_select_type;
-    typedef rmq_succinct_sct<>                         rmqc_type;
+    typedef t_rmq                                      rmqc_type;
     typedef t_k2treap                                  k2treap_type;
     typedef k2_treap_ns::top_k_iterator<k2treap_type>  k2treap_iterator;
     typedef typename t_csa::alphabet_category          alphabet_category;
@@ -272,9 +272,10 @@ struct map_node_to_dup_type{
 template<typename t_csa,
          typename t_df,
          typename t_wtd,
-         typename t_k2treap
+         typename t_k2treap,
+         typename t_rmq
          >
-void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap>& idx,
+void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap,t_rmq>& idx,
                const std::string&,
                sdsl::cache_config& cc, uint8_t num_bytes)
 {    
@@ -399,7 +400,7 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap>& idx,
     {
         int_vector<> C;
         load_from_cache(C, surf::KEY_C, cc);
-        rmq_succinct_sct<> rmq_c(&C);
+        t_rmq rmq_c(&C);
         store_to_cache(rmq_c, surf::KEY_RMQC, cc, true); 
     }
     cout<<"...W_AND_P"<<endl;
