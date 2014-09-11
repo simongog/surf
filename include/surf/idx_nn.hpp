@@ -338,6 +338,7 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap,t_rmq>& idx,
     }
 // P corresponds to up-pointers
     cout<<"...P"<<endl;
+    if (!cache_file_exists(surf::KEY_P, cc))
     {
         uint64_t max_depth = 0;
         load_from_cache(max_depth, surf::KEY_MAXCSTDEPTH, cc);
@@ -399,6 +400,7 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap,t_rmq>& idx,
         P_buf.close();
     }
     cout<<"...RMQ_C"<<endl;
+    if (!cache_file_exists<t_rmq>(surf::KEY_RMQC,cc))
     {
         int_vector<> C;
         load_from_cache(C, surf::KEY_C, cc);
@@ -406,6 +408,7 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap,t_rmq>& idx,
         store_to_cache(rmq_c, surf::KEY_RMQC, cc, true); 
     }
     cout<<"...W_AND_P"<<endl;
+    if (!cache_file_exists<t_k2treap>(surf::KEY_W_AND_P, cc))
     {
         int_vector_buffer<> P_buf(cache_file_name(surf::KEY_P, cc));
         std::string W_and_P_file = cache_file_name(surf::KEY_W_AND_P, cc);
