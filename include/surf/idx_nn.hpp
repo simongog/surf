@@ -101,6 +101,7 @@ public:
             std::set<uint64_t> m_reported;
             std::set<uint64_t> m_singletons;
             t_stack_array      m_states;
+            bool               m_multi_occ = false; // true, if document has to occur more than once
         public:
             top_k_iterator() = delete;
             top_k_iterator(const top_k_iterator&) = default;
@@ -109,7 +110,8 @@ public:
             top_k_iterator& operator=(top_k_iterator&&) = default;
 
             template<typename t_pat_iter>
-            top_k_iterator(const idx_nn* idx, t_pat_iter begin, t_pat_iter end) : m_idx(idx) {
+            top_k_iterator(const idx_nn* idx, t_pat_iter begin, t_pat_iter end, bool multi_occ) : 
+                m_idx(idx), m_multi_occ(multi_occ) {
                 m_valid = backward_search(m_idx->m_csa, 0, m_idx->m_csa.size()-1, begin, end, m_sp, m_ep) > 0;
                 if ( m_valid ){
                     auto h_range = m_idx->m_map_to_h(m_sp, m_ep);
@@ -133,7 +135,7 @@ public:
                         m_valid = true;
                         ++m_k2_iter;
                     } else { // search for singleton results
-                        while ( !m_states.empty() ) {
+                        while ( !m_multi_occ and !m_states.empty() ) {
                             auto state = m_states.top();
                             m_states.pop();
                             uint64_t min_idx = m_idx->m_rmqc(state[0], state[1]);
@@ -167,8 +169,8 @@ public:
     };
 
     template<typename t_pat_iter>
-    top_k_iterator topk(t_pat_iter begin, t_pat_iter end) const{
-        return top_k_iterator(this, begin, end);
+    top_k_iterator topk(t_pat_iter begin, t_pat_iter end, bool multi_occ=false) const{
+        return top_k_iterator(this, begin, end, multi_occ);
     }
 
     result search(const std::vector<query_token>& qry,size_t k,bool ranked_and = false,bool profile = false) const {

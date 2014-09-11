@@ -83,7 +83,7 @@ int main(int argc,char* const argv[])
         }
         if ( valid ){
             for (size_t j=x; j < x + args.pat_len; ++j){
-                std::cout<<text_buf[j];
+                std::cout<<text_buf[j]<<" ";
             }
             std::cout<<std::endl;
         } else {

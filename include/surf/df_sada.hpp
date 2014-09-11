@@ -136,8 +136,6 @@ class df_sada{
             std::stack<n_type> s;
             std::vector<node_type> child_vec;
             std::vector<range_type> range_vec;
-//            s.emplace(cst.root(), true);
-
             auto s_push = [&s,&cst,&D_split_rank](node_type v){
                 if (D_split_rank(cst.rb(v)) > D_split_rank(cst.lb(v))){
                     s.emplace(v, true);
@@ -150,7 +148,6 @@ class df_sada{
                 s.pop();
                 auto v = std::get<0>(node);
                 auto first = std::get<1>(node);
-//                std::cout<<"["<<cst.lb(v)<<","<<cst.rb(v)<<"] - "<<first<<std::endl;
                 if ( first ) {  // first half
                     // recurse down
                     std::get<1>(node) = false;
@@ -158,7 +155,6 @@ class df_sada{
                     max_depth = std::max(depth, max_depth);
                     s.push(node);
                     s_push(cst.select_child(v, 1));
-//                        s.emplace(cst.select_child(v, 1), true);
                 } else {  // second half
                     for (auto& child : cst.children(v)){
                         child_vec.push_back(child);
@@ -174,9 +170,7 @@ class df_sada{
                         }
                         auto dups = intersect(wtd, range_vec, 2);
                         range_vec.clear();
-//                        std::cout<<"dups:"<<std::endl;
                         for (auto &duplicate : dups) {
-//                            std::cout<<"("<<duplicate.first<<","<<duplicate.second<<")"<<std::endl;
                             dup_buf[dup_idx] = duplicate.first;
                             weight_buf[dup_idx] = duplicate.second-1; 
                             ++dup_idx;
@@ -186,7 +180,6 @@ class df_sada{
                     h[h_idx++] = 1;
                     last_io_id = node_io_id;
                     while ( child_vec.size() > 1 ){
-//                        s.emplace(child_vec.back(), true);
                         s_push(child_vec.back());
                         child_vec.pop_back();
                     }
