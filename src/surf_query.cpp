@@ -22,6 +22,7 @@ typedef struct cmdargs {
     uint64_t k = 10;
     bool verbose = false;
     bool multi_occ = false;
+    bool match_only = false;
 } cmdargs_t;
 
 void
@@ -34,6 +35,7 @@ print_usage(char* program)
     fprintf(stdout,"  -k <top-k>  : the top-k documents to be retrieved for each query.\n");
     fprintf(stdout,"  -v <verbose>  : verbose mode.\n");
     fprintf(stdout,"  -m <multi_occ>  : only retrieve documents which contain the term more than once.\n");
+    fprintf(stdout,"  -o <multi_occ>  : only match pattern; no document retrieval.\n");
 };
 
 cmdargs_t
@@ -44,7 +46,7 @@ parse_args(int argc,char* const argv[])
     args.collection_dir = "";
     args.query_file = "";
     args.k = 10;
-    while ((op=getopt(argc,argv,"c:q:k:vm")) != -1) {
+    while ((op=getopt(argc,argv,"c:q:k:vmo")) != -1) {
         switch (op) {
             case 'c':
                 args.collection_dir = optarg;
@@ -61,6 +63,8 @@ parse_args(int argc,char* const argv[])
             case 'm':
                 args.multi_occ = true;
                 break;
+            case 'o':
+                args.match_only = true;
             case '?':
             default:
                 print_usage(argv[0]);
@@ -138,20 +142,19 @@ int main(int argc, char* argv[])
     while (!tle and in.getline(buffer, buf_size)) {
         auto q_start = timer::now();
         auto query = myline<idx_type::alphabet_category>::parse(buffer);
-//        cout<<query<<endl;
         q_len += query.size();
         ++q_cnt;
         size_t x = 0;
-        auto res_it = idx.topk(query.begin(), query.end(),args.multi_occ);
+        auto res_it = idx.topk(query.begin(), query.end(),args.multi_occ,args.match_only);
         while ( x < args.k and res_it ){
             ++x;
             sum_fdt += (*res_it).second;
             if ( args.verbose ) {
                 cout<<q_cnt<<";"<<x<<";"<<(*res_it).first<< ";"<<(*res_it).second << endl;
             }
-            ++res_it;
+            if ( x < args.k ) 
+                ++res_it;
         }
-//        cout<<"x="<<x<<endl;
         sum += x;
         auto q_time = timer::now()-q_start;
         // single query should not take more then 5 seconds

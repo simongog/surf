@@ -30,7 +30,6 @@ struct map_to_dup_type{
         uint64_t y = (*m_sel)(ep);
         if ( y == 0 )
             return range_type(0, -1);
-//        std::cout<<"y="<<y<<" ep="<<ep<<std::endl;
         uint64_t ep_ = (y + 1) - ep - 1; // # of 0 left to y - 1
         uint64_t sp_ = 0;          // # of 0 left to x
         if (0 == sp) {
@@ -38,7 +37,6 @@ struct map_to_dup_type{
             uint64_t x = (*m_sel)(sp);
             sp_ = (x+1) - sp;
         }
-//        std::cout<<": "<<sp_<<" .. "<<ep_<<std::endl;
         return std::make_pair(sp_, ep_);       
     }
 };
@@ -50,22 +48,23 @@ struct map_to_dup_type{
  *   - H 
  */
 template<typename t_csa,
-         typename t_df,
-         typename t_wtd,
          typename t_k2treap,
-         typename t_rmq = sdsl::rmq_succinct_sct<>
+         typename t_rmq = sdsl::rmq_succinct_sct<>,
+         typename t_border = sdsl::sd_vector<>,
+         typename t_border_rank = typename t_border::rank_1_type,
+         typename t_border_select = typename t_border::select_1_type,
+         typename t_h = sdsl::rrr_vector<63>,
+         typename t_h_select = typename t_h::select_1_type
          >
 class idx_nn{
 public:
     using size_type = sdsl::int_vector<>::size_type;
     typedef t_csa                                      csa_type;
-    typedef t_df                                       df_type;
-    typedef t_wtd                                      wtd_type;
-    typedef sd_vector<>                                border_type;
-    typedef sd_vector<>::rank_1_type                   border_rank_type;
-    typedef sd_vector<>::select_1_type                 border_select_type;
-    typedef rrr_vector<63>                             h_type;
-    typedef rrr_vector<63>::select_1_type              h_select_type;
+    typedef t_border                                   border_type;
+    typedef t_border_rank                              border_rank_type;
+    typedef t_border_select                            border_select_type;
+    typedef t_h                                        h_type;
+    typedef t_h_select                                 h_select_type;
     typedef t_rmq                                      rmqc_type;
     typedef t_k2treap                                  k2treap_type;
     typedef k2_treap_ns::top_k_iterator<k2treap_type>  k2treap_iterator;
@@ -110,9 +109,10 @@ public:
             top_k_iterator& operator=(top_k_iterator&&) = default;
 
             template<typename t_pat_iter>
-            top_k_iterator(const idx_nn* idx, t_pat_iter begin, t_pat_iter end, bool multi_occ) : 
+            top_k_iterator(const idx_nn* idx, t_pat_iter begin, t_pat_iter end, bool multi_occ, bool only_match) : 
                 m_idx(idx), m_multi_occ(multi_occ) {
                 m_valid = backward_search(m_idx->m_csa, 0, m_idx->m_csa.size()-1, begin, end, m_sp, m_ep) > 0;
+                m_valid &= !only_match;
                 if ( m_valid ){
                     auto h_range = m_idx->m_map_to_h(m_sp, m_ep);
                     if ( !empty(h_range) ) {
@@ -169,8 +169,8 @@ public:
     };
 
     template<typename t_pat_iter>
-    top_k_iterator topk(t_pat_iter begin, t_pat_iter end, bool multi_occ=false) const{
-        return top_k_iterator(this, begin, end, multi_occ);
+    top_k_iterator topk(t_pat_iter begin, t_pat_iter end, bool multi_occ=false, bool only_match=false) const{
+        return top_k_iterator(this, begin, end, multi_occ, only_match);
     }
 
     result search(const std::vector<query_token>& qry,size_t k,bool ranked_and = false,bool profile = false) const {
@@ -221,9 +221,6 @@ public:
         m_map_to_h = map_to_h_type(&m_h_select);
         load_from_cache(m_rmqc, surf::KEY_RMQC, cc, true); 
         load_from_cache(m_k2treap, surf::KEY_W_AND_P, cc, true); 
-//        int_vector<> darray;
-//        load_from_cache(darray, surf::KEY_DARRAY, cc);
-//        std::cout<<"DARRAY="<<darray <<std::endl;
     }
 
     size_type serialize(std::ostream& out, structure_tree_node* v=nullptr, std::string name="")const {
@@ -259,7 +256,6 @@ struct map_node_to_dup_type{
     operator()(const t_node& v)const{
         auto left    = 1;
         auto left_rb = m_cst->rb(m_cst->select_child(v, left));
-//        std::cout<<"m_map("<<left_rb<<","<<left_rb+1<<")"<<std::endl;
         return m_map(left_rb, left_rb+1);
     }
     // id \in [1..n-1]
@@ -269,21 +265,24 @@ struct map_node_to_dup_type{
     }
 };
 
-
-
 template<typename t_csa,
-         typename t_df,
-         typename t_wtd,
          typename t_k2treap,
-         typename t_rmq
+         typename t_rmq,
+         typename t_border,
+         typename t_border_rank,
+         typename t_border_select,
+         typename t_h,
+         typename t_h_select
          >
-void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap,t_rmq>& idx,
+void construct(idx_nn<t_csa,t_k2treap,t_rmq,t_border,t_border_rank,t_border_select,t_h,t_h_select>& idx,
                const std::string&,
                sdsl::cache_config& cc, uint8_t num_bytes)
 {    
     using namespace sdsl;
     using namespace std;
+    using t_df = DF_TYPE;
     using cst_type = typename t_df::cst_type;
+    using t_wtd = WTD_TYPE;
 
     construct_col_len<t_df::alphabet_category::WIDTH>(cc);
 
@@ -311,20 +310,23 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap,t_rmq>& idx,
         store_to_cache(df, surf::KEY_SADADF, cc, true);
         bit_vector h;
         load_from_cache(h, surf::KEY_H, cc);
-        rrr_vector<63> hrrr = h;
+        t_h hrrr = h;
         store_to_cache(hrrr, surf::KEY_H, cc, true);
-        rrr_vector<63>::select_1_type h_select;
+        t_h_select h_select(&hrrr);
         store_to_cache(h_select, surf::KEY_H_SELECT, cc, true);
     }
     cout<<"...DOC_BORDER"<<endl;
+    if ( !cache_file_exists<t_border>(surf::KEY_DOCBORDER,cc) or
+         !cache_file_exists<t_border_rank>(surf::KEY_DOCBORDER_RANK,cc) or
+         !cache_file_exists<t_border_select>(surf::KEY_DOCBORDER_SELECT,cc) )
     {
         bit_vector doc_border;
         load_from_cache(doc_border, surf::KEY_DOCBORDER,cc);
-        sd_vector<> sd_doc_border(doc_border);
+        t_border sd_doc_border(doc_border);
         store_to_cache(sd_doc_border, surf::KEY_DOCBORDER, cc, true);
-        sd_vector<>::rank_1_type doc_border_rank(&sd_doc_border);
+        t_border_rank doc_border_rank(&sd_doc_border);
         store_to_cache(doc_border_rank, surf::KEY_DOCBORDER_RANK, cc, true);
-        sd_vector<>::select_1_type doc_border_select(&sd_doc_border);
+        t_border_select doc_border_select(&sd_doc_border);
         store_to_cache(doc_border_select, surf::KEY_DOCBORDER_SELECT, cc, true);
     }
     cout<<"...WTD"<<endl;
@@ -357,19 +359,19 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap,t_rmq>& idx,
         t_wtd wtd;
         load_from_cache(wtd, surf::KEY_WTD, cc, true);
         
-        rrr_vector<63> hrrr;
+        t_h hrrr;
         load_from_cache(hrrr, surf::KEY_H, cc, true);
-        rrr_vector<63>::select_1_type h_select;
+        t_h_select h_select;
         load_from_cache(h_select, surf::KEY_H_SELECT, cc, true);
         h_select.set_vector(&hrrr);
         cst_type cst;
         load_from_file(cst, cache_file_name<cst_type>(surf::KEY_TMPCST, cc));
-        map_node_to_dup_type<cst_type, rrr_vector<63>::select_1_type> map_node_to_dup(&h_select, &cst);
+        map_node_to_dup_type<cst_type, t_h_select> map_node_to_dup(&h_select, &cst);
 
         uint64_t doc_cnt = 1;
         load_from_cache(doc_cnt, KEY_DOCCNT, cc);
         typedef stack<uint32_t,vector<uint32_t>> t_stack;
-//  HELPER to build the pointer structure
+        //  HELPER to build the pointer structure
         vector<t_stack> depths(doc_cnt, t_stack(vector<uint32_t>(1,0)));// doc_cnt stack for last depth
         uint64_t depth=0;
         // DFS traversal of CST
@@ -380,7 +382,6 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap,t_rmq>& idx,
                     depth = cst.depth(v);
                     range_type r = map_node_to_dup(v);
                     if ( !empty(r) ){
-//                        std::cout<<"v=["<<cst.lb(v)<<","<<cst.rb(v)<<"] range=["<<r.first<<","<<r.second<<"] _"<<std::endl;
                         for(size_t i=r.first; i<=r.second; ++i){
                             depths[dup[i]].push(depth);
                         }
@@ -388,7 +389,6 @@ void construct(idx_nn<t_csa,t_df,t_wtd,t_k2treap,t_rmq>& idx,
                 } else { // node visited the second time 
                     range_type r = map_node_to_dup(v);
                     if ( !empty(r) ){
-//                      std::cout<<"v=["<<cst.lb(v)<<","<<cst.rb(v)<<"] range=["<<r.first<<","<<r.second<<"] __"<<std::endl;
                          for(size_t i=r.first; i<=r.second; ++i){
                             depths[dup[i]].pop();
                             P_buf[i] = depths[dup[i]].top();
