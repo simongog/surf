@@ -27,5 +27,5 @@ exp1.txt: ../build/surf_index-$(EXP1IDX) ../collections/$(EXP1COL)
 pattern/%: ../build/gen_patterns
 	$(eval COL:=$(call dim,1,$*)) 
 	$(eval LEN:=$(call dim,2,$*)) 
-	../build/gen_patterns -c ../collections/$(COL) -m $(LEN) -x 4000 > $@
+	../build/gen_patterns -c ../collections/$(COL) -m $(LEN) -x 40000 > $@
 
