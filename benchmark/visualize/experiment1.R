@@ -11,81 +11,91 @@ my_format2 <- function(...){
    format(..., nsmall=2,digits=2, big.mark=",")
 }
 
-suf=""
-#process_data <- function(suf){
-#
-## Files
-f_idxfilterconfig = mypaste("index-filter",suf,".config")
-#f_idxconfig       = mypaste("../index",suf,".config")
-#f_tcconfig        = mypaste("../collection",suf,".config")
-#f_results         = mypaste("../results/all",suf,".txt")
-#f_sizes           = mypaste("../info/sizes",suf,".txt")
-#f_fig_runtime     = mypaste("fig-runtime",suf,".tex")
-#f_tbl_indexes     = mypaste("tbl-indexes",suf,".tex")
-#f_tbl_sizes       = mypaste("tbl-sizes",suf,".tex")
-#f_tbl_collections = mypaste("tbl-collections",suf,".tex")
-#
-## Load filter information
-config <- readConfig(f_idxfilterconfig,c("IDX_ID","PCH","LTY","COL"))
-## Load index and test case data
-#idx_config <- readConfig(f_idxconfig,c("IDX_ID","SDSL_TYPE","LATEX-NAME"))
-#tc_config <- readConfig(f_tcconfig,c("TC_ID","PATH","LATEX-NAME","URL"))
-#
-## Load data
-#raw <- data_frame_from_key_value_pairs(f_results)
-#raw <- raw[c("TC_ID","IDX_ID","time_per_query","query_len","TLE","doc_cnt","word_cnt")]
-raw["time_per_query"] <- (raw["time_per_query"])
-#
-## Filter indexes
-#raw               <- raw[raw[["IDX_ID"]]%in%config[["IDX_ID"]],] 
-#raw[["IDX_ID"]]   <- factor(raw[["IDX_ID"]])
-#
-## Split by TC_ID
-d <- split(raw,raw["query_len"])
-#
-#tikz(f_fig_runtime, width = 5.5, height = 6, standAlone = F)
-#
-multi_figure_style( length(d)/2+1, 2 )  
+#multi_figure_style( length(d)/2+1, 2 )  
+#multi_figure_style(1, 1)    
+
+par(mfrow=c(1,2))
+
+raw[["total_time"]] <- raw[["time_per_query"]]#*raw[["queries"]]
+raw2 <- split(raw, raw$multi_occ)
+
+time_all <- raw2[["0"]][["total_time"]] 
+time_ex_singltons <- raw2[["1"]][["total_time"]] 
+match_time <- rep(raw2[["0"]][["total_time"]][[1]], length(time_all))
+multi_time <- time_ex_singltons - match_time
+singlton_time <- time_all - multi_time - match_time
+
+
+
+data <- rbind(match_time, multi_time, singlton_time)[,-1]
+
+
+partcol <- c("gray10", "gray30", "gray80")
+
+barplot(data, ylab="Avg time per query [$\\mu$secs]",
+        xlab="k", names.arg=seq(1,ncol(data)), col=partcol,
+        main=" |P|=5")
+
+legend("topleft", legend=rev(c("CSA matching", "$K^2$-treap search","RMQC + CSA locate")), fill=rev(partcol),
+        bty="n")
+
+single_occ <-  (raw2[["0"]][["check_sum"]]-raw2[["1"]][["check_sum"]])[-1]
+multi_occ  <-  (raw2[["1"]][["check_sum"]])[-1]
+
+multi_occ_time <- (raw2[["1"]][["time_per_query"]]-rep(raw2[["1"]][["time_per_query"]][[1]],length(raw2[["1"]])))[-1]*raw2[["1"]][["queries"]][-1]
+all_time <- (raw2[["0"]][["time_per_query"]]-rep(raw2[["0"]][["time_per_query"]][[1]],length(raw2[["0"]])) )[-1]*raw2[["1"]][["queries"]][-1]
+single_occ_time <- all_time - multi_occ_time
+
+time_per_doc <- raw2[["0"]][["time_per_doc"]][-1]
+plot(time_per_doc, xlab="k", ylab="Avg time per document [$\\mu$secs]",
+     ylim=c(1,40))
+
+#    legend( "top", legend=idx_config[idx_ids,"LATEX-NAME"], pch=config[idx_ids,"PCH"], col=config[idx_ids,"COL"],
+#		    lty=config[idx_ids,"LTY"], bty="n", y.intersp=1.5, ncol=2, title="Index", cex=1.2)
+
+
+#barplot(raw2[["1"]][["total_time"]])
+
 #count <- 0
-nr <- 0
-xlabnr <- (2*(length(d)/2)-1) 
+#nr <- 0
+#xlabnr <- (2*(length(d)/2)-1) 
+##
+##for( query_len in names(d) ){        
 #
-for( query_len in names(d) ){        
-
-    plot( c(1e-9), c(1e-0), xlim=c(min(raw["k"]),max(raw["k"])),
-                    ylim=c(1,1000),
-                    ylab="", xlab="", xaxt="n", log="" )
-    box(col="gray")
-    abline(h=c(seq(1,10)*0.1,seq(2,10)*1,seq(2,10)*10, seq(2,10)*100), col="lightgray")
-    grid(lty="solid")
-    if ( nr %% 2 == 0 ){
-      ylable <- "Time per query ({\\mu}s)" 
-      axis( 2, at = axTicks(2) )
-      mtext(ylable, side=2, line=2, las=0)
-    }
-    axis( 1, at = axTicks(1), labels=(nr>=xlabnr)  )
-    if ( nr >= xlabnr ){
-      xlable <- "k"
-      mtext(xlable, side=1, line=2, las=0)
-    }
-#   Split by IDX_ID
-    dd <- split(d[[query_len]],d[[query_len]]["index_name"])
-    for( idx_id in names(dd) ){
-        ddd <- dd[[idx_id]]
-        ddd <- subset(ddd, ddd[["TLE"]]==0)
-        lines(ddd[["k"]], ddd[["time_per_query"]],
-              lwd=1, type="b", pch=config[idx_id, "PCH"], 
-			  lty=config[idx_id, "LTY"],
-		  col=config[idx_id, "COL"])
-        cat(((ddd[["time_per_query"]]*ddd[["queries"]])-ddd[["time_per_query"]][1])/ddd[["check_sum"]])
-        cat("\n")
-    }
-
-#    draw_figure_heading( sprintf("instance = \\textsc{%s}",tc_config[tc_id,"LATEX-NAME"]) )
-    draw_figure_heading( sprintf("query length = \\textsc{%s}",query_len) )
-
-    nr <- nr+1
-
+#    plot( c(1e-9), c(1e-0), xlim=c(min(raw["k"]),max(raw["k"])),
+#                    ylim=c(1,1000),
+#                    ylab="", xlab="", xaxt="n", log="" )
+#    box(col="gray")
+#    abline(h=c(seq(1,10)*0.1,seq(2,10)*1,seq(2,10)*10, seq(2,10)*100), col="lightgray")
+#    grid(lty="solid")
+#    if ( nr %% 2 == 0 ){
+#      ylable <- "Time per query ({\\mu}s)" 
+#      axis( 2, at = axTicks(2) )
+#      mtext(ylable, side=2, line=2, las=0)
+#    }
+#    axis( 1, at = axTicks(1), labels=(nr>=xlabnr)  )
+#    if ( nr >= xlabnr ){
+#      xlable <- "k"
+#      mtext(xlable, side=1, line=2, las=0)
+#    }
+##   Split by IDX_ID
+#    dd <- split(d[[query_len]],d[[query_len]]["index_name"])
+#    for( idx_id in names(dd) ){
+#        ddd <- dd[[idx_id]]
+#        ddd <- subset(ddd, ddd[["TLE"]]==0)
+#        lines(ddd[["k"]], ddd[["time_per_query"]],
+#              lwd=1, type="b", pch=config[idx_id, "PCH"], 
+#			  lty=config[idx_id, "LTY"],
+#		  col=config[idx_id, "COL"])
+#        cat(((ddd[["time_per_query"]]*ddd[["queries"]])-ddd[["time_per_query"]][1])/ddd[["check_sum"]])
+#        cat("\n")
+#    }
+#
+##    draw_figure_heading( sprintf("instance = \\textsc{%s}",tc_config[tc_id,"LATEX-NAME"]) )
+#    draw_figure_heading( sprintf("query length = \\textsc{%s}",query_len) )
+#
+#    nr <- nr+1
+#
 #   if ( nr == 1 ){ # plot legend
 #    plot(NA, NA, xlim=c(0,1),ylim=c(0,1),ylab="", xlab="", bty="n", type="n", yaxt="n", xaxt="n")
 #	idx_ids <- as.character(unique(raw[["IDX_ID"]]))
@@ -94,7 +104,7 @@ for( query_len in names(d) ){
 #    nr <- nr+1
 #  }
 #
-}
+#}
 #
 #dev.off()
 #

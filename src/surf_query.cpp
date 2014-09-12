@@ -65,6 +65,7 @@ parse_args(int argc,char* const argv[])
                 break;
             case 'o':
                 args.match_only = true;
+                break;
             case '?':
             default:
                 print_usage(argv[0]);
@@ -125,6 +126,8 @@ int main(int argc, char* argv[])
         cout<<"# doc_cnt = "<<idx.doc_cnt()<<endl;
         cout<<"# word_cnt = "<<idx.word_cnt()<<endl;
         cout<<"# k = "<<args.k <<endl;
+        cout<<"# match_only = "<<args.match_only<<std::endl;
+        cout<<"# multi_occ = "<<args.multi_occ<<std::endl;
     }
     ifstream in(args.query_file);
     if (!in) {

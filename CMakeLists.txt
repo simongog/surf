@@ -50,14 +50,6 @@ foreach(f ${index_config_files})
 	TARGET_LINK_LIBRARIES(surf_index-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib)
 	set_property(TARGET surf_index-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 
-	ADD_EXECUTABLE(surf_search-${NAME} src/surf_search.cpp)
-	TARGET_LINK_LIBRARIES(surf_search-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib)
-	set_property(TARGET surf_search-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
-
-    ADD_EXECUTABLE(surf_qry-${NAME} src/surf_qry.cpp)
-    TARGET_LINK_LIBRARIES(surf_qry-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib)
-	set_property(TARGET surf_qry-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
-
     ADD_EXECUTABLE(surf_query-${NAME} src/surf_query.cpp)
     TARGET_LINK_LIBRARIES(surf_query-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib)
 	set_property(TARGET surf_query-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
@@ -74,12 +66,6 @@ TARGET_LINK_LIBRARIES(gen_patterns_int sdsl divsufsort divsufsort64 pthread)
 
 ADD_EXECUTABLE(test src/test.cpp)
 TARGET_LINK_LIBRARIES(test sdsl divsufsort divsufsort64 pthread)
-
-ADD_EXECUTABLE(select_random_queries tools/select_random_queries.cpp)
-TARGET_LINK_LIBRARIES(select_random_queries sdsl divsufsort divsufsort64 pthread)
-
-ADD_EXECUTABLE(test_postings_list src/test_postings_list.cpp)
-TARGET_LINK_LIBRARIES(test_postings_list sdsl divsufsort divsufsort64 pthread fastpfor_lib)
 
 ADD_EXECUTABLE(create_surf_collection tools/create_surf_collection.cpp)
 TARGET_LINK_LIBRARIES(create_surf_collection sdsl divsufsort divsufsort64 pthread fastpfor_lib)

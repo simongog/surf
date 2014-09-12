@@ -5,6 +5,7 @@
 #include "surf/df_sada.hpp"
 #include "surf/rank_functions.hpp"
 #include "surf/construct_col_len.hpp"
+#include "surf/query.hpp"
 #include <algorithm>
 #include <limits>
 #include <queue>

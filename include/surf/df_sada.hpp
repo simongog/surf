@@ -19,12 +19,12 @@ namespace surf{
 
 template<typename t_alphabet>
 struct df_sada_trait{
-    typedef sdsl::cst_sct3<sdsl::csa_wt<wt_int<rrr_vector<64>>>,sdsl::lcp_dac<>,sdsl::bp_support_sada<>,sdsl::bit_vector,sdsl::rank_support_v<>,sdsl::select_support_mcl<>> cst_type;
+    typedef sdsl::cst_sct3<sdsl::csa_wt<sdsl::wt_int<sdsl::rrr_vector<64>>>,sdsl::lcp_dac<>,sdsl::bp_support_sada<>,sdsl::bit_vector,sdsl::rank_support_v<>,sdsl::select_support_mcl<>> cst_type;
 };
 
 template<>
 struct df_sada_trait<sdsl::byte_alphabet_tag>{
-    typedef sdsl::cst_sct3<sdsl::csa_wt<wt_huff<rrr_vector<64>>>,sdsl::lcp_dac<>,sdsl::bp_support_sada<>,sdsl::bit_vector,sdsl::rank_support_v<>,sdsl::select_support_mcl<>> cst_type;
+    typedef sdsl::cst_sct3<sdsl::csa_wt<sdsl::wt_huff<sdsl::rrr_vector<64>>>,sdsl::lcp_dac<>,sdsl::bp_support_sada<>,sdsl::bit_vector,sdsl::rank_support_v<>,sdsl::select_support_mcl<>> cst_type;
 };
 
 //! Constant time and 2n+o(n) size structure for document frequency
