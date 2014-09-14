@@ -52,28 +52,44 @@ pattern/%.int.txt: ../build/gen_patterns_int
 # Fix k, pattern length, 
 # Vary index (IDX_NN, IDX_NNX), collections
 EXP2IDX:=$(call config_column,experiment2.IDX.config,1)
+EXP2IDXINT:=$(call config_column,experiment2.IDX_INT.config,1)
 EXP2COL:=$(call config_column,experiment2.COL.config,1)
+EXP2COLINT:=$(call config_column,experiment2.COL_INT.config,1)
 EXP2K:=$(call config_column,experiment2.config,1)
 EXP2LEN:=$(call config_column,experiment2.config,2)
 EXP2RES:=$(foreach IDX,$(EXP2IDX),\
-			$(foreach COL,$(EXP2COL),results/experiment2.$(IDX).$(COL).txt))
+			$(foreach COL,$(EXP2COL),results/experiment2.$(IDX).$(COL).byte.txt))
+EXP2RESINT:=$(foreach IDX,$(EXP2IDXINT),\
+			$(foreach COL,$(EXP2COLINT),results/experiment2.$(IDX).$(COL).int.txt))
+
 EXP2:=$(foreach IDX,$(EXP2IDX),\
-			$(foreach COL,$(EXP2COL),exp2.build.$(IDX).$(COL)))
+			$(foreach COL,$(EXP2COL),exp2.build.$(IDX).$(COL).byte))
+EXP2INT:=$(foreach IDX,$(EXP2IDXINT),\
+			$(foreach COL,$(EXP2COLINT),exp2.build.$(IDX).$(COL).int))
+
 EXP2PAT:=$(foreach COL,$(EXP2COL),pattern/$(COL).$(EXP2LEN).byte.txt)
+EXP2PATINT:=$(foreach COL,$(EXP2COLINT),pattern/$(COL).$(EXP2LEN).int.txt)
 
 results/experiment2.%.txt: 
 	$(eval IDX:=$(call dim,1,$*))
 	$(eval COL:=$(call dim,2,$*))
+	$(eval ALPH:=$(call dim,3,$*))
 	../build/surf_query-$(IDX) -c ../collections/$(COL) \
-		-q pattern/$(COL).$(EXP2LEN).byte.txt -k $(EXP2K) \
+		-q pattern/$(COL).$(EXP2LEN).$(ALPH).txt -k $(EXP2K) \
 		> $@
 
-results/experiment2.txt: exp2.txt $(EXP2PAT) $(EXP2RES)
-	@cat $(EXP2RES) > $@
+results/experiment2.txt: exp2.txt $(EXP2PAT) $(EXP2RES) $(EXP2PATINT) $(EXP2RESINT)
+	@cat $(EXP2RES) $(EXP2RESINT) > $@
 
-exp2.txt: $(EXP2)
+exp2.txt: $(EXP2) $(EXP2INT)
 
-exp2.build.%:
+exp2.build.%.byte:
+	rm -f exp2.txt
+	$(eval IDX:=$(call dim,1,$*))
+	$(eval COL:=$(call dim,2,$*))
+	../build/surf_index-$(IDX) -c ../collections/$(COL) > exp2.txt
+
+exp2.build.%.int:
 	rm -f exp2.txt
 	$(eval IDX:=$(call dim,1,$*))
 	$(eval COL:=$(call dim,2,$*))
