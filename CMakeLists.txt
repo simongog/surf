@@ -90,3 +90,8 @@ TARGET_LINK_LIBRARIES(int2surf sdsl)
 
 ADD_EXECUTABLE(size_info tools/size_info_nn.cpp)
 TARGET_LINK_LIBRARIES(size_info)
+
+ADD_EXECUTABLE(surf2dcc13 tools/surf2dcc13.cpp)
+TARGET_LINK_LIBRARIES(surf2dcc13 sdsl)
+
+
