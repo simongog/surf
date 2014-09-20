@@ -6,6 +6,14 @@ LIBS = -lsdsl -ldivsufsort -ldivsufsort64
 is_int_col=$(shell if [[ "$1" == *INT || "$1" == "gov2" || "$1" == "trec8" ]]; then echo "_int"; else echo ""; fi)
 is_int_idx=$(shell if [[ "$1" == *_INT ]]; then echo "1"; else echo "0"; fi)
 
+experiment1: results/experiment1.txt
+
+experiment2: results/experiment2.txt
+
+experiment3: results/experiment3.txt
+
+experiment5: results/experiment5.txt
+
 # Experiment 1
 # Fix collection, pattern length, and index
 # Vary k, 
@@ -14,12 +22,6 @@ EXP1COL:=$(call config_column,experiment1.config,2)
 EXP1LEN:=$(call config_column,experiment1.config,3)
 EXP1K:=$(call config_column,experiment1.K.config,1)
 EXP1RES:=$(foreach K,$(EXP1K),results/experiment1.$(K).txt)
-
-experiment1: results/experiment1.txt
-
-experiment2: results/experiment2.txt
-
-experiment3: results/experiment3.txt
 
 results/experiment1.txt: exp1.txt ../build/surf_query-$(EXP1IDX) $(EXP1RES) 
 	@cat $(EXP1RES) > $@
@@ -153,3 +155,39 @@ exp3.build.%.int:
 	$(eval IDX:=$(call dim,1,$*))
 	$(eval COL:=$(call dim,2,$*))
 	../build/surf_index-$(IDX) -c ../collections/$(COL) > exp3.txt
+
+# Experiment 5
+# How much faster is the solution for indexes with different
+# CSA implementations?
+
+EXP5COL:=$(call config_column,experiment5.config,1)
+EXP5K:=$(call config_column,experiment5.config,2)
+EXP5IDX:=$(call config_column,experiment5.IDX.config,1)
+EXP5LEN:=$(call config_column,experiment5.PAT.config,1)
+EXP5RES:=$(foreach IDX,$(EXP5IDX),\
+			$(foreach LEN,$(EXP5LEN),\
+				results/experiment5.$(IDX).$(EXP5COL).$(LEN).byte.txt))
+		
+EXP5:=$(foreach IDX,$(EXP5IDX),exp5.build.$(IDX).$(EXP5COL).byte)
+EXP5PAT:=$(foreach LEN,$(EXP5LEN),pattern/$(EXP5COL).$(LEN).byte.txt)
+
+results/experiment5.%.txt:
+	$(eval IDX:=$(call dim,1,$*))
+	$(eval COL:=$(call dim,2,$*))
+	$(eval LEN:=$(call dim,3,$*))
+	$(eval ALPH:=$(call dim,4,$*))
+	../build/surf_query-$(IDX) -c ../collections/$(COL) \
+		-q pattern/$(COL).$(LEN).$(ALPH).txt -k $(EXP5K) \
+		> $@
+
+results/experiment5.txt: exp5.txt $(EXP5PAT) $(EXP5RES) 
+	@cat $(EXP5RES) > $@
+
+exp5.txt: $(EXP5) 
+
+exp5.build.%.byte:
+	rm -f exp5.txt
+	$(eval IDX:=$(call dim,1,$*))
+	$(eval COL:=$(call dim,2,$*))
+	../build/surf_index-$(IDX) -c ../collections/$(COL) > exp5.txt
+
