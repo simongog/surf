@@ -126,7 +126,6 @@ class df_sada{
 
             // construct the bv
             bit_vector h(2 * D.size(), 0);
-            util::set_to_value(h,0);
             size_t h_idx = 0, dup_idx = 0;
             size_t last_io_id = 0;
             uint64_t max_depth = 0;
