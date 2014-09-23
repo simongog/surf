@@ -21,7 +21,7 @@ my_format2 <- function(...){
    format(..., nsmall=2,digits=2, big.mark=",")
 }
 
-tikz("experiment3.tex", width = 5.9, height = 5.0, standAlone = F)
+tikz("experiment3a.tex", width = 5.9, height = 2.5, standAlone = F)
 
 
 raw <- data_frame_from_key_value_pairs("../results/experiment3.txt")
@@ -85,7 +85,7 @@ idx2col[["SORTINT"]] <- "gray30"
 idx2col[["DCC13KN"]] <- "blue" 
 
 
-par(mfrow=c(2,2))
+#par(mfrow=c(2,2))
 par(las=1)
   # length of tick mark as a fraction of the height of a line of text, default=-0.5
 par(tcl=-0.2) 
@@ -94,8 +94,7 @@ par(mar=c(1,2,1.5,0.5)) # inner margin (bottom,left,top,right)
 
 
 
-
-for ( collection in c("ENWIKISML","ENWIKIBIG","ENWIKISMLINT","ENWIKIBIGINT") ){
+collection="gov2"
     cat(collection)
     cat("\n")
     d2 <- d[[collection]]
@@ -104,21 +103,15 @@ for ( collection in c("ENWIKISML","ENWIKIBIG","ENWIKISMLINT","ENWIKIBIGINT") ){
         d2 <- rbind(d2, fastdata)
     }
     d3 <- split(d2,d2[["index_name"]])
-    if ( length(d3) > 1 ) {
+    if ( length(d3) >= 1 ) {
 
         colname <- gsub("ENWIKI(.*)","\\\\ENWIKI\\1",collection)
         colname <- gsub("gov2","\\\\GOVII",colname)
 
-        xxx <- "n"
-        if ( collection %in% c("ENWIKIBIGINT","ENWIKISMLINT") ){
-            xxx <- "s"
-        }
-        yyy <- "n"
-        if ( collection %in% c("ENWIKISML","ENWIKISMLINT") ){
-            yyy <- "s"
-        }
+        xxx <- "s"
+        yyy <- "s"
 
-        plot(NA, xlim=c(1,20),ylim=c(10,10000), log="y",
+        plot(NA, xlim=c(1,20),ylim=c(10,1000), log="y",
              main=colname,
              xlab="Pattern length",
              ylab="",
@@ -141,19 +134,16 @@ for ( collection in c("ENWIKISML","ENWIKIBIG","ENWIKISMLINT","ENWIKIBIGINT") ){
             lines(d3[[idx]][["query_len"]], d3[[idx]][["time_per_query"]], 
                   pch=idx2pch[[idx]], type="b",col=idx2col[[idx]])
         }
-        if ( collection == "ENWIKISML" ) {
-            x <- c("SORT", "GREEDY", "DCC13KN","IDX_NNX","IDX_NNXU")
+        x <- c("IDX_NNX")
 
-            legend("topright",
-                    legend=as.character(unlist(idx2name[x])),
-                    pch=as.vector(unlist(idx2pch[x])),
-                    col=as.vector(unlist(idx2col[x])),
-                    bty="n", cex=1
-                  )
-        }
+        legend("topright",
+                legend=as.character(unlist(idx2name[x])),
+                pch=as.vector(unlist(idx2pch[x])),
+                col=as.vector(unlist(idx2col[x])),
+                bty="n", cex=1
+              )
 
     }
-}
 #box("outer", col="blue") 
 #box("figure", col="green")  
 #box("plot", col="red")
