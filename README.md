@@ -14,7 +14,7 @@ the SUccinct Retrival Framework.
 cd surf
 git submodule init
 git submodule update
-cd surf/build
+cd build
 cmake ..
 make
 ```
