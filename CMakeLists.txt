@@ -31,6 +31,7 @@ ADD_SUBDIRECTORY(external/sdsl-lite)
 ADD_LIBRARY(fastpfor_lib STATIC external/fastpfor/src/bitpacking.cpp
                                 external/fastpfor/src/bitpackingaligned.cpp
                                 external/fastpfor/src/bitpackingunaligned.cpp
+                                external/fastpfor/src/simdunalignedbitpacking.cpp
                                 external/fastpfor/src/simdbitpacking.cpp)
 
 # # read the index configs

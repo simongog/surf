@@ -2,10 +2,10 @@
 #include <vector>
 #include <iostream>
 
-#include "surf/invfile_postings_list.hpp"
+#include "surf/block_postings_list.hpp"
 
 int main( int argc, char** argv ) {
-    using plist_type = surf::postings_list<surf::compression_codec::optpfor,128>;
+    using plist_type = surf::block_postings_list<128>;
 
     // test small uncompressed lists 
     for(size_t i=0;i<500;i++) {

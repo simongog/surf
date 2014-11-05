@@ -8,7 +8,8 @@
 #include "surf/construct_invidx.hpp"
 #include "construct_doc_cnt.hpp"
 #include "construct_col_len.hpp"
-#include "surf/invfile_postings_list.hpp"
+//#include "surf/invfile_postings_list.hpp"
+#include "surf/block_postings_list.hpp"
 #include "surf/util.hpp"
 #include "surf/rank_functions.hpp"
 
@@ -17,7 +18,7 @@ using namespace sdsl;
 namespace surf {
 
 
-template<class t_pl = postings_list<compression_codec::optpfor,128>,
+template<class t_pl = block_postings_list<128>,
          class t_rank = rank_bm25<120,75>,
          bool t_exhaustive = false>
 class idx_invfile {
@@ -410,6 +411,10 @@ public:
         }
     }
 
+    std::pair<double,double> phrase_prob(const std::vector<uint64_t>& ids) const {
+        return {0.0,0.0};
+    }
+    
     void mem_info(){
         std::cout << 0 << ";"; // CSA
         std::cout << 0 << ";"; // WTD^\ell 
