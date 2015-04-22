@@ -9,6 +9,7 @@ project(SURF CXX C)
 INCLUDE_DIRECTORIES(${CMAKE_HOME_DIRECTORY}/include
                     ${CMAKE_HOME_DIRECTORY}/external/fastpfor/headers/
                     ${CMAKE_HOME_DIRECTORY}/external/cppzmq/
+                    ${CMAKE_HOME_DIRECTORY}/external/jsoncpp/
                     ${CMAKE_HOME_DIRECTORY}/external/zeromq/include/
                     ${CMAKE_BINARY_DIR}/external/sdsl-lite/include
                     ${CMAKE_BINARY_DIR}/external/sdsl-lite/external/libdivsufsort-2.0.1/include
@@ -16,6 +17,7 @@ INCLUDE_DIRECTORIES(${CMAKE_HOME_DIRECTORY}/include
 
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/external/sdsl-lite/lib
 				 ${CMAKE_BINARY_DIR}/external/zeromq/lib
+				 ${CMAKE_BINARY_DIR}/external/jsoncpp
 					)
 
 append_cxx_compiler_flags("-msse4.2 -std=c++11 -Wall -DNDEBUG" "GCC" CMAKE_CXX_FLAGS)
@@ -32,7 +34,8 @@ ADD_LIBRARY(fastpfor_lib STATIC external/fastpfor/src/bitpacking.cpp
                                 external/fastpfor/src/bitpackingaligned.cpp
                                 external/fastpfor/src/bitpackingunaligned.cpp
                                 external/fastpfor/src/simdunalignedbitpacking.cpp
-                                external/fastpfor/src/simdbitpacking.cpp)
+                                external/fastpfor/src/simdbitpacking.cpp
+                                external/jsoncpp/jsoncpp.cpp)
 
 # # read the index configs
 file(GLOB index_config_files RELATIVE ${CMAKE_HOME_DIRECTORY}/config/ "${CMAKE_HOME_DIRECTORY}/config/*.config")
