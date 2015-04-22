@@ -1,0 +1,5 @@
+/collections/index/*
+/collections/results/*
+/collections/wikishort/wikishort/*
+
+*.sdsl
