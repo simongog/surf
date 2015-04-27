@@ -3,6 +3,7 @@
 
 #define REQ_PARSE_ERROR		0
 #define REQ_RESPONE_OK		1
+#define REQ_JSON_PARSE_ERROR     2
 
 #define REQ_TYPE_QRY_OR		0
 #define REQ_TYPE_QRY_AND	1

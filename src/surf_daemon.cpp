@@ -124,8 +124,7 @@ int main(int argc,char* const argv[])
                 std::cout << "ERROR IN JSON PARSING PROCESS. SKIPPING QUERY" << reader.getFormatedErrorMessages();
 
                 Json::Value res;
-                res["mode"] = "error";
-                res["message"] = "ERROR IN JSON PARSING PROCESS. SKIPPING QUERY";
+                res["status"] = REQ_JSON_PARSE_ERROR;
                 Json::StyledWriter writer;
                 std::string res_str = writer.write(res);
                 zmq::message_t reply(res_str.length());
@@ -145,6 +144,7 @@ int main(int argc,char* const argv[])
             surf_req.output_results = root.get("output_results", 0).asInt();
             surf_req.int_qry = root.get("int_qry", 0).asInt();
             std::ostringstream qry_str_oss;
+            // TODO: remove "id;", needed by the query_parser at the moment
             qry_str_oss << surf_req.id << ";" << root.get("qry_str", "").asString();
             std::string qry_str = qry_str_oss.str();
 
@@ -189,16 +189,18 @@ int main(int argc,char* const argv[])
                 zmq::message_t reply (sizeof(surf_time_resp));
                 memcpy(reply.data(),&surf_resp,sizeof(surf_time_resp));
                 server.send(reply);*/
-                std::cout << "ERROR IN QUERY PARSING PROCESS. SKIPPING QUERY" << std::endl;
 
                 Json::Value res;
-                res["mode"] = "error";
-                res["message"] = "ERROR IN QUERY PARSING PROCESS. SKIPPING QUERY";
+                res["status"] = REQ_PARSE_ERROR;
+                res["req_id"] = surf_req.id;
+
                 Json::StyledWriter writer;
                 std::string res_str = writer.write(res);
                 zmq::message_t reply(res_str.length());
                 memcpy(reply.data(), res_str.c_str(), res_str.length());
                 server.send(reply);
+
+                std::cout << "ERROR IN QUERY PARSING PROCESS. SKIPPING QUERY" << std::endl;
 
                 continue;
             }
@@ -281,8 +283,6 @@ int main(int argc,char* const argv[])
                 res['postings_evaluated'] = results.postings_evaluated;
                 res['postings_total'] = results.postings_total;
 
-                res["mode"] = "success";
-
                 Json::StyledWriter writer;
                 std::string res_str = writer.write(res);
 
@@ -304,7 +304,8 @@ int main(int argc,char* const argv[])
                     resultsArray.append(result);
                 }
 
-                res["mode"] = "success";
+                res["status"] = REQ_RESPONE_OK;
+                res["req_id"] = surf_req.id;
                 res["results"] = resultsArray;
                 
                 Json::StyledWriter writer;
