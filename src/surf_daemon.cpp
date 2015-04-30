@@ -121,7 +121,7 @@ int main(int argc,char* const argv[])
 
             bool parsingSuccessful = reader.parse(rpl, root);
             if(!parsingSuccessful) {
-                std::cout << "ERROR IN JSON PARSING PROCESS. SKIPPING QUERY" << reader.getFormatedErrorMessages();
+                std::cout << "ERROR IN JSON PARSING PROCESS. SKIPPING QUERY" << reader.getFormattedErrorMessages();
 
                 Json::Value res;
                 res["status"] = REQ_JSON_PARSE_ERROR;
@@ -182,14 +182,6 @@ int main(int argc,char* const argv[])
 
             if(!parse_ok) {
                 // error parsing the qry. send back error
-                /*surf_time_resp surf_resp;
-                surf_resp.status = REQ_PARSE_ERROR;
-                surf_resp.req_id = surf_req.id;
-
-                zmq::message_t reply (sizeof(surf_time_resp));
-                memcpy(reply.data(),&surf_resp,sizeof(surf_time_resp));
-                server.send(reply);*/
-
                 Json::Value res;
                 res["status"] = REQ_PARSE_ERROR;
                 res["req_id"] = surf_req.id;
