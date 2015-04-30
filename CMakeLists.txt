@@ -30,6 +30,11 @@ SET_PROPERTY(DIRECTORY external/zeromq PROPERTY ZMQ_BUILD_TESTS FALSE)
 
 ADD_SUBDIRECTORY(external/sdsl-lite)
 
+ADD_SUBDIRECTORY(external/jsoncpp)
+SET_PROPERTY(DIRECTORY external/jsoncpp PROPERTY JSONCPP_LIB_BUILD_STATIC ON)
+SET_PROPERTY(DIRECTORY external/jsoncpp PROPERTY JSONCPP_LIB_BUILD_SHARED OFF)
+
+
 ADD_LIBRARY(fastpfor_lib STATIC external/fastpfor/src/bitpacking.cpp
                                 external/fastpfor/src/bitpackingaligned.cpp
                                 external/fastpfor/src/bitpackingunaligned.cpp

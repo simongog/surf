@@ -7,6 +7,6 @@
 [submodule "external/zeromq"]
 	path = external/zeromq
 	url = https://github.com/zeromq/libzmq.git
-[submodule "external/cppzmq"]
-	path = external/cppzmq
-	url = https://github.com/zeromq/cppzmq.git
+[submodule "external/jsoncpp"]
+	path = external/jsoncpp
+	url = https://github.com/open-source-parsers/jsoncpp.git
