@@ -267,21 +267,21 @@ int main(int argc,char* const argv[])
             if(!surf_req.output_results) {
 
                 Json::Value res;
-                res['status'] = REQ_RESPONE_OK;
-                res['index'] = index_name.c_str();
-                res['collection'] = base_name.c_str();
-                res['ranker'] = surf_index_t::ranker_type::name().c_str();
-                res['req_id'] = surf_req.id;
-                res['k'] = surf_req.k;
-                res['qry_id'] = qry_id;
-                //res['qry_len'] = qry_tokens.size();
-                //res['result_size'] = results.list.size();
-                res['qry_time'] = query_time.count();
-                res['search_time'] = search_time.count();
-                res['wt_search_space'] = results.wt_search_space;
-                res['wt_nodes'] = results.wt_nodes;
-                res['postings_evaluated'] = results.postings_evaluated;
-                res['postings_total'] = results.postings_total;
+                res["status"] = REQ_RESPONE_OK;
+                res["index"] = index_name.c_str();
+                res["collection"] = base_name.c_str();
+                res["ranker"] = surf_index_t::ranker_type::name().c_str();
+                res["req_id"] = surf_req.id;
+                res["k"] = surf_req.k;
+                res["qry_id"] = qry_id;
+                //res["qry_len"] = qry_tokens.size();
+                //res["result_size"] = results.list.size();
+                res["qry_time"] = query_time.count();
+                res["search_time"] = search_time.count();
+                res["wt_search_space"] = results.wt_search_space;
+                res["wt_nodes"] = results.wt_nodes;
+                res["postings_evaluated"] = results.postings_evaluated;
+                res["postings_total"] = results.postings_total;
 
                 Json::StyledWriter writer;
                 std::string res_str = writer.write(res);
