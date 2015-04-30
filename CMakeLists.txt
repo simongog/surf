@@ -9,7 +9,6 @@ project(SURF CXX C)
 INCLUDE_DIRECTORIES(${CMAKE_HOME_DIRECTORY}/include
                     ${CMAKE_HOME_DIRECTORY}/external/fastpfor/headers/
                     ${CMAKE_HOME_DIRECTORY}/external/cppzmq/
-                    ${CMAKE_HOME_DIRECTORY}/external/jsoncpp/
                     ${CMAKE_HOME_DIRECTORY}/external/zeromq/include/
                     ${CMAKE_BINARY_DIR}/external/sdsl-lite/include
                     ${CMAKE_BINARY_DIR}/external/sdsl-lite/external/libdivsufsort-2.0.1/include
@@ -17,22 +16,22 @@ INCLUDE_DIRECTORIES(${CMAKE_HOME_DIRECTORY}/include
 
 LINK_DIRECTORIES(${CMAKE_BINARY_DIR}/external/sdsl-lite/lib
 				 ${CMAKE_BINARY_DIR}/external/zeromq/lib
-				 ${CMAKE_BINARY_DIR}/external/jsoncpp
-					)
+				)
 
 append_cxx_compiler_flags("-msse4.2 -std=c++11 -Wall -DNDEBUG" "GCC" CMAKE_CXX_FLAGS)
 append_cxx_compiler_flags("-O3 -ffast-math -funroll-loops" "GCC" CMAKE_CXX_FLAGS)
 append_cxx_compiler_flags("-msse4.2 -std=c++11 -g -funroll-loops -DNDEBUG -stdlib=libc++" "CLANG" CMAKE_CXX_FLAGS)
 
+ADD_SUBDIRECTORY(external/jsoncpp ${CMAKE_BINARY_DIR}/jsoncpp)
+SET_PROPERTY(DIRECTORY external/jsoncpp PROPERTY CMAKE_BUILD_TYPE "Debug")
+SET_PROPERTY(DIRECTORY external/jsoncpp PROPERTY BUILD_STATIS_LIBS ON)
+SET_PROPERTY(DIRECTORY external/jsoncpp PROPERTY JSONCPP_WITH_TESTS OFF)
+SET_PROPERTY(DIRECTORY external/jsoncpp PROPERTY JSONCPP_WITH_POST_BUILD_UNITTEST OFF)
+
 
 ADD_SUBDIRECTORY(external/zeromq)
 SET_PROPERTY(DIRECTORY external/zeromq PROPERTY ZMQ_BUILD_TESTS FALSE)
-
 ADD_SUBDIRECTORY(external/sdsl-lite)
-
-ADD_SUBDIRECTORY(external/jsoncpp)
-SET_PROPERTY(DIRECTORY external/jsoncpp PROPERTY JSONCPP_LIB_BUILD_STATIC ON)
-SET_PROPERTY(DIRECTORY external/jsoncpp PROPERTY JSONCPP_LIB_BUILD_SHARED OFF)
 
 
 ADD_LIBRARY(fastpfor_lib STATIC external/fastpfor/src/bitpacking.cpp
@@ -40,7 +39,7 @@ ADD_LIBRARY(fastpfor_lib STATIC external/fastpfor/src/bitpacking.cpp
                                 external/fastpfor/src/bitpackingunaligned.cpp
                                 external/fastpfor/src/simdunalignedbitpacking.cpp
                                 external/fastpfor/src/simdbitpacking.cpp
-                                external/jsoncpp/jsoncpp.cpp)
+                                )
 
 # # read the index configs
 file(GLOB index_config_files RELATIVE ${CMAKE_HOME_DIRECTORY}/config/ "${CMAKE_HOME_DIRECTORY}/config/*.config")
@@ -55,6 +54,11 @@ foreach(f ${index_config_files})
 		list(APPEND compile_defs ${key}=${value})
 	endforeach(keyvalue)
 
+
+	ADD_EXECUTABLE(surf_daemon-${NAME} src/surf_daemon.cpp)
+	TARGET_LINK_LIBRARIES(surf_daemon-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib libzmq jsoncpp_lib_static)
+	set_property(TARGET surf_daemon-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
+
 	ADD_EXECUTABLE(surf_index-${NAME} src/surf_index.cpp)
 	TARGET_LINK_LIBRARIES(surf_index-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib)
 	set_property(TARGET surf_index-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
@@ -63,9 +67,6 @@ foreach(f ${index_config_files})
 	TARGET_LINK_LIBRARIES(surf_search-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib)
 	set_property(TARGET surf_search-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 
-	ADD_EXECUTABLE(surf_daemon-${NAME} src/surf_daemon.cpp)
-	TARGET_LINK_LIBRARIES(surf_daemon-${NAME} sdsl divsufsort divsufsort64 pthread fastpfor_lib libzmq)
-	set_property(TARGET surf_daemon-${NAME} PROPERTY COMPILE_DEFINITIONS IDXNAME="${NAME}" ${compile_defs})
 
 endforeach(f)
 
