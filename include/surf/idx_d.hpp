@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <limits>
 #include <queue>
+#include <sdsl/wt_algorithm.hpp>
 
 namespace surf{
 
@@ -90,6 +91,39 @@ public:
     ranker_type m_ranker;
 
     using state_type = s_state_t<typename t_wtd::node_type>;
+
+private:
+
+    void autocompletee(std::vector<std::vector<uint64_t>> &tokens, std::vector<uint64_t> token_ids, uint64_t &ws) {
+
+        size_type occ_begin, occ_end;
+        backward_search(m_csa, 0, m_csa.size()-1, token_ids.begin(), token_ids.end(), occ_begin, occ_end);
+
+        size_type k;
+        std::vector<uint64_t> cs(m_csa.wavelet_tree.sigma);
+        std::vector<size_type> rank_c_i(m_csa.wavelet_tree.sigma);
+        std::vector<size_type> rank_c_j(m_csa.wavelet_tree.sigma);
+
+        interval_symbols(m_csa.wavelet_tree, occ_begin, occ_end, k, cs, rank_c_i, rank_c_j);
+
+        for(std::vector<uint64_t>::const_iterator i = cs.begin(); i != cs.end(); ++i)
+        {
+            const uint64_t c = *i;
+
+            if (c == ws)
+            {
+                if ((std::find(tokens.begin(), tokens.end(), token_ids) == tokens.end()))
+                    tokens.push_back(token_ids);
+
+            } else if (c > 1)
+            {
+                std::vector<uint64_t> token_ids_copy = token_ids;
+                token_ids_copy.insert(token_ids_copy.begin(), c);
+                autocompletee(tokens, token_ids_copy, ws);
+            }
+        }
+    }
+
 public:
 
     result search(const std::vector<query_token>& qry,size_t k,bool ranked_and = false,bool profile = false) const {
@@ -100,7 +134,27 @@ public:
         std::vector<range_type> ranges;
         result res;
 
-        if(profile) {
+        cout << m_csa << endl;
+
+        cout << "csa string :";
+        for(unsigned int i = 0; i<m_csa.size()-1; i++) {
+            cout << i;
+            cout << ":";
+            cout << m_csa[i];
+            cout << " ";
+        }
+        cout << endl;
+
+        cout << "wt string :";
+        for(unsigned int i = 0; i<m_csa.wavelet_tree.size()-1; i++) {
+            cout << i;
+            cout << ":";
+            cout << m_csa.wavelet_tree[i];
+            cout << " ";
+        }
+        cout << endl;
+
+        if (profile) {
             res.wt_nodes = 2*m_wtd.sigma-1;
         }
 
@@ -184,6 +238,17 @@ public:
             state_type s = pq.top();
             pq.pop();
             if ( m_wtd.is_leaf(s.v) ){
+
+                std::cout <<  m_docperm.len2id[m_wtd.sym(s.v)] << std::endl;
+                std::cout << "s.score " << s.score << std::endl;
+                for (uint i=0; i<s.r.size(); i++) {
+                    cout << s.r[i].first << " " << s.r[i].second << endl;
+                    for (uint j=s.r[i].first; j<=s.r[i].second; j++) {
+                        std::cout << m_wtd.select(j, (*s.t_ptrs[i]).t.back()) << std::endl;
+                        std::cout << m_csa[m_csa.wavelet_tree.select(j, (*s.t_ptrs[i]).t.back())] << std::endl;
+                    }
+                }
+
                 res.list.emplace_back(m_docperm.len2id[m_wtd.sym(s.v)], s.score);
             } else {
 //fast_expand:               
@@ -209,6 +274,8 @@ public:
         }
         return res;
     }
+
+
 
     void load(sdsl::cache_config& cc){
         load_from_cache(m_csa, surf::KEY_CSA, cc, true);
@@ -236,6 +303,14 @@ public:
         std::cout << 0 << ";"; // WTR^\ell
         std::cout << sdsl::size_in_bytes(m_docperm) << std::endl;  // DOCPERM
 
+    }
+
+    std::vector<std::vector<uint64_t>> autocomplete(const std::vector<query_token>& qry, uint64_t ws) {
+        std::vector<std::vector<uint64_t>> tokens;
+        for (size_t i=0; i<qry.size(); ++i){
+            autocompletee(tokens, qry[i].token_ids, ws);
+        }
+        return tokens;
     }
 
 };

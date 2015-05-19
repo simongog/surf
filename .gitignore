@@ -3,3 +3,5 @@
 /collections/wikishort/wikishort/*
 
 *.sdsl
+
+.idea/*

@@ -180,6 +180,8 @@ int main(int argc,char* const argv[])
                 }
             }
 
+            parse_ok = true;
+
             if(!parse_ok) {
                 // error parsing the qry. send back error
                 Json::Value res;
@@ -211,7 +213,21 @@ int main(int argc,char* const argv[])
             auto qry_id = std::get<0>(prased_query);
             auto qry_tokens = std::get<1>(prased_query);
             auto search_start = clock::now();
-            auto results = index.search(qry_tokens,surf_req.k,ranked_and,profile);
+            //auto results = index.search(qry_tokens,surf_req.k,ranked_and,profile);
+
+            std::vector<uint64_t> token_ids = { 6, 7, 7, 8, 5 };
+            std::vector<std::string> token_strs = { "o", "l", "l", "e", "h"};
+            surf::query_token q_t(token_ids, token_strs, 6);
+            const std::vector<surf::query_token> q_ts = { q_t };
+            //auto results = index.search(qry_tokens,surf_req.k,ranked_and,profile);
+            auto results = index.search(q_ts,surf_req.k,ranked_and,profile); // TODO change available impl
+
+            std::cout << "autocomplete results" << std::endl;
+            std::vector<std::vector<uint64_t>> autocompletes = index.autocomplete(q_ts, 9); // TODO change available impl
+            for (std::vector<uint64_t> v : autocompletes) {
+                std::cout << v << std::endl;
+            }
+
             auto search_stop = clock::now();
             auto search_time = std::chrono::duration_cast<std::chrono::microseconds>(search_stop-search_start);
 

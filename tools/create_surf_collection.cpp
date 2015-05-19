@@ -8,13 +8,18 @@
 
 
 int main( int argc, char** argv ) {
-    if(argc != 3) {
+    /*if(argc != 3) {
         std::cout << "USAGE: " << argv[0] 
                   << " <string with # separated docs> <surf collection folder>" << std::endl;
         return EXIT_FAILURE;
     }
     std::string test_str = argv[1];
-    std::string dir = argv[2];
+    std::string dir = argv[2];*/
+
+    //std::string test_str = "hello hellokatze hellohund hellohund # hellokatze hellokatze helloaffe hellokatze # hellokatze helloaffe hellohund hellokatze # hellotest hellotest #";
+    std::string test_str = "dnuholleh dnuholleh eztakolleh olleh # eztakolleh effaolleh eztakolleh eztakolleh # eztakolleh dnuholleh effaolleh eztakolleh # tsetolleh tsetolleh #";
+
+    std::string dir = "/Users/matthiasstumpp/Workspace/surf/collections/my";
 
     // setup collection directory
     if(surf::directory_exists(dir)) {
@@ -35,6 +40,9 @@ int main( int argc, char** argv ) {
     size_t j=0;
     size_t num_docs = 0;
     for(const auto& sym : test_str) {
+
+        std::cout << sym << std::endl;
+
         if(sym == '#') {
             text_col[j++] = 1;
             num_docs++;
