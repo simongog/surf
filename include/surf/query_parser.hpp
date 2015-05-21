@@ -55,20 +55,24 @@ struct query_parser {
         std::vector<uint64_t> ids;
         std::istringstream qry_content_stream(qry_content);
         for(std::string qry_token; std::getline(qry_content_stream,qry_token,' ');) {
-            if(integers) {
-                uint64_t id = std::stoull(qry_token);
-                ids.push_back(id);
-            } else {
-                auto id_itr = id_mapping.find(qry_token);
-                if(id_itr != id_mapping.end()) {
-                    ids.push_back(id_itr->second);
-                } else {
-                    std::cerr << "ERROR: could not find '" << qry_token << "' in the dictionary." << std::endl;
-                    if(only_complete) {
-                        return std::make_tuple(false,qry_id,ids);
-                    }
-                }
-            }
+
+            //if(integers) {
+            //    uint64_t id = std::stoull(qry_token);
+            //    ids.push_back(id);
+            //} else {
+
+//            for(char& c : qry_token) {
+//                auto id_itr = id_mapping.find(c);
+//                if(id_itr != id_mapping.end()) {
+//                    ids.push_back(id_itr->second);
+//                } else {
+//                    std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
+//                    if(only_complete) {
+//                        return std::make_tuple(false,qry_id,ids);
+//                    }
+//                }
+//            }
+            //}
         }
         return std::make_tuple(true,qry_id,ids);
     }

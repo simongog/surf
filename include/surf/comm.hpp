@@ -41,7 +41,8 @@ struct surf_qry_request {
 	uint64_t k;
     uint8_t output_results;
     uint8_t int_qry;
-	char qry_str[MAX_QRY_LEN] = {0};
+    uint8_t proximity_num;
+    char qry_str[MAX_QRY_LEN] = {0};
 };
 
 struct surf_results {

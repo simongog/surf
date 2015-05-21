@@ -2,19 +2,13 @@
 #include <stdlib.h>
 #include <iostream>
 #include <iomanip>
-#include <ctime>
 
-#include <string>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include "surf/query.hpp"
 #include "sdsl/config.hpp"
 #include "surf/indexes.hpp"
 #include "surf/query_parser.hpp"
 #include "surf/comm.hpp"
 #include "surf/phrase_parser.hpp"
-#include "surf/rank_functions.hpp"
 
 #include "zmq.hpp"
 #include <json/json.h>
@@ -67,6 +61,19 @@ parse_args(int argc,char* const argv[])
     return args;
 }
 
+std::string
+trim(const std::string& str, const std::string& whitespace = " \t")
+{
+    const auto strBegin = str.find_first_not_of(whitespace);
+    if (strBegin == std::string::npos)
+        return ""; // no content
+
+    const auto strEnd = str.find_last_not_of(whitespace);
+    const auto strRange = strEnd - strBegin + 1;
+
+    return str.substr(strBegin, strRange);
+}
+
 int main(int argc,char* const argv[])
 {
     using clock = std::chrono::high_resolution_clock;
@@ -78,6 +85,19 @@ int main(int argc,char* const argv[])
     char tmp_str[256] = {0};
     strncpy(tmp_str,args.collection_dir.c_str(),256);
     std::string base_name = basename(tmp_str);
+
+    /* load int vector */
+    sdsl::int_vector<> text_col;
+    std::ifstream ifs(args.collection_dir+"/"+surf::TEXT_FILENAME);
+    if(ifs.is_open()) {
+        text_col.load(ifs);
+    } else {
+        std::cerr << "ERROR: could not load collection file." << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    uint64_t space = 2; // Fix this static whitespace identifier
+    uint64_t separator = 1;
 
     /* parse queries */
     surf::query_parser::mapping_t term_map;
@@ -99,7 +119,6 @@ int main(int argc,char* const argv[])
     auto load_stop = clock::now();
     auto load_time_sec = std::chrono::duration_cast<std::chrono::seconds>(load_stop-load_start);
     std::cout << "Index loaded in " << load_time_sec.count() << " seconds." << std::endl;
-
 
     /* daemon mode */
     {
@@ -143,10 +162,8 @@ int main(int argc,char* const argv[])
             surf_req.k = root.get("k", 0).asUInt64();
             surf_req.output_results = root.get("output_results", 0).asInt();
             surf_req.int_qry = root.get("int_qry", 0).asInt();
-            std::ostringstream qry_str_oss;
-            // TODO: remove "id;", needed by the query_parser at the moment
-            qry_str_oss << surf_req.id << ";" << root.get("qry_str", "").asString();
-            std::string qry_str = qry_str_oss.str();
+            surf_req.proximity_num = root.get("proximity_num", 50).asInt();
+            std::string qry_str = root.get("qry_str", "").asString();
 
             if(surf_req.type == REQ_TYPE_QUIT) {
                 std::cout << "Quitting..." << std::endl;
@@ -156,31 +173,35 @@ int main(int argc,char* const argv[])
             /* perform query */
             auto qry_start = clock::now();
 
-            surf::query_t prased_query;
-            bool parse_ok = false;
+            bool parse_ok = true;
 
-            if(surf_req.phrases) { 
-#ifdef PHRASE_SUPPORT
-                const auto& id_mapping = term_map.first;
-                const auto& reverse_mapping = term_map.second;
-                auto qry_mapping = surf::query_parser::map_to_ids(id_mapping,qry_str,true,surf_req.int_qry);
-                if(std::get<0>(qry_mapping)) {
-                    auto qid = std::get<1>(qry_mapping);
-                    auto qry_ids = std::get<2>(qry_mapping);
-                    prased_query = surf::phrase_parser::phrase_segmentation(index.m_csa,qry_ids,reverse_mapping, surf_req.phrase_threshold);
-                    std::get<0>(prased_query) = qid;
-                    parse_ok = true;
+            std::istringstream buf(qry_str);
+            std::istream_iterator<std::string> beg(buf), end;
+            std::vector<std::string> tokens(beg, end); // done!
+            std::vector<surf::query_token> q_ts;
+            for(auto& s: tokens) {
+                std::vector<uint64_t> token_ids;
+                std::vector<std::string> token_strs;
+                std::reverse(s.begin(), s.end());
+                std::cout << s << std::endl;
+                for(std::string::iterator it = s.begin(); it != s.end(); ++it) {
+                    const char c = *it;
+                    std::unordered_map<std::string,uint64_t> tm = term_map.first;
+                    std::string s(1, c);
+                    auto id_itr = tm.find(s);
+                    if(id_itr != tm.end()) {
+                        if (isspace(c))
+                            token_ids.push_back(space);
+                        else
+                            token_ids.push_back(id_itr->second);
+                    } else {
+                        std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
+                        parse_ok = false;
+                    }
                 }
-#endif
-            } else {
-                auto qry = surf::query_parser::parse_query(term_map,qry_str,true,surf_req.int_qry);
-                if(qry.first) {
-                    prased_query = qry.second;
-                    parse_ok = true;
-                }
+                surf::query_token q_t(token_ids, token_strs, token_ids.size());
+                q_ts.push_back(q_t);
             }
-
-            parse_ok = true;
 
             if(!parse_ok) {
                 // error parsing the qry. send back error
@@ -201,32 +222,14 @@ int main(int argc,char* const argv[])
 
             /* (1) parse qry terms */
             bool profile = false;
-            if(surf_req.mode == REQ_MODE_PROFILE) {
-                profile = true;
-            }
             bool ranked_and = false;
             if(surf_req.type == REQ_TYPE_QRY_AND) {
                 ranked_and = true;
             }
 
-            /* (2) query the index */
-            auto qry_id = std::get<0>(prased_query);
-            auto qry_tokens = std::get<1>(prased_query);
             auto search_start = clock::now();
-            //auto results = index.search(qry_tokens,surf_req.k,ranked_and,profile);
 
-            std::vector<uint64_t> token_ids = { 6, 7, 7, 8, 5 };
-            std::vector<std::string> token_strs = { "o", "l", "l", "e", "h"};
-            surf::query_token q_t(token_ids, token_strs, 6);
-            const std::vector<surf::query_token> q_ts = { q_t };
-            //auto results = index.search(qry_tokens,surf_req.k,ranked_and,profile);
-            auto results = index.search(q_ts,surf_req.k,ranked_and,profile); // TODO change available impl
-
-            std::cout << "autocomplete results" << std::endl;
-            std::vector<std::vector<uint64_t>> autocompletes = index.autocomplete(q_ts, 9); // TODO change available impl
-            for (std::vector<uint64_t> v : autocompletes) {
-                std::cout << v << std::endl;
-            }
+            auto results = index.search(q_ts,surf_req.k,ranked_and,profile);
 
             auto search_stop = clock::now();
             auto search_time = std::chrono::duration_cast<std::chrono::microseconds>(search_stop-search_start);
@@ -234,97 +237,114 @@ int main(int argc,char* const argv[])
             auto qry_stop = clock::now();
             auto query_time = std::chrono::duration_cast<std::chrono::microseconds>(qry_stop-qry_start);
 
-            /* (3a) output to qry to console */
-            std::cout << "REQ=" << std::left << std::setw(10) << surf_req.id << " " 
-                      << " k="  << std::setw(5) << surf_req.k 
-                      << " QID=" << std::setw(5) << qry_id 
-                      << " TIME=" << std::setw(7) << query_time.count()/1000.0
-                      << " AND=" << ranked_and
-                      << " PHRASE=" << surf_req.phrases;
-            std::cout << " [";
-            if(args.load_dictionary) {
-                for(const auto& token : qry_tokens) {
-                    if(token.token_ids.size() > 1) {
-                        // phrase
-                        std::cout << "(";
-                        for(const auto tstr : token.token_strs) {
-                            std::cout << tstr << " ";
+            std::vector<std::vector<uint64_t>> autocompletes = index.autocomplete(q_ts.back(), space);
+
+            Json::Value res;
+            Json::Value resultsArray;
+
+            for(size_t i=0;i<results.list.size();i++) {
+                Json::Value result;
+                result["doc_id"] = results.list[i].doc_id;
+                result["score"] = results.list[i].score;
+
+                Json::Value proximityArray;
+                for (uint64_t q : results.list[i].query_proximities) {
+
+                    std::string proximity;
+                    uint64_t idx = q;
+                    uint64_t c = text_col[idx];
+
+                    if (idx >= 0 && idx < text_col.size()) {
+                        c = text_col[idx];
+
+                        auto id_itr = term_map.second.find(c);
+                        if(id_itr != term_map.second.end()) {
+                            proximity.append(id_itr->second);
+                        } else {
+                            std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
                         }
-                        std::cout << ") ";
+                    }
+
+                    // set chars before idx
+                    size_t offset = 1;
+                    while (idx-offset >= 0 &&
+                           idx-offset < text_col.size() &&
+                           (c = text_col[idx-offset]) != 1 &&
+                           (offset <= surf_req.proximity_num || text_col[idx-offset] != space))
+                    {
+
+                        auto id_itr = term_map.second.find(c);
+                        if(id_itr != term_map.second.end()) {
+                            if (c == space) // TODO: fix this workaround
+                                proximity.insert(0, " ");
+                            else
+                                proximity.insert(0, id_itr->second);
+                        } else {
+                            std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
+                        }
+                        offset++;
+                    }
+
+                    // set chars after idx
+                    offset = 1;
+                    while (idx+offset >= 0 &&
+                           idx+offset < text_col.size() &&
+                           (c = text_col[idx+offset]) != 1 &&
+                           (offset <= surf_req.proximity_num || text_col[idx+offset] != space))
+                    {
+
+                        auto id_itr = term_map.second.find(c);
+                        if(id_itr != term_map.second.end()) {
+                            if (c == space) // TODO: fix this workaround
+                                proximity.append(" ");
+                            else
+                                proximity.append(id_itr->second);
+
+                        } else {
+                            std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
+                        }
+                        offset++;
+                    }
+                    std::reverse(proximity.begin(), proximity.end());
+                    proximityArray.append(trim(proximity));
+                }
+                result["proximities"] = proximityArray;
+                resultsArray.append(result);
+            }
+
+            // process autocompletes
+            Json::Value autocompletesArray;
+            for (std::vector<uint64_t> v : autocompletes) {
+                std::string autocomplete;
+                for (uint64_t c : v) {
+                    auto id_itr = term_map.second.find(c);
+                    if(id_itr != term_map.second.end()) {
+                        if (c == space) // TODO: fix this workaround
+                            autocomplete.append(" ");
+                        else
+                            autocomplete.append(id_itr->second);
+
                     } else {
-                        std::cout << token.token_strs[0] << " ";
+                        std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
                     }
                 }
-            } else {
-                for(const auto& token : qry_tokens) {
-                    if(token.token_ids.size() > 1) {
-                        // phrase
-                        std::cout << "(";
-                        for(const auto tid : token.token_ids) {
-                            std::cout << tid << " ";
-                        }
-                        std::cout << ") ";
-                    } else {
-                        std::cout << token.token_ids[0] << " ";
-                    }
-                }
+                std::reverse(autocomplete.begin(), autocomplete.end());
+                autocompletesArray.append(autocomplete);
             }
-            std::cout << "]" << std::endl;
+            res["autocompletes"] = autocompletesArray;
 
-            /* (3) create answer and send */
-            if(!surf_req.output_results) {
+            res["status"] = REQ_RESPONE_OK;
+            res["req_id"] = surf_req.id;
+            res["results"] = resultsArray;
 
-                Json::Value res;
-                res["status"] = REQ_RESPONE_OK;
-                res["index"] = index_name.c_str();
-                res["collection"] = base_name.c_str();
-                res["ranker"] = surf_index_t::ranker_type::name().c_str();
-                res["req_id"] = surf_req.id;
-                res["k"] = surf_req.k;
-                res["qry_id"] = qry_id;
-                //res["qry_len"] = qry_tokens.size();
-                //res["result_size"] = results.list.size();
-                res["qry_time"] = query_time.count();
-                res["search_time"] = search_time.count();
-                res["wt_search_space"] = results.wt_search_space;
-                res["wt_nodes"] = results.wt_nodes;
-                res["postings_evaluated"] = results.postings_evaluated;
-                res["postings_total"] = results.postings_total;
+            Json::StyledWriter writer;
+            std::string res_str = writer.write(res);
 
-                Json::StyledWriter writer;
-                std::string res_str = writer.write(res);
+            std::cout << res_str << std::endl;
 
-                std::cout << res_str << std::endl;
-
-                zmq::message_t reply(res_str.length());
-                memcpy(reply.data(), res_str.c_str(), res_str.length());
-                server.send(reply);
-
-            } else {
-
-                Json::Value res;
-                Json::Value resultsArray;
-
-                for(size_t i=0;i<results.list.size();i++) {
-                    Json::Value result;
-                    result["doc_id"] = results.list[i].doc_id;
-                    result["score"] = results.list[i].score;
-                    resultsArray.append(result);
-                }
-
-                res["status"] = REQ_RESPONE_OK;
-                res["req_id"] = surf_req.id;
-                res["results"] = resultsArray;
-                
-                Json::StyledWriter writer;
-                std::string res_str = writer.write(res);
-
-                std::cout << res_str << std::endl;
-
-                zmq::message_t reply(res_str.length());
-                memcpy(reply.data(), res_str.c_str(), res_str.length());
-                server.send(reply);
-            }
+            zmq::message_t reply(res_str.length());
+            memcpy(reply.data(), res_str.c_str(), res_str.length());
+            server.send(reply);
         }
     }
 

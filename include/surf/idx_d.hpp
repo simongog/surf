@@ -134,26 +134,6 @@ public:
         std::vector<range_type> ranges;
         result res;
 
-        cout << m_csa << endl;
-
-        cout << "csa string :";
-        for(unsigned int i = 0; i<m_csa.size()-1; i++) {
-            cout << i;
-            cout << ":";
-            cout << m_csa[i];
-            cout << " ";
-        }
-        cout << endl;
-
-        cout << "wt string :";
-        for(unsigned int i = 0; i<m_csa.wavelet_tree.size()-1; i++) {
-            cout << i;
-            cout << ":";
-            cout << m_csa.wavelet_tree[i];
-            cout << " ";
-        }
-        cout << endl;
-
         if (profile) {
             res.wt_nodes = 2*m_wtd.sigma-1;
         }
@@ -228,7 +208,15 @@ public:
         };
 
         constexpr double max_score = std::numeric_limits<double>::max();
-        
+
+        for(unsigned int i = 0; i<m_csa.wavelet_tree.size(); i++) {
+            cout << i;
+            cout << ":";
+            cout << m_csa.wavelet_tree[i];
+            cout << " ";
+        }
+        cout << endl;
+
         pq_min_type pq_min;
         pq_type pq;
         pq.emplace(max_score, m_wtd.root(), term_ptrs, ranges);
@@ -237,19 +225,16 @@ public:
         while ( !pq.empty() and res.list.size() < k ) {
             state_type s = pq.top();
             pq.pop();
-            if ( m_wtd.is_leaf(s.v) ){
-
-                std::cout <<  m_docperm.len2id[m_wtd.sym(s.v)] << std::endl;
-                std::cout << "s.score " << s.score << std::endl;
+            if ( m_wtd.is_leaf(s.v) ) {
+                std::vector<uint64_t> query_proximities;
                 for (uint i=0; i<s.r.size(); i++) {
-                    cout << s.r[i].first << " " << s.r[i].second << endl;
                     for (uint j=s.r[i].first; j<=s.r[i].second; j++) {
-                        std::cout << m_wtd.select(j, (*s.t_ptrs[i]).t.back()) << std::endl;
-                        std::cout << m_csa[m_csa.wavelet_tree.select(j, (*s.t_ptrs[i]).t.back())] << std::endl;
+                        uint64_t idx = m_csa[m_wtd.select(j+1, m_wtd.sym(s.v))];
+                        query_proximities.push_back(idx);
                     }
                 }
+                res.list.emplace_back(m_docperm.len2id[m_wtd.sym(s.v)], s.score, query_proximities);
 
-                res.list.emplace_back(m_docperm.len2id[m_wtd.sym(s.v)], s.score);
             } else {
 //fast_expand:               
                 auto exp_v = m_wtd.expand(s.v);
@@ -305,11 +290,10 @@ public:
 
     }
 
-    std::vector<std::vector<uint64_t>> autocomplete(const std::vector<query_token>& qry, uint64_t ws) {
+    // TODO this to actual search
+    std::vector<std::vector<uint64_t>> autocomplete(query_token& qry, uint64_t ws) {
         std::vector<std::vector<uint64_t>> tokens;
-        for (size_t i=0; i<qry.size(); ++i){
-            autocompletee(tokens, qry[i].token_ids, ws);
-        }
+        autocompletee(tokens, qry.token_ids, ws);
         return tokens;
     }
 

@@ -9,17 +9,19 @@ namespace surf {
 struct doc_score {
 	uint64_t doc_id;
 	double score;
+    std::vector<uint64_t> query_proximities;
     bool operator>(const doc_score& rhs) const {
     	if(score == rhs.score)
     		return doc_id > rhs.doc_id;
         return score > rhs.score;
     }
     doc_score() {};
-    doc_score(uint64_t did,double s) : doc_id(did) , score(s) {};
+    doc_score(uint64_t did, double s, const std::vector<uint64_t>& q_p) : doc_id(did), score(s), query_proximities(q_p) {};
 };
 
 struct result {
     std::vector<doc_score> list;
+    std::vector<std::string> autocompletes;
     uint64_t wt_search_space = 0;
     uint64_t wt_nodes = 0;
     uint64_t postings_evaluated = 0;
