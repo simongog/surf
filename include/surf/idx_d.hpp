@@ -14,29 +14,6 @@ namespace surf{
 
 using range_type = sdsl::range_type;
 
-struct term_info{
-    std::vector<uint64_t> t; // term_id
-    uint64_t f_qt; // term_frequency
-    uint64_t sp_Dt; // start of interval for term t in the suffix array
-    uint64_t ep_Dt; // end of interval for term t in the suffix array
-    uint64_t f_Dt;  // number of distinct document the term occurs in 
-
-    term_info() = default;
-    term_info(const std::vector<uint64_t>& t, uint64_t f_qt, uint64_t sp_Dt, uint64_t ep_Dt, uint64_t f_Dt) : 
-        t(t), f_qt(f_qt), sp_Dt(sp_Dt), ep_Dt(ep_Dt), f_Dt(f_Dt) {
-        
-    }
-
-    term_info(term_info&&) = default;
-    term_info(const term_info&) = default;
-    term_info& operator=(term_info&&) = default;
-    term_info& operator=(const term_info&) = default;
-
-    uint64_t F_Dt() const{
-        return ep_Dt-sp_Dt+1;
-    }
-};
-
 template<typename t_wt_node>
 struct s_state_t{
     double score;
@@ -94,23 +71,33 @@ public:
 
 private:
 
-    void autocompletee(std::vector<std::vector<uint64_t>> &tokens, std::vector<uint64_t> token_ids, uint64_t &ws) {
+    void autocompletee(std::vector<std::vector<uint64_t>> &tokens, std::vector<uint64_t> token_ids, uint64_t& ws) {
+
+        for (uint64_t t : token_ids) {
+            std::cout << t << " ";
+        }
+        std::cout << " -> ";
 
         size_type occ_begin, occ_end;
         backward_search(m_csa, 0, m_csa.size()-1, token_ids.begin(), token_ids.end(), occ_begin, occ_end);
 
-        size_type k;
+        size_type k = 10;
         std::vector<uint64_t> cs(m_csa.wavelet_tree.sigma);
         std::vector<size_type> rank_c_i(m_csa.wavelet_tree.sigma);
         std::vector<size_type> rank_c_j(m_csa.wavelet_tree.sigma);
 
         interval_symbols(m_csa.wavelet_tree, occ_begin, occ_end, k, cs, rank_c_i, rank_c_j);
 
+        for (uint64_t t : cs) {
+            std::cout << t << " ";
+        }
+        std::cout << std::endl;
+
         for(std::vector<uint64_t>::const_iterator i = cs.begin(); i != cs.end(); ++i)
         {
             const uint64_t c = *i;
 
-            if (c == ws)
+            if (c == ws || token_ids.size() > 20)
             {
                 if ((std::find(tokens.begin(), tokens.end(), token_ids) == tokens.end()))
                     tokens.push_back(token_ids);
@@ -134,16 +121,24 @@ public:
         std::vector<range_type> ranges;
         result res;
 
+        uint x = 0;
+        std::cout << "csa: ";
+        for (uint i : m_csa) {
+            std::cout << x << ":" << i << " ";
+            x++;
+        }
+        std::cout << std::endl;
+
         if (profile) {
             res.wt_nodes = 2*m_wtd.sigma-1;
         }
 
         for (size_t i=0; i<qry.size(); ++i){
             size_type sp=1, ep=0;
-            if ( backward_search(m_csa, 0, m_csa.size()-1, 
+            if (backward_search(m_csa, 0, m_csa.size()-1,
                                  qry[i].token_ids.begin(),
                                  qry[i].token_ids.end(),
-                                 sp, ep) > 0 ) {
+                                 sp, ep) > 0) {
                 auto f_Dt = std::get<0>(m_df(sp,ep)); // document frequency
                 terms.emplace_back(qry[i].token_ids, qry[i].f_qt, sp, ep,  f_Dt);
                 ranges.emplace_back(sp, ep);
@@ -226,11 +221,31 @@ public:
             state_type s = pq.top();
             pq.pop();
             if ( m_wtd.is_leaf(s.v) ) {
-                std::vector<uint64_t> query_proximities;
+
+                std::vector<prox> query_proximities;
                 for (uint i=0; i<s.r.size(); i++) {
                     for (uint j=s.r[i].first; j<=s.r[i].second; j++) {
+
+                        /*std::cout << s.t_ptrs.size() << ": ";
+                        for (term_info* ti : s.t_ptrs) {
+                            for (uint64_t t : ti->t) {
+                                std::cout << t << " ";
+                            }
+                        }*/
+
                         uint64_t idx = m_csa[m_wtd.select(j+1, m_wtd.sym(s.v))];
-                        query_proximities.push_back(idx);
+                        term_info* ti = s.t_ptrs[i];
+                        /*for (uint64_t t : ti->t) {
+                            std::cout << t << " ";
+                        }
+                        std::cout << std::endl;*/
+
+                        //std:cout << std::endl;
+                        //std::cout << "range: " << s.r[i].first << " to: " << s.r[i].second << std::endl;
+                        //uint64_t idx = m_csa[m_wtd.select(j+1, m_wtd.sym(s.v))];
+
+                        prox p(idx, *ti);
+                        query_proximities.push_back(p);
                     }
                 }
                 res.list.emplace_back(m_docperm.len2id[m_wtd.sym(s.v)], s.score, query_proximities);
@@ -287,7 +302,6 @@ public:
         std::cout << sdsl::size_in_bytes(m_df) << ";";  // DF
         std::cout << 0 << ";"; // WTR^\ell
         std::cout << sdsl::size_in_bytes(m_docperm) << std::endl;  // DOCPERM
-
     }
 
     // TODO this to actual search

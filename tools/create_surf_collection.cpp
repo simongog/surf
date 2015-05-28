@@ -70,16 +70,22 @@ int main( int argc, char** argv ) {
     }
     surf::create_directory(output);
 
-//    if( test_str.back() != '#' ) {
-//        std::cerr << "ERROR: test string must end with doc seperator '#'" << std::endl;
-//        return EXIT_FAILURE;
-//    }
-
     DirListing_t dirtree;
 
     GetDirListing(dirtree, input);
 
     std::string global_str;
+
+    // write docnames file
+    std::ofstream docnames_ofs(output+"/"+surf::DOCNAMES_FILENAME);
+    if(docnames_ofs.is_open()) {
+    //    for(size_t i=1;i<=num_docs;i++) {
+    //        docnames_ofs << "DOCUMENT " << i << std::endl;
+    //    }
+    } else {
+        std::cerr << "ERROR: could not write docnames file." << std::endl;
+        return EXIT_FAILURE;
+    }
 
     for (unsigned n = 0; n < dirtree.size(); n++) {
 
@@ -93,14 +99,24 @@ int main( int argc, char** argv ) {
         // erase two or more whitespaces
         current_str.erase(std::unique(current_str.begin(), current_str.end(), [](char a, char b) { return a == ' ' && b == ' '; } ), current_str.end() );
 
+        if (current_str.empty()) {
+            continue;
+        }
+
+        // store document path
+        docnames_ofs << dirtree[n] << std::endl;
+
         // reverse document
         std::reverse(current_str.begin(), current_str.end());
 
         // concat to global string
+        //if (!global_str.empty()
         global_str.append(" ");
-        global_str.append(trim(current_str));
+        global_str.append(current_str);
         global_str.append(" #");
     }
+
+    std::cout << global_str << std::endl;
 
     // write collection string
     std::map<std::string::value_type,sdsl::int_vector<>::value_type> existing_syms;
@@ -144,17 +160,6 @@ int main( int argc, char** argv ) {
         }
     } else {
         std::cerr << "ERROR: could not write dictionary file." << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    // write docnames file
-    std::ofstream docnames_ofs(output+"/"+surf::DOCNAMES_FILENAME);
-    if(docnames_ofs.is_open()) {
-        for(size_t i=1;i<=num_docs;i++) {
-            docnames_ofs << "DOCUMENT " << i << std::endl;
-        }
-    } else {
-        std::cerr << "ERROR: could not write docnames file." << std::endl;
         return EXIT_FAILURE;
     }
 

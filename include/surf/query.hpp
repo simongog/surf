@@ -6,17 +6,48 @@
 
 namespace surf {
 
+struct term_info{
+    std::vector<uint64_t> t; // term_id
+    uint64_t f_qt; // term_frequency
+    uint64_t sp_Dt; // start of interval for term t in the suffix array
+    uint64_t ep_Dt; // end of interval for term t in the suffix array
+    uint64_t f_Dt;  // number of distinct document the term occurs in
+
+    term_info() = default;
+    term_info(const std::vector<uint64_t>& t, uint64_t f_qt, uint64_t sp_Dt, uint64_t ep_Dt, uint64_t f_Dt) :
+            t(t), f_qt(f_qt), sp_Dt(sp_Dt), ep_Dt(ep_Dt), f_Dt(f_Dt) {
+
+    }
+
+    term_info(term_info&&) = default;
+    term_info(const term_info&) = default;
+    term_info& operator=(term_info&&) = default;
+    term_info& operator=(const term_info&) = default;
+
+    uint64_t F_Dt() const{
+        return ep_Dt-sp_Dt+1;
+    }
+};
+
+struct prox {
+    uint64_t idx;
+    term_info ti;
+
+    prox() {};
+    prox(uint64_t i, term_info t) : idx(i), ti(t) {};
+};
+
 struct doc_score {
 	uint64_t doc_id;
 	double score;
-    std::vector<uint64_t> query_proximities;
+    std::vector<prox> query_proximities;
     bool operator>(const doc_score& rhs) const {
     	if(score == rhs.score)
     		return doc_id > rhs.doc_id;
         return score > rhs.score;
     }
     doc_score() {};
-    doc_score(uint64_t did, double s, const std::vector<uint64_t>& q_p) : doc_id(did), score(s), query_proximities(q_p) {};
+    doc_score(uint64_t did, double s, std::vector<prox> q_p) : doc_id(did), score(s), query_proximities(q_p) {};
 };
 
 struct result {

@@ -96,8 +96,22 @@ int main(int argc,char* const argv[])
         return EXIT_FAILURE;
     }
 
-    uint64_t space = 2; // Fix this static whitespace identifier
-    uint64_t separator = 1;
+    /* load doc names */
+    ifs.close();
+    ifs.clear();
+    std::vector<std::string> docs;
+    ifs.open(args.collection_dir+"/"+surf::DOCNAMES_FILENAME);
+    std::string line;
+    if(ifs.is_open()) {
+        while(getline(ifs,line)){
+            docs.push_back(line);
+        }
+    } else {
+        std::cerr << "ERROR: could not load doc names file." << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    //std::cout << docs.at(0) << std::endl;
 
     /* parse queries */
     surf::query_parser::mapping_t term_map;
@@ -105,6 +119,46 @@ int main(int argc,char* const argv[])
         std::cout << "Loading dictionary and creating term map." << std::endl;
         term_map = surf::query_parser::load_dictionary(args.collection_dir);
     }
+
+    uint64_t eos = 0; // end of full document string
+    uint64_t separator = 1; // end of document string
+    uint64_t space; // Fix this static whitespace identifier
+
+    const std::unordered_map<std::string,uint64_t>& id_mapping = term_map.first;
+    auto id_itr = id_mapping.find("\0");
+    if(id_itr != id_mapping.end()) {
+        space = id_itr->second;
+    }
+
+    //std::cout << "whitespace: " << space << std::endl;
+
+    uint x = 0;
+    std::cout << "text (strings): ";
+    for (uint i : text_col) {
+        if (i == space) {
+            std::cout << x << ":" << " ";
+        } else if (i == separator) {
+            std::cout << x << ":" << "# ";
+        } else {
+            auto id_itr = term_map.second.find(i);
+            if(id_itr != term_map.second.end()) {
+                std::cout << x << ":" << id_itr->second << " ";
+            } else {
+                std::cerr << "ERROR: could not find '" << i << "' in the dictionary." << std::endl;
+            }
+        }
+        x++;
+    }
+    std::cout << std::endl;
+
+    x = 0;
+    std::cout << "text (ints): ";
+    for (uint i : text_col) {
+        std::cout << x << ":" << i << " ";
+        x++;
+    }
+    std::cout << std::endl;
+
 
     /* define types */
     using surf_index_t = INDEX_TYPE;
@@ -170,9 +224,6 @@ int main(int argc,char* const argv[])
                 break;
             }
 
-            /* perform query */
-            auto qry_start = clock::now();
-
             bool parse_ok = true;
 
             std::istringstream buf(qry_str);
@@ -229,14 +280,15 @@ int main(int argc,char* const argv[])
 
             auto search_start = clock::now();
 
+            // search
             auto results = index.search(q_ts,surf_req.k,ranked_and,profile);
 
             auto search_stop = clock::now();
-            auto search_time = std::chrono::duration_cast<std::chrono::microseconds>(search_stop-search_start);
 
-            auto qry_stop = clock::now();
-            auto query_time = std::chrono::duration_cast<std::chrono::microseconds>(qry_stop-qry_start);
+            auto search_time = std::chrono::duration_cast<std::chrono::microseconds>(search_stop-search_start).count();
 
+            // autocomplete
+            // TODO: improve
             std::vector<std::vector<uint64_t>> autocompletes = index.autocomplete(q_ts.back(), space);
 
             Json::Value res;
@@ -244,19 +296,34 @@ int main(int argc,char* const argv[])
 
             for(size_t i=0;i<results.list.size();i++) {
                 Json::Value result;
-                result["doc_id"] = results.list[i].doc_id;
+                uint64_t doc_id = results.list[i].doc_id;
+                result["doc_id"] = doc_id;
+                if (doc_id >= 0 && doc_id < docs.size())
+                    result["doc_path"] = docs[doc_id];
+                std::cout << "doc_id: " << results.list[i].doc_id << std::endl;
                 result["score"] = results.list[i].score;
 
+                ////////
+                // proximity
+                ////////
                 Json::Value proximityArray;
-                for (uint64_t q : results.list[i].query_proximities) {
+                for (surf::prox q : results.list[i].query_proximities) {
+                    /*surf::term_info ti = q.ti;
+                    std::cout << ti.t.size() << std::endl;
+                    for (uint64_t t : ti.t) {
+                        std::cout << t << " ";
+                    }
+                    std::cout << std::endl;*/
 
                     std::string proximity;
-                    uint64_t idx = q;
+                    Json::Value prox;
+                    uint64_t idx = q.idx;
+                    //std::cout << "proximity: " << idx << std::endl;
                     uint64_t c = text_col[idx];
 
+                    // add idx itself
                     if (idx >= 0 && idx < text_col.size()) {
                         c = text_col[idx];
-
                         auto id_itr = term_map.second.find(c);
                         if(id_itr != term_map.second.end()) {
                             proximity.append(id_itr->second);
@@ -265,48 +332,60 @@ int main(int argc,char* const argv[])
                         }
                     }
 
-                    // set chars before idx
-                    size_t offset = 1;
-                    while (idx-offset >= 0 &&
-                           idx-offset < text_col.size() &&
-                           (c = text_col[idx-offset]) != 1 &&
-                           (offset <= surf_req.proximity_num || text_col[idx-offset] != space))
-                    {
-
-                        auto id_itr = term_map.second.find(c);
-                        if(id_itr != term_map.second.end()) {
-                            if (c == space) // TODO: fix this workaround
-                                proximity.insert(0, " ");
-                            else
+                    // set n chars before idx
+                    uint64_t pred_offset = 1;
+                    while (idx-pred_offset >= 0 && idx >= pred_offset &&
+                           (c = text_col[idx-pred_offset]) != separator &&
+                           (pred_offset <= surf_req.proximity_num || text_col[idx-pred_offset] != space)) {
+                        if (c == space) {
+                            proximity.insert(0, " ");
+                        } else {
+                            auto id_itr = term_map.second.find(c);
+                            if (id_itr != term_map.second.end()) {
                                 proximity.insert(0, id_itr->second);
-                        } else {
-                            std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
+                            } else {
+                                std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
+                            }
                         }
-                        offset++;
+                        pred_offset++;
+                    }
+                    pred_offset--;
+                    while(proximity.front() == ' ') {
+                        proximity.erase(0, 1);
+                        pred_offset--;
                     }
 
-                    // set chars after idx
-                    offset = 1;
-                    while (idx+offset >= 0 &&
-                           idx+offset < text_col.size() &&
-                           (c = text_col[idx+offset]) != 1 &&
-                           (offset <= surf_req.proximity_num || text_col[idx+offset] != space))
-                    {
-
-                        auto id_itr = term_map.second.find(c);
-                        if(id_itr != term_map.second.end()) {
-                            if (c == space) // TODO: fix this workaround
-                                proximity.append(" ");
-                            else
+                    // set n chars after idx
+                    uint64_t succ_pred_offset = 1;
+                    while (idx+succ_pred_offset < text_col.size() &&
+                           (c = text_col[idx+succ_pred_offset]) != separator &&
+                           (succ_pred_offset <= surf_req.proximity_num || text_col[idx+succ_pred_offset] != space)) {
+                        if (c == space) {
+                            proximity.append(" ");
+                        } else {
+                            auto id_itr = term_map.second.find(c);
+                            if (id_itr != term_map.second.end()) {
                                 proximity.append(id_itr->second);
-
-                        } else {
-                            std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
+                            } else {
+                                std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
+                            }
                         }
-                        offset++;
+                        succ_pred_offset++;
                     }
+                    succ_pred_offset--;
+                    while(proximity.back() == ' ') {
+                        proximity.pop_back();
+                        succ_pred_offset--;
+                    }
+
+                    prox["proximity_org"] = proximity;
                     std::reverse(proximity.begin(), proximity.end());
-                    proximityArray.append(trim(proximity));
+                    prox["pred_offset"] = pred_offset;
+                    prox["succ_pred_offset"] = succ_pred_offset;
+                    prox["proximity"] = proximity;
+                    prox["start"] = (int)(succ_pred_offset - q.ti.t.size() + 1);
+                    prox["offset"] = (int)q.ti.t.size()-1;
+                    proximityArray.append(prox);
                 }
                 result["proximities"] = proximityArray;
                 resultsArray.append(result);
@@ -317,15 +396,16 @@ int main(int argc,char* const argv[])
             for (std::vector<uint64_t> v : autocompletes) {
                 std::string autocomplete;
                 for (uint64_t c : v) {
-                    auto id_itr = term_map.second.find(c);
-                    if(id_itr != term_map.second.end()) {
-                        if (c == space) // TODO: fix this workaround
-                            autocomplete.append(" ");
-                        else
+                    if (c == space) {
+                        autocomplete.append(" ");
+                    } else {
+                        auto id_itr = term_map.second.find(c);
+                        if (id_itr != term_map.second.end()) {
                             autocomplete.append(id_itr->second);
 
-                    } else {
-                        std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
+                        } else {
+                            std::cerr << "ERROR: could not find '" << c << "' in the dictionary." << std::endl;
+                        }
                     }
                 }
                 std::reverse(autocomplete.begin(), autocomplete.end());
@@ -336,6 +416,7 @@ int main(int argc,char* const argv[])
             res["status"] = REQ_RESPONE_OK;
             res["req_id"] = surf_req.id;
             res["results"] = resultsArray;
+            res["search_time"] = search_time;
 
             Json::StyledWriter writer;
             std::string res_str = writer.write(res);
