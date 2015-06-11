@@ -39,7 +39,7 @@ class df_sada{
         typedef t_sel select_type;
         typedef t_alphabet alphabet_category;
 
-        typedef sdsl::cst_sct3<sdsl::csa_wt<wt_int<rrr_vector<64>>>,sdsl::lcp_dac<>,sdsl::bp_support_sada<>,sdsl::bit_vector,sdsl::rank_support_v<>,sdsl::select_support_mcl<>> cst_type;
+        typedef sdsl::cst_sct3<sdsl::csa_wt<sdsl::wt_int<sdsl::rrr_vector<64>>>,sdsl::lcp_dac<>,sdsl::bp_support_sada<>,sdsl::bit_vector,sdsl::rank_support_v<>,sdsl::select_support_mcl<>> cst_type;
         typedef sdsl::wt_int<sdsl::bit_vector,
                              sdsl::rank_support_v<>,
                              sdsl::select_support_scan<1>,

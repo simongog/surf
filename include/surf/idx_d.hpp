@@ -5,12 +5,13 @@
 #include "surf/df_sada.hpp"
 #include "surf/rank_functions.hpp"
 #include "surf/construct_col_len.hpp"
+#include "surf/query.hpp"
 #include <algorithm>
 #include <limits>
 #include <queue>
 #include <sdsl/wt_algorithm.hpp>
 
-namespace surf{
+namespace surf {
 
 using range_type = sdsl::range_type;
 
@@ -122,12 +123,12 @@ public:
         result res;
 
         uint x = 0;
-        std::cout << "csa: ";
+        /*std::cout << "csa: ";
         for (uint i : m_csa) {
             std::cout << x << ":" << i << " ";
             x++;
         }
-        std::cout << std::endl;
+        std::cout << std::endl;*/
 
         if (profile) {
             res.wt_nodes = 2*m_wtd.sigma-1;
@@ -204,13 +205,13 @@ public:
 
         constexpr double max_score = std::numeric_limits<double>::max();
 
-        for(unsigned int i = 0; i<m_csa.wavelet_tree.size(); i++) {
+        /*for(unsigned int i = 0; i<m_csa.wavelet_tree.size(); i++) {
             cout << i;
             cout << ":";
             cout << m_csa.wavelet_tree[i];
             cout << " ";
         }
-        cout << endl;
+        cout << endl;*/
 
         pq_min_type pq_min;
         pq_type pq;

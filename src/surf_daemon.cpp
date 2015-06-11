@@ -162,13 +162,19 @@ int main(int argc,char* const argv[])
 
     /* define types */
     using surf_index_t = INDEX_TYPE;
+    /*using surf_index_t = surf::idx_d<
+            sdsl::csa_wt<sdsl::wt_int<sdsl::rrr_vector<63>>,8,8>,
+            sdsl::wt_int<sdsl::bit_vector, sdsl::rank_support_v5<>, sdsl::select_support_scan<1>, sdsl::select_support_scan<0>>,
+            surf::df_sada<sdsl::rrr_vector<63>>,
+            surf::rank_bm25<>
+    >;*/
     std::string index_name = IDXNAME;
 
     /* load the index */
     std::cout << "Loading index." << std::endl;
     surf_index_t index;
     auto load_start = clock::now();
-    construct(index, "", cc, 0);
+    surf::construct(index, "", cc, 0);
     index.load(cc);
     auto load_stop = clock::now();
     auto load_time_sec = std::chrono::duration_cast<std::chrono::seconds>(load_stop-load_start);
@@ -186,8 +192,10 @@ int main(int argc,char* const argv[])
             /* wait for msg */
             server.recv(&request);
 
+            std::cout << "incoming search request" << std::endl;
+
             std::string rpl = std::string(static_cast<char*>(request.data()), request.size());
-            std::cout << rpl << std::endl;
+            //std::cout << rpl << std::endl;
 
             Json::Value root;
             Json::Reader reader;
@@ -234,7 +242,7 @@ int main(int argc,char* const argv[])
                 std::vector<uint64_t> token_ids;
                 std::vector<std::string> token_strs;
                 std::reverse(s.begin(), s.end());
-                std::cout << s << std::endl;
+                //std::cout << s << std::endl;
                 for(std::string::iterator it = s.begin(); it != s.end(); ++it) {
                     const char c = *it;
                     std::unordered_map<std::string,uint64_t> tm = term_map.first;
@@ -300,7 +308,7 @@ int main(int argc,char* const argv[])
                 result["doc_id"] = doc_id;
                 if (doc_id >= 0 && doc_id < docs.size())
                     result["doc_path"] = docs[doc_id];
-                std::cout << "doc_id: " << results.list[i].doc_id << std::endl;
+                //std::cout << "doc_id: " << results.list[i].doc_id << std::endl;
                 result["score"] = results.list[i].score;
 
                 ////////
@@ -421,11 +429,13 @@ int main(int argc,char* const argv[])
             Json::StyledWriter writer;
             std::string res_str = writer.write(res);
 
-            std::cout << res_str << std::endl;
+            //std::cout << res_str << std::endl;
 
             zmq::message_t reply(res_str.length());
             memcpy(reply.data(), res_str.c_str(), res_str.length());
             server.send(reply);
+
+            std::cout << "search request successfully processed" << std::endl;
         }
     }
 
