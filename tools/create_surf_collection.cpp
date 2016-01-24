@@ -68,13 +68,12 @@ int main( int argc, char** argv ) {
         std::cerr << "ERROR: collection directory already exists." << std::endl;
         return EXIT_FAILURE;
     }
+
     surf::create_directory(output);
 
     DirListing_t dirtree;
 
     GetDirListing(dirtree, input);
-
-    std::string global_str;
 
     // write docnames file
     std::ofstream docnames_ofs(output+"/"+surf::DOCNAMES_FILENAME);
@@ -87,8 +86,15 @@ int main( int argc, char** argv ) {
         return EXIT_FAILURE;
     }
 
-    for (unsigned n = 0; n < dirtree.size(); n++) {
+    // write collection string
+    std::map<std::string::value_type,sdsl::int_vector<>::value_type> existing_syms;
+    std::map<sdsl::int_vector<>::value_type,std::string::value_type> sym_mapping;
+    sdsl::int_vector<> text_col;
+    size_t j = 0;
+    size_t num_docs = 0;
 
+    for (size_t n=0; n<dirtree.size(); n++) 
+    {
         std::ifstream inFile;
         inFile.open(dirtree[n]);
 
@@ -97,7 +103,7 @@ int main( int argc, char** argv ) {
         std::string current_str = strStream.str();
 
         // erase two or more whitespaces
-        current_str.erase(std::unique(current_str.begin(), current_str.end(), [](char a, char b) { return a == ' ' && b == ' '; } ), current_str.end() );
+        //current_str.erase(std::unique(current_str.begin(), current_str.end(), [](char a, char b) { return a == ' ' && b == ' '; } ), current_str.end() );
 
         if (current_str.empty()) {
             continue;
@@ -109,31 +115,18 @@ int main( int argc, char** argv ) {
         // reverse document
         std::reverse(current_str.begin(), current_str.end());
 
-        // concat to global string
-        //if (!global_str.empty()
-        global_str.append(" ");
-        global_str.append(current_str);
-        global_str.append(" #");
-    }
+        //current_str.insert(0, " "); 
+        //current_str.append(" ");
 
-    std::cout << global_str << std::endl;
+        text_col.resize(j+current_str.size());
 
-    // write collection string
-    std::map<std::string::value_type,sdsl::int_vector<>::value_type> existing_syms;
-    std::map<sdsl::int_vector<>::value_type,std::string::value_type> sym_mapping;
-    sdsl::int_vector<> text_col(global_str.size()+1);
-    size_t j=0;
-    size_t num_docs = 0;
-    for(const auto& sym : global_str) {
+        for (const auto& sym : current_str) 
+        {
+            //std::cout << sym << std::endl;
 
-        std::cout << sym << std::endl;
-
-        if(sym == '#') {
-            text_col[j++] = 1;
-            num_docs++;
-        } else {
             auto itr = existing_syms.find(sym);
-            if(itr != existing_syms.end()) {
+            if (itr != existing_syms.end()) 
+            {
                 text_col[j++] = itr->second;
             } else {
                 sdsl::int_vector<>::value_type new_sym = existing_syms.size()+2;
@@ -142,7 +135,12 @@ int main( int argc, char** argv ) {
                 text_col[j++] = new_sym;
             }
         }
+
+        text_col[j++] = 1;
+        num_docs++;
     }
+
+    text_col.resize(j+1);
     text_col[j] = 0;
     std::ofstream ofs(output+"/"+surf::TEXT_FILENAME);
     if(ofs.is_open()) {
@@ -163,21 +161,27 @@ int main( int argc, char** argv ) {
         return EXIT_FAILURE;
     }
 
-    std::cout << "Created surf collection for string '" << global_str << "'" << std::endl;
+    //std::cout << "Created surf collection for string '" << current_str << "'" << std::endl;
     std::cout << "Found " << num_docs << " documents." << std::endl;
     std::cout << "Document delimiter = " << 1 << std::endl;
+
     std::cout << surf::TEXT_FILENAME << ": ";
-    for(const auto& sym : text_col) {
+    for (const auto& sym : text_col) 
+    {
         std::cout << sym << " ";
     }
     std::cout << std::endl;
+
     std::cout << "Mapping: ";
-    for(const auto& mapping : sym_mapping) {
-        std::cout << mapping.second << " -> " << mapping.first << "; ";
+    for(const auto& mapping : sym_mapping) 
+    {
+        std::cout << mapping.second << " -> " << mapping.first << std::endl;
     }
     std::cout << std::endl;
+
     std::cout << "Document Names: ";
-    for(size_t i=1;i<=num_docs;i++) {
+    for(size_t i=1; i<=num_docs; i++) 
+    {
         std::cout << "'DOCUMENT " << i << "'; ";
     }
     std::cout << std::endl;
